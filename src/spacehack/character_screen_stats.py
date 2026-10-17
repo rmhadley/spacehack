@@ -106,22 +106,30 @@ def _info_row(label: str):
     return pygame_split.SplitRow(label, "", "", "", selectable=False)
 
 
+# The piece sub-line's slight indent (2026-10-17 playtest revision:
+# the name row with the ruled detail indented below reads as one
+# unit without a leader line).
+_PIECE_DETAIL_INDENT = "   "
+
+
 def _chrome_pane_rows(ctx: GameContext, skill: str) -> tuple:
-    """The right pane (display-only): the selected bay's installed
-    chrome, led by the guide-synced skill description."""
+    """The right pane (display-only): each installed piece as its
+    name with the ruled detail line slightly indented below. The
+    skill description moved to the left pane's pinned detail
+    (2026-10-17 playtest revision)."""
     from .chrome import installed_for_skill
     from .data.chrome import find_chrome
 
-    rows = [_info_row(_SKILL_DESCRIPTIONS[skill])]
     pieces = installed_for_skill(
         getattr(ctx, "installed_chrome", ()), skill,
     )
     if not pieces:
-        rows.append(_info_row("Nothing installed."))
-    rows.extend(
-        _info_row(f"{spec.name}  {spec.detail}")
-        for spec in (find_chrome(piece_id) for piece_id in pieces)
-    )
+        return (_info_row("Nothing installed."),)
+    rows = []
+    for piece_id in pieces:
+        spec = find_chrome(piece_id)
+        rows.append(_info_row(spec.name))
+        rows.append(_info_row(_PIECE_DETAIL_INDENT + spec.detail))
     return tuple(rows)
 
 
@@ -139,9 +147,11 @@ def _selected_skill(left_rows, selected: int) -> str:
 
 def _stats_frame(ctx: GameContext, title: str, current_xp: int, needed: int, selected: int):
     """Build the Stats-tab split frame (Brief 4.3, cluster C): the
-    six stat rows + xN piece counts on the left, the selected
-    bay's chrome on the right, the ruled ego readout under both
-    panes. ENTER stays SPEND; the right pane never takes focus."""
+    six stat rows + xN piece counts on the left (the selected row's
+    guide-synced skill description pins below the pane, as the old
+    Stats tab did), each installed piece as name-over-detail on the
+    right, the ruled ego readout under both panes. ENTER stays
+    SPEND; the right pane never takes focus."""
     from . import pygame_split, pygame_ui
     from .chrome import ego_readout_line, state_line
 
@@ -153,7 +163,8 @@ def _stats_frame(ctx: GameContext, title: str, current_xp: int, needed: int, sel
         pygame_split.SplitRow(
             f"{skill.title():<12}",
             _skill_value_cell(ctx, index, skill),
-            "", f"SPEND:{skill}",
+            _SKILL_DESCRIPTIONS[skill],
+            f"SPEND:{skill}",
         )
         for index, skill in enumerate(_SKILLS)
     )

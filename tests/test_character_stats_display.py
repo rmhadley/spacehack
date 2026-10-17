@@ -17,7 +17,7 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.spacehack.character_screen import _SKILL_DESCRIPTIONS, _stats_frame
+from src.spacehack.character_screen import _SKILLS, _SKILL_DESCRIPTIONS, _stats_frame
 from src.spacehack.ship import OwnedShip, StoredEquipment
 
 
@@ -153,32 +153,64 @@ def test_chrome_count_rides_the_value_cell():
     assert _row_texts(ctx)[3] == "Reflexes        8 x1  [+]"
 
 
-def test_chrome_pane_lists_the_selected_bay_led_by_the_description():
+def test_chrome_pane_pairs_names_with_indented_details():
+    """2026-10-17 playtest revision: each piece is its name with the
+    ruled detail line slightly indented below (no leader line)."""
     ctx = _ctx(installed_chrome=["terminus_optics", "terminus_smartlink"])
     # No gear line in this ctx: header rows 0-1, stat rows 2-7.
     gunnery = _stats_frame(ctx, "CHARACTER", 0, 100, 2)
     assert [row.label for row in gunnery.right_rows] == [
-        _SKILL_DESCRIPTIONS["gunnery"],
-        "Terminus Optics  Space crit chance 15%.",
+        "Terminus Optics",
+        "   Space crit chance 15%.",
     ]
     reflexes = _stats_frame(ctx, "CHARACTER", 0, 100, 5)
     assert [row.label for row in reflexes.right_rows] == [
-        _SKILL_DESCRIPTIONS["reflexes"],
-        "Terminus SmartLink  Ranged crit chance 15%.",
+        "Terminus SmartLink",
+        "   Ranged crit chance 15%.",
     ]
+
+
+def test_stat_rows_pin_the_skill_description_below_the_left_pane():
+    """2026-10-17 playtest revision: the selected stat's description
+    is the left pane's pinned detail (as the old Stats tab showed
+    it), never the right pane's leader."""
+    frame = _stats_frame(_ctx(), "CHARACTER", 0, 100, 0)
+    stat_rows = [row for row in frame.left_rows if row.selectable]
+    assert [row.detail for row in stat_rows] == [
+        _SKILL_DESCRIPTIONS[skill]
+        for skill in _SKILLS
+    ]
+    assert all(
+        row.label != _SKILL_DESCRIPTIONS["gunnery"]
+        for row in frame.right_rows
+    )
 
 
 def test_header_selection_clamps_to_the_nearest_stat():
     """The dynamic runner seeds arbitrary indices (first build 0);
-    a header row reads as the nearest stat, never a crash."""
-    frame = _stats_frame(_ctx(), "CHARACTER", 0, 100, 0)
-    assert frame.right_rows[0].label == _SKILL_DESCRIPTIONS["gunnery"]
+    a header row reads as the NEAREST stat's bay, never a crash —
+    pinned with bay content so the landing bay itself is proven
+    (seed 0 -> Gunnery; a stat-row seed lands its own bay)."""
+    ctx = _ctx(installed_chrome=["terminus_optics"])
+    frame = _stats_frame(ctx, "CHARACTER", 0, 100, 0)
+    assert [row.label for row in frame.right_rows] == [
+        "Terminus Optics",
+        "   Space crit chance 15%.",
+    ]
+    stim = _stats_frame(
+        _ctx(installed_chrome=["terminus_neural_stim"]),
+        "CHARACTER", 0, 100, 4,   # row 4 = Engineering
+    )
+    assert [row.label for row in stim.right_rows] == [
+        "Terminus Neural Stim",
+        "   +2 AP this round, -1 next round. Cooldown 3.",
+    ]
 
 
 def test_empty_bay_reads_nothing_installed():
-    frame = _stats_frame(_ctx(), "CHARACTER", 0, 100, 0)
+    frame = _stats_frame(_ctx(), "CHARACTER", 0, 100, 3)
     assert [row.label for row in frame.right_rows] == [
-        _SKILL_DESCRIPTIONS["gunnery"], "Nothing installed.",
+        "Nothing installed.",
     ]
 
 
@@ -205,7 +237,7 @@ def test_row_budgets_stay_within_the_split_viewport():
     ctx.transponder_cutout = True  # the Gear header line joins
     frame = _stats_frame(ctx, "CHARACTER", 0, 100, 0)
     assert len(frame.left_rows) == 9            # XP, Traits, Gear + 6 stats
-    assert len(frame.right_rows) == 2           # description + one piece
+    assert len(frame.right_rows) == 2           # piece name + indented detail
     assert len(frame.left_rows) <= MAX_VISIBLE_ROWS
     assert len(frame.right_rows) <= MAX_VISIBLE_ROWS
 
