@@ -1,13 +1,11 @@
 # DESIGN: Statuses — the durable buff/debuff system
 
-**Status: DESIGN IN PROGRESS — the architecture is shaped and
-plan-approved (2026-10-17); the advisor ADVISE pass is folded
-(2026-10-18, verdict SOUND-WITH-CATCHES, all 29 issues below); the
-refine RULINGS PASS is COMPLETE (2026-10-18 — all 13 open
-questions settled) and the SEMANTICS PASS is COMPLETE (2026-10-18
-— see both SETTLED sections). The Implementation briefs for
+**Status: BUILD A LANDED (2026-10-18 — built, bit-identity proven,
+reviewer round-2 APPROVE; awaiting the Build A playtest). The
+Implementation briefs for
 Build A and Build B are DRAFTED, ADVISE-folded, and APPROVED
-(2026-10-18). Build A is buildable: `/implement-phase 103.4`.**
+(2026-10-18). Next build: `/implement-phase 103.5` (Build B, the
+staggered debut — its pre-build prose gate runs first).**
 
 Companions: `complete/102_DESIGN_CYBERNETICS.md` (the Parked sketch
 this doc inherits — "a general statuses container (`id → rounds
@@ -486,12 +484,22 @@ B's playtest checklist.
       folded — and user-approved; budget note verified:
       total-line headroom only, zero oversized functions in
       either touched module)
-- [ ] Build A: the engine + catalog + the migrations (incl. the
-      Pirate opener, q4) — bit-identity
-      proof (harness rows + unit pins, per the proof law) + gate
-      green + the engine's own unit tests (apply/advance/sum_effects
-      are mutation-wrappers: same-commit tests, plus the
-      actor-symmetry pin). PLAYTEST: a med pack, a stim, the Stim
+- [x] Build A: the engine + catalog + the migrations (incl. the
+      Pirate opener, q4) — BUILT 2026-10-18 (8 commits: engine +
+      catalog + 18 unit pins; ctx home + save wiring; ground
+      player-side; enemy-side; opener; space loan; render pin;
+      reviewer fix pass — round 1 REQUEST_CHANGES with 2 blockers
+      [the expiring heal tick's KeyError + expire-line log order],
+      both fixed + minors folded, round 2 APPROVE). Bit-identity
+      PROVEN: worktree pre/post balance-report diff EMPTY on every
+      deterministic number (31 scenarios; the only moving lines are
+      the flight-telemetry crossing-rounds means, run-nondeterministic
+      in the PRE tree itself) + the full suite green + unit pins
+      rewritten behavior-first with exact numbers preserved. The
+      med pack's effect_id renamed restore_hp→regen; the enemy
+      instance construction and space position-sync moves paid the
+      ratchet in-commit; the opener plumbing lives in
+      combat/_opener.py. PLAYTEST: a med pack, a stim, the Stim
       loan, an enemy carrier, a Pirate opener fight — behavior
       indistinguishable, the HUD line reads.
 - [ ] Build B: the staggered debut (two-sided: player wields →
@@ -516,7 +524,14 @@ B's playtest checklist.
       the regen — the instant full heal RETIRES, economy watch
       row). Save round-trip
       of a mid-tick container pinned (the ctx home + wiring
-      already landed in Build A). PLAYTEST: disengage mid-regen and
+      already landed in Build A). WATCH ROW (reviewer round-2
+      minor, 2026-10-18): the space reset_turn event walk still
+      logs expire lines mid-walk — unreachable-divergent today
+      (only the loan can share a space boundary) but the moment a
+      space-delivered timed status shares a boundary with the
+      loan, it reproduces the ground's round-1 order inversion;
+      buffer post-walk (or share the ground adapter) when Build C
+      lands the first such status. PLAYTEST: disengage mid-regen and
       keep healing while walking; save/quit/continue mid-tick;
       board with a ground status active (it pauses); end a fight
       burning or staggered and feel it carry; use a med pack out
