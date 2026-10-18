@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import pytest
 
 import src.spacehack.dev_mode as dev_mode
+import src.spacehack.dev_instruments as dev_instruments
 from src.spacehack.dev_mode import (
     advance_main_quest,
     apply_dev_ground_loadout,
@@ -973,3 +974,78 @@ def test_dev_grant_packs_and_is_power_valid():
     assert install_refusal(
         owned, StoredEquipment("module", "targeting_computer"), frigate,
     ) is None
+
+
+# ---------------------------------------------------------------------------
+# Playtest instruments (doc 103 Build B): the F8 picker's burn dial +
+# the enemy-baton arming hook.
+# ---------------------------------------------------------------------------
+
+
+def _instruments_ctx():
+    from src.spacehack.game_context import GameContext
+
+    ctx = GameContext(
+        context=None, character_info={"species_id": "human"},
+        log=None, game_map=None, player=None, stats=None,
+    )
+    ctx.log = SimpleNamespace(
+        add=lambda _m, **_k: None,
+        add_colored=lambda _m, _c, **_k: None,
+    )
+    return ctx
+
+
+def test_burn_dial_sets_each_bands_representative_value():
+    from src.spacehack.chrome import band, band_name
+
+    ctx = _instruments_ctx()
+    for dial_id, burn in dev_instruments._BURN_DIAL:
+        line = dev_instruments.set_dev_burn(ctx, dial_id)
+        assert ctx.ego_burn == burn
+        assert band(burn) == {
+            "natural": 0, "tainted": 1, "chromed": 2, "psycho": 3,
+        }[dial_id]
+        assert band_name(band(burn)) in line
+
+
+def test_arm_enemy_batons_rewrites_the_loadout_stamp():
+    from src.spacehack import ground_loadout
+    from src.spacehack.combat._rules_ground import GroundEnemyInstance
+
+    _stamp = {
+        "ranged": ["kinetic_pistol", 0], "melee": None,
+        "loaded": {"kinetic_pistol": 6}, "pool": [], "active": "ranged",
+        "worn": [],
+    }
+    _ent = SimpleNamespace(rolled_loadout=_stamp)
+    _gei = GroundEnemyInstance(
+        entity=_ent, spec=SimpleNamespace(armor=0, name="Pirate Raider"),
+    )
+
+    line = dev_instruments.arm_enemy_batons([_gei])
+
+    assert _stamp["melee"] == ["stun_baton", 0]
+    assert _stamp["ranged"] is None
+    assert _stamp["active"] == ground_loadout.SET_MELEE
+    assert _gei.weapon_id == "stun_baton"
+    assert "1 wielders" in line  # dev line states the count
+
+
+def test_instruments_menu_labels_read_live_state():
+    from src.spacehack.chrome import band, band_name
+
+    ctx = _instruments_ctx()
+    _labels = dict(dev_instruments.playtest_instruments_menu(ctx).options)
+    assert set(_labels) == {
+        "burn_natural", "burn_tainted", "burn_chromed", "burn_psycho",
+        "arm_batons",
+    }
+    # The twin of set_dev_burn's line: the LABEL reads the band name
+    # through band() too (raw burn 5/9 clamp straight to Psycho).
+    for dial_id, burn in dev_instruments._BURN_DIAL:
+        assert f"({band_name(band(burn))})" in _labels[f"burn_{dial_id}"]
+    assert _labels["burn_tainted"] == "Burnt Ego -> 5 (Tainted)"
+    ctx.dev_enemy_batons = True
+    _labels = dict(dev_instruments.playtest_instruments_menu(ctx).options)
+    assert _labels["arm_batons"].endswith("ARMED")

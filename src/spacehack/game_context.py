@@ -396,6 +396,14 @@ class GameContext:
     active_statuses: dict = dataclasses.field(
         default_factory=dict,
     )
+    # Doc 103 Build B's playtest instrument: when True, every ground
+    # enemy built at the ENGAGED sites (fight init + mid-fight joins)
+    # wields a Stun Baton, so "an enemy staggers me" is reliably
+    # encounterable. DEV-ONLY state — the flag itself is deliberately
+    # NEVER serialized (a loaded game reads False); note an armed
+    # entity's rolled_loadout stamp still round-trips like any
+    # wound would (dev exposure, accepted).
+    dev_enemy_batons: bool = False
     # The bandolier (doc 52): per-caliber reserve rounds, ammo_type →
     # count, each clamped at its catalog carry_cap. The reload reserve
     # store — pickups and restock refill it; it never occupies a pack

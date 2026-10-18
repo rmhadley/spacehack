@@ -603,6 +603,14 @@ def _is_f7_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return pygame_engine.is_keydown(event) and event.key_name == 'f7'
 
+def _is_f8_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a KeyDown for the F8 key.
+
+    Dev-mode only (``SPACEHACK_DEV``): opens the playtest instruments
+    picker (doc 103 Build B — the burn-band dial + enemy-baton arming).
+    """
+    return pygame_engine.is_keydown(event) and event.key_name == 'f8'
+
 def _is_f9_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a KeyDown for the F9 key.
 

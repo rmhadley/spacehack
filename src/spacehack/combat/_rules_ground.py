@@ -129,6 +129,15 @@ def _defuse_stale_session(ctx) -> None:
     )
 
 
+def _arm_dev_batons(ctx, instances) -> None:
+    """The dev arming hook (doc 103 Build B): F8's flag rebuilds every
+    built wielder's loadout as a lone Stun Baton — fight init AND
+    mid-fight joins, so "an enemy staggers me" stays encounterable."""
+    if instances and getattr(ctx, "dev_enemy_batons", False):
+        from ..dev_instruments import arm_enemy_batons as _arm
+        ctx.log.add(_arm(instances))
+
+
 def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, console=None) -> None:
     """Set up combat session state for a ground combat encounter."""
     global _state
@@ -159,6 +168,7 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
     # The Pirate opener arms at fight construction where the trait
     # holds (doc 103 Build A's positive modeling).
     _opener.arm(ctx, _enemies, theater="ground")
+    _arm_dev_batons(ctx, _enemies)
 
     ctx.log.add_colored(
         f"Combat starts! {', '.join(_e.name for _e in _enemies)} engage!",
@@ -786,6 +796,7 @@ def refresh_engaged(ctx, game_map: world.GameMap) -> None:
         # The window read covers the ENGAGED set before the joins
         # (an open window inherits onto the joiners — see _opener).
         _opener.inherit(_joined, _state.enemies, theater="ground")
+        _arm_dev_batons(ctx, _joined)
         _state.enemies.extend(_joined)
         _announce_joins(ctx, _joined)
 
