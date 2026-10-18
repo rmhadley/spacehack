@@ -67,9 +67,11 @@ name is exactly the kind that would confuse a status later.)
 
 ## Identity and doctrines
 
-- **A status is a timed, fight-scoped, ACTOR-ATTACHED effect.** One
-  mechanism for buffs and debuffs alike; polarity is presentation
-  data (color, wording), never a code fork.
+- **A status is a timed, ACTOR-ATTACHED effect.** PLAYER statuses
+  are DURABLE across combat boundaries (ruled 2026-10-18, below);
+  enemy statuses are fight-scoped. One mechanism for buffs and
+  debuffs alike; polarity is presentation data (color, wording),
+  never a code fork.
 - **Actor-symmetric by construction** (the chrome precedent, doc
   102 SETTLED 6): the player container and the enemy containers are
   the same type; every read takes a container, never an is-player
@@ -115,13 +117,14 @@ name is exactly the kind that would confuse a status later.)
     gating, not conditions on the actor (open question 3).
   - Permanent world-layer states (ego bands) are consequences, not
     combat timers.
-- **Fight-scoped, never serialized** — identical to every mechanism
-  being replaced (no mid-fight saves exist; combat QUIT never
-  persists; saves happen only at the exploration-mode exit seam,
-  `game_flow.py:119-138` — advisor-verified). A persistent
-  across-fight condition (disease, a long wound) is a future
-  ctx-level extension reusing the same container type; out of scope
-  here, recorded as the durability seam.
+- **Player statuses are DURABLE; enemy statuses are fight-scoped
+  (RULED 2026-10-18 — see the Durability section).** The player's
+  container lives at the ctx level and is SAVED; enemy containers
+  die with the enemy's fight and never serialize. Combat QUIT
+  still never persists mid-fight (no mid-fight saves exist; saves
+  happen only at the exploration exit seam, `game_flow.py:119-138`
+  — advisor-verified), but a regen ticking while you walk survives
+  save/quit/continue by the save contract.
 
 ## Application is ROLLED, not guaranteed (RULED 2026-10-17)
 
@@ -171,6 +174,41 @@ ego. This is where the ego drain was going to come in to play."**
   three firsts in one piece, on ground where the behavior is
   already live and pinned.
 
+## Durability — statuses survive the fight (RULED 2026-10-18)
+
+User ruling, recorded: **"I want them to be durable and persist.
+But it'll need careful planning and consideration. Having a damage
+tick on the player after they got in their ship and switched to
+space mode might be the wrong choice. But ending ground combat
+shouldn't immediately remove your current buff/debuff."**
+
+- **Ending combat does NOT clear the player's statuses.** Today
+  leftover effects simply evaporate (`sync_state` discards the
+  fight state; a med pack's unfinished regen is LOST — verified;
+  the earlier draft's "redundant with the outside-combat
+  full-heal" claim was wrong, conflating two different use
+  moments). The correct end-state (user): an in-combat med pack's
+  regen CONTINUES ticking outside combat.
+- **Theater crossing is the careful-planning case**: a ground
+  damage tick following the player into space combat "might be the
+  wrong choice" (user instinct, agreed) — per-status crossing
+  rules, ruled in the refine pass (lean: ground statuses pause or
+  expire on boarding; fire smothering in the cockpit is thematic).
+- **Sequencing ruling (the efficiency question, answered by
+  split-by-layer):** the Build A migration stays BEHAVIOR-identical
+  (fight end still defuses the player container, exactly as
+  today's ledger evaporates) — that is the proof layer, and
+  bundling boundary changes into it would make every diff and
+  every tripped balance row ambiguous between "harness wrong" and
+  "new rule working." But the STRUCTURAL placement happens up
+  front: the player container lands in its final home at Build A
+  (ctx-level, save-wired, empty backfill) so it never moves twice.
+  Build C flips the rules — carry-over at combat end, the
+  exploration tick hook, crossing rules — as pure rule changes on
+  the placed structure. Enemy containers stay fight-scoped
+  throughout (an enemy's staggered dies with its fight; nothing to
+  carry).
+
 ## The data model
 
 ### StatusSpec (frozen, `data/statuses.py`)
@@ -209,20 +247,22 @@ ego. This is where the ego drain was going to come in to play."**
 source carries the deliverer for attribution (log lines, future AI
 reads).
 
-### One container per actor — four homes, one type
+### One container type — the durable player home + the fight-scoped enemy homes
 
-- `GroundCombatState.statuses: dict[str, ActiveStatus]`
-- space `player_state["statuses"]` — a dict KEY stamped in the
-  `_player_state_dict` builder (`_stats.py:397-434`), not a
-  `_types` field; same principle (declared at init, never attached
-  at runtime), different home (advisor catch: only two of the four
-  homes are `_types` modules).
+- THE PLAYER: `ctx.active_statuses: dict[str, ActiveStatus]` — ONE
+  durable home for both theaters (the 2026-10-18 ruling), declared
+  on `GameContext`, wired into `_core_fields` /
+  `_restore_core_fields` with an empty-dict backfill; the combat
+  states READ this container (theater tags and crossing rules are
+  the refine pass). The structural placement lands in Build A so
+  the container never moves twice; Build A's fight-end defuse
+  keeps behavior bit-identical until Build C flips it.
 - `GroundEnemyInstance.statuses` (declared in `_ground_types.py`)
 - `EnemyInstance.statuses` (declared in `_types.py` — space enemies
   gain their first timed container)
 
-The cohesion law owns the two dataclass declarations; the dict homes
-are stamped by their init builders. Nothing attaches at runtime.
+The cohesion law owns the GameContext field and the two dataclass
+declarations. Nothing attaches at runtime.
 
 ### The engine (`combat/_statuses.py`)
 
@@ -417,6 +457,19 @@ B's playtest checklist.
       baton balance rows re-pinned, baton unit tests rewritten.
       PLAYTEST: the baton staggers sometimes, deep burn moves the
       odds (dial or kiosk), the enemy wears it and shows it.
+- [ ] Build C: the durable boundaries — the fight-end defuse rule
+      flips to carry-over (leftover regen keeps healing while you
+      explore), the exploration tick hook (what counts as a turn
+      out of combat), theater-crossing rules (q.11), what persists
+      vs defuses per status (q.13 — lean: loans defuse, they are
+      combat tempo; hostile statuses persist), and the
+      out-of-combat consumable behaviors (q.12: the stim's
+      exploration legality; the med pack's outside-combat use —
+      full-heal stays or becomes the regen buff). Save round-trip
+      of a mid-tick container pinned (the ctx home + wiring
+      already landed in Build A). PLAYTEST: disengage mid-regen and
+      keep healing while walking; save/quit/continue mid-tick;
+      board with a ground status active; end a fight burning.
 - [ ] Close (SYSTEMS.md inventory amended same-commit; move to
       complete/)
 
@@ -439,8 +492,14 @@ B's playtest checklist.
    they land.
 5. Actor symmetry pinned: the same tests drive player and enemy
    containers.
-6. Save/round-trip unaffected (fight-scoped); no new blessed
-   globals.
+6. Save round-trip: the player container round-trips from Build A
+   (empty backfill, defused at fight end per today) and carries
+   live entries from Build C; enemy containers unaffected
+   (fight-scoped); no new blessed globals.
+7. **Durability correct by the end of the doc** (user, 2026-10-18):
+   ending combat does not remove the player's statuses; the med
+   pack's unfinished regen keeps ticking outside combat; theater
+   crossings behave per the ruled crossing rules.
 
 ## Advisor pass (2026-10-18) — verdict SOUND-WITH-CATCHES; all 29 issues folded
 
@@ -519,3 +578,20 @@ issues, folded above:
 10. **The killing-hit guard** (advisor): roll application only if
     the victim survives (lean yes — a killing hit has no victim,
     and the wasted draw shifts every subsequent stream draw)?
+11. **Theater crossing** (user-flagged, 2026-10-18): what happens
+    to an active ground status when the player boards / enters
+    space combat — pause until back on the ground, expire, or
+    continue ticking (lean: pause-or-smother; a damage tick
+    following you into the ship "might be the wrong choice")? And
+    the mirror: space statuses when docking?
+12. **Out-of-combat consumable use** (follows from durability):
+    does the Combat Stim become exploration-legal (pre-buffing
+    into fights), and does the med pack's outside-combat use stay
+    the full heal or become the regen buff (consistency vs
+    kindness)? If pre-buffing ships: do exploration turns tick
+    duration during the approach (lean yes — walking spends it)?
+13. **What survives fight end vs defuses** (Build C's per-status
+    law): the loan (lean: defuses — it is combat tempo, not a
+    condition), fire/poison (lean: persist — you keep your burns,
+    the enemy-wound doctrine pointed at the player), staggered
+    (moot for now — enemy-side only)?
