@@ -893,7 +893,6 @@ async def activate_core(ctx) -> None:
         )
         return
     _ps["ap_remaining"] += 2
-    from . import _statuses
     from ..data.statuses import NEURAL_STIM_LOAN_ID
     _statuses.apply(
         _state.ctx.active_statuses, NEURAL_STIM_LOAN_ID, theater="space",
