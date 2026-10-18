@@ -2607,3 +2607,52 @@ def test_biome_dig_bottom_round_trips_entities(
     assert [e.loot_data for e in loaded_legendary] == [
         e.loot_data for e in legendary
     ]
+
+
+class TestActiveStatusesContainer:
+    """The player's durable status container (doc 103 Build A):
+    entry-level serialize/reconstruct, empty backfill for old saves,
+    retired row ids KEPT for the engine's silent-skip reads."""
+
+    def test_container_round_trips_through_the_entry_helpers(self):
+        from src.spacehack import saveload
+        from src.spacehack.combat import _statuses
+        from src.spacehack.data.statuses import (
+            NEURAL_STIM_LOAN_ID, REGEN_ID,
+        )
+
+        ctx = _build_test_ctx()
+        _statuses.apply(
+            ctx.active_statuses, REGEN_ID, source="Med Pack", theater="ground",
+        )
+        _statuses.apply(
+            ctx.active_statuses, NEURAL_STIM_LOAN_ID, theater="space",
+        )
+
+        restored = saveload._restore_active_statuses(
+            saveload._active_statuses_payload(ctx),
+        )
+        assert restored == ctx.active_statuses
+        assert isinstance(restored[REGEN_ID], type(ctx.active_statuses[REGEN_ID]))
+        assert restored[REGEN_ID].source == "Med Pack"
+        assert restored[NEURAL_STIM_LOAN_ID].theater == "space"
+
+    def test_legacy_save_without_the_container_backfills_empty(self):
+        from src.spacehack import saveload
+
+        assert saveload._restore_active_statuses({}) == {}
+
+    def test_retired_row_ids_ride_for_the_silent_skip_reads(self):
+        from src.spacehack import saveload
+        from src.spacehack.combat import _statuses
+
+        restored = saveload._restore_active_statuses({
+            "active_statuses": {
+                "retired_row": {
+                    "status_id": "retired_row", "remaining_turns": 2,
+                },
+            },
+        })
+        assert "retired_row" in restored
+        assert _statuses.sum_effects(restored) == _statuses.StatusEffects()
+        assert _statuses.advance(restored) == ()

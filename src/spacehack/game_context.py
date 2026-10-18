@@ -27,9 +27,12 @@ from :mod:`spacehack.engine` directly.
 from __future__ import annotations
 
 import dataclasses
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 from .pygame_runtime import PygameContext
+
+if TYPE_CHECKING:
+    from .combat._statuses import ActiveStatus
 
 from . import hud
 from . import message_log
@@ -384,6 +387,15 @@ class GameContext:
     # the gate itself is derived (burn >= 2x birth pool, monotone);
     # only the shown-once flag needs storing.
     consortium_intro_shown: bool = False
+    # The player's durable status container (doc 103): ONE home for
+    # both theaters, read by every combat state. Saved through the
+    # entry-level saveload helpers; enemy containers are fight-scoped
+    # and never serialize. Build A defuses at fight end (behavior-
+    # identical to today's ledger evaporation); Build C flips the
+    # boundary rules on this same home.
+    active_statuses: dict[str, "ActiveStatus"] = dataclasses.field(
+        default_factory=dict,
+    )
     # The bandolier (doc 52): per-caliber reserve rounds, ammo_type →
     # count, each clamped at its catalog carry_cap. The reload reserve
     # store — pickups and restock refill it; it never occupies a pack

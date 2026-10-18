@@ -219,6 +219,36 @@ def _entry_payload(entry) -> dict:
     return payload
 
 
+def _active_statuses_payload(ctx: GameContext) -> dict:
+    """Serialize the player's status container (doc 103): the durable
+    home both theaters read — entry-level so the payload is a dict of
+    ActiveStatus records, never a scalar."""
+    return {"active_statuses": _d(ctx.active_statuses)}
+
+
+def _restore_active_statuses(data: dict) -> dict:
+    """Rebuild the status container as real :class:`ActiveStatus`
+    instances (doc 103; advisor catch 11 — never a bare ``data.get``
+    onto ctx). Saves without the key backfill empty (the chrome
+    precedent); unknown row ids are KEPT — engine reads skip them
+    silently, and Build C's boundary rules own their retirement."""
+    from .combat._statuses import ActiveStatus
+
+    restored: dict[str, ActiveStatus] = {}
+    for key, entry in (data.get("active_statuses") or {}).items():
+        if not isinstance(entry, dict):
+            continue
+        restored[str(key)] = ActiveStatus(
+            status_id=str(entry.get("status_id", key)),
+            remaining_turns=int(entry.get("remaining_turns", 0)),
+            stacks=int(entry.get("stacks", 1)),
+            potency=float(entry.get("potency", 1.0)),
+            source=entry.get("source") or None,
+            theater=entry.get("theater") or None,
+        )
+    return restored
+
+
 def _core_fields(ctx: GameContext) -> dict:
     """Serialize character, ship, mission, economy, and clock fields."""
     return {
@@ -251,6 +281,7 @@ def _core_fields(ctx: GameContext) -> dict:
         # intro flag (doc 102 SETTLED 2/4-5); pool/load derive.
         "ego_burn": int(getattr(ctx, "ego_burn", 0)),
         "consortium_intro_shown": bool(getattr(ctx, "consortium_intro_shown", False)),
+        **_active_statuses_payload(ctx),
         **_progression_fields(ctx),
         **_identity_fields(ctx),
         **_lore_fields(ctx),
@@ -709,6 +740,9 @@ def _restore_core_fields(ctx: GameContext, data: dict, parsed: _ParsedSave, rebu
     from .chrome import ego_load
     ctx.ego_burn = int(data.get("ego_burn", ego_load(ctx)))
     ctx.consortium_intro_shown = bool(data.get("consortium_intro_shown", False))
+    # Statuses (doc 103): old saves predate the container — the
+    # restore helper backfills empty.
+    ctx.active_statuses = _restore_active_statuses(data)
 
 
 def _restore_progression_fields(ctx: GameContext, data: dict) -> None:
