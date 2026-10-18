@@ -328,6 +328,9 @@ def _ctx_core(sheet, game_map, player) -> dict:
         player_counters=PlayerCounters(),
         player_traits=list(sheet.trait_ids),
         installed_chrome=[],
+        # The player's shared status container (doc 103 Build A) —
+        # the ctx home both theaters' rules read.
+        active_statuses={},
         player_xp=0,
         player_level=sheet.level,
         player_skill_points=0,

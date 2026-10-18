@@ -143,7 +143,7 @@ def test_buy_rows_include_ground_consumables():
     assert any(row.action == "BUY_CONSUMABLE:med_pack" for row in rows)
     med_pack = next(row for row in rows if row.label == "Med Pack")
     assert "Restore HP" in med_pack.detail
-    assert "restore_hp" not in med_pack.detail
+    assert "regen" not in med_pack.detail  # the registry id never leaks
 
 
 def test_buy_rows_exclude_loot_only_consumables():

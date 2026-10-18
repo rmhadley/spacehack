@@ -13,7 +13,6 @@ from typing import Any
 
 from .. import world
 from ..game_context import GameContext
-from ..ground_consumables import ActiveConsumableEffect
 from ._types import FleeExit
 
 
@@ -113,9 +112,6 @@ class GroundCombatState:
     # range/accuracy line. Set during shot animations and the whole enemy
     # turn so the line never clutters frames the player isn't acting on.
     range_line_hidden: bool = False
-    active_consumable_effects: dict[str, ActiveConsumableEffect] = field(
-        default_factory=dict,
-    )
     # Doc 53 killer tracking: the last hostile damage source's label
     # (enemy + wielded variant), or the settled self-splash line.
     # Per-fight session state, never serialized.
@@ -136,6 +132,7 @@ class GroundCombatState:
     mend_told: set = field(default_factory=set)
     # The Neural Stim's cooldown (doc 102 SETTLED 8), in rounds
     # remaining before the core button is usable again — the LOAN
-    # rides active_consumable_effects as a -1 AP entry instead.
-    # Fight-scoped, never serialized.
+    # rides the player's status container (ctx.active_statuses) as
+    # the neural_stim_loan row (doc 103 Build A). Fight-scoped,
+    # never serialized.
     core_cooldown: int = 0

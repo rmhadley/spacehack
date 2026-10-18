@@ -603,6 +603,7 @@ def _ground_fixture():
         equipped_ground_armor={},
         player_traits=[],
         installed_chrome=[],
+        active_statuses={},
         log=SimpleNamespace(
             add=lambda _message, **_kwargs: None,
             add_colored=lambda _message, _color, **_kwargs: None,
@@ -637,7 +638,7 @@ def test_ground_player_hp_row_shows_current_max_and_active_regen():
     _rules_ground.apply_consumable_effect(
         _ctx,
         SimpleNamespace(
-            effect_id="restore_hp",
+            effect_id="regen",
             name="Med Pack",
             combat_heal_amount=5,
             combat_regen_amount=2,

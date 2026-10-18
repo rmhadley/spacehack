@@ -27,6 +27,11 @@ COLOR_DESCRIPTION: tuple[int, int, int] = (245, 245, 235)        # bright second
 # (e.g. the ship-buy modal) can use the same near-white/dim pair.
 COLOR_VALUE_WHITE: tuple[int, int, int] = (255, 255, 255)        # pure white
 COLOR_VALUE_DIM: tuple[int, int, int] = (230, 230, 225)           # bright secondary value
+# Status polarity pair (doc 103 q7): the one-row status line's buff /
+# debuff colors — the single source both theaters' panels map
+# polarity through, so a status never changes color across panels.
+COLOR_STATUS_BUFF: tuple[int, int, int] = (100, 235, 115)         # buff green
+COLOR_STATUS_DEBUFF: tuple[int, int, int] = (255, 80, 80)         # debuff red
 
 # Unified screen-header rule. Single source of truth for the divider
 # drawn under every menu title — change these and every screen follows.

@@ -1,22 +1,36 @@
-"""Ground combat consumable effects — the active-effect ledger pass.
+"""Ground combat consumable + status adapter pass.
 
-Owns the player-side temporary effects during a ground fight (heal
-over time, temporary AP): applying one consumable's effect and
-advancing the ledger at each round start. The enemy-side mirror (doc
-48 phase 5, SETTLED 27/36) lives here beside it: AP derivation and
+Owns the player-side effect application and the round-boundary
+advance. Doc 103 Build A retired the ActiveConsumableEffect ledger:
+the shared ctx container + the pure ``combat/_statuses`` engine are
+the mechanism, and THIS module is the rules adapter that applies
+events — clamping, log lines, and the AP gain fold stay here (the
+engine never logs, never writes HP). The enemy-side mirror (doc 48
+phase 5, SETTLED 27/36) lives here beside it: AP derivation and
 carried-consumable use.
 """
 
 from __future__ import annotations
 
 from .. import message_log as _ml
-from ..data.ground_items import find_ground_consumable, list_ground_consumables as _list_gc
-from ..ground_consumables import ActiveConsumableEffect, effect_from_spec
+from ..data.ground_items import find_ground_consumable
+from ..data.statuses import find_status
+from . import _statuses
+
+
+def player_status_effects(ctx) -> "_statuses.StatusEffects":
+    """The player's status sums — the choke-point read every ground
+    assembly resolves itself from the state it already holds (doc
+    103). Lives here beside the adapter pass it serves (getattr:
+    formula-only callers pass ad-hoc ctxs without the container)."""
+    return _statuses.sum_effects(
+        getattr(ctx, "active_statuses", None) or {},
+    )
 
 
 def apply_player_effect(state, ctx, spec) -> bool:
     """Apply a validated consumable effect to the active combat state."""
-    if spec.effect_id == "restore_hp":
+    if spec.effect_id == "regen":
         _before = state.player_hp
         state.player_hp = min(
             state.player_max_hp,
@@ -28,47 +42,50 @@ def apply_player_effect(state, ctx, spec) -> bool:
                 f"{spec.name}: +{_healed} HP.",
                 _ml.COLOR_PLAYER_ACTION,
             )
-    _effect = effect_from_spec(spec)
-    if _effect is not None:
-        state.active_consumable_effects[spec.effect_id] = _effect
-    return spec.effect_id in {"restore_hp", "stim"}
-
-
-def _effect_name(effect_id: str) -> str:
-    """Resolve a friendly catalog name for a temporary effect."""
-    for _spec in _list_gc():
-        if _spec.effect_id == effect_id:
-            return _spec.name
-    return "Regeneration"
+    if spec.duration_turns > 0:
+        # The status row owns the applied numbers (the catalog law);
+        # the source rides for tick-line attribution. ``apply`` raises
+        # on an unresolvable id — an authoring error, never runtime.
+        _statuses.apply(
+            ctx.active_statuses, spec.effect_id,
+            source=spec.name, theater="ground",
+        )
+    return spec.effect_id in {"regen", "stim"}
 
 
 def advance_player_effects(state) -> int:
-    """Apply regeneration and return the current temporary AP bonus."""
+    """Advance the player's status container one round boundary and
+    return the temporary AP bonus for the gain fold: heal events
+    clamp at max and log the row's tick line only when healed > 0
+    (today's ledger shape, the source interpolated); ap events fold
+    into the returned bonus; expire events log the row's ruled line
+    when one is authored (the Neural Stim loan's repay line)."""
+    _container = getattr(state.ctx, "active_statuses", None) or {}
     _ap_bonus = 0
-    _remaining: dict[str, ActiveConsumableEffect] = {}
-    for _effect_id, _effect in state.active_consumable_effects.items():
-        if _effect.regen_amount:
+    for _ev in _statuses.advance(_container):
+        _kind, _sid = _ev[0], _ev[1]
+        _spec = find_status(_sid)
+        if _kind == "heal":
             _before = state.player_hp
             state.player_hp = min(
                 state.player_max_hp,
-                state.player_hp + _effect.regen_amount,
+                state.player_hp + _ev[2],
             )
             _healed = state.player_hp - _before
-            if _healed > 0:
-                _effect_name_str = _effect_name(_effect_id)
+            if _healed > 0 and _spec.tick_line:
+                _source = _container[_sid].source or _spec.name
                 state.ctx.log.add_colored(
-                    f"{_effect_name_str} regeneration: +{_healed} HP.",
+                    _spec.tick_line.format(
+                        source=_source, healed=_healed,
+                    ),
                     _ml.COLOR_PLAYER_ACTION,
                 )
-        if _effect.ap_bonus:
-            _ap_bonus += _effect.ap_bonus
-        _next = _effect.remaining_turns - 1
-        if _next > 0:
-            _remaining[_effect_id] = ActiveConsumableEffect(
-                _effect.effect_id, _next,
-                _effect.regen_amount, _effect.ap_bonus,
+        elif _kind == "ap":
+            _ap_bonus += _ev[2]
+        elif _kind == "expire" and _spec.expire_line:
+            state.ctx.log.add_colored(
+                _spec.expire_line, _ml.COLOR_PLAYER_ACTION,
             )
-    state.active_consumable_effects = _remaining
     return _ap_bonus
 
 
@@ -105,7 +122,7 @@ def _triggered(spec, gei, game_map, player_pos) -> bool:
     no enemy-side trigger yet."""
     from ..dungeon_fov import cell_in_sight
 
-    if spec.effect_id == "restore_hp":
+    if spec.effect_id == "regen":
         return gei.hp * 2 <= gei.max_hp
     if spec.effect_id == "stim":
         return gei.stim_turns <= 0 and cell_in_sight(
@@ -132,7 +149,7 @@ def use_carried_consumable(ctx, gei, game_map, player_pos) -> int:
             continue
         if gei.ap < _spec.use_ap_cost:
             return 0
-        if _spec.effect_id == "restore_hp":
+        if _spec.effect_id == "regen":
             gei.hp = min(gei.max_hp, gei.hp + _spec.combat_heal_amount)
             gei.regen_amount = _spec.combat_regen_amount
             gei.regen_turns = _spec.duration_turns

@@ -19,8 +19,6 @@ from .. import noise
 from .. import ground_loadout
 from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT, HUD_WIDTH
 from ..data.ground_weapons import find_ground_weapon as _find_gw
-from .. import ground_scale
-from ..data.npc_chars import find_npc_char as _find_nc
 from ..ground_equipment import (
     sum_armor_defense as _sum_armor_defense,
 )
@@ -44,6 +42,12 @@ from ._ground_types import (  # noqa: F401  # re-exported seam
     GroundCombatState,
     GroundEnemyInstance,
 )
+from ._ground_build import (  # noqa: F401  # re-exported seam (tests + joins)
+    _build_enemy_instance,
+    _build_enemies,
+)
+from . import _statuses
+from ._ground_effects import player_status_effects as _player_status_effects
 from ._stats import _crit_multiplier, _distance, _roll_ap, _roll_crit
 from . import _ground_actions, _ground_blast
 from ._ground_math import (
@@ -89,83 +93,6 @@ _RENDER_HEIGHT: int = SCREEN_HEIGHT - 6
 # Init
 # ---------------------------------------------------------------------------
 
-def _stamp_enemy_loadout(_ent: world.Entity, _spec, _worn=()) -> int:
-    """First-resolution stamps at combat entry (doc 48 SETTLED 36/37):
-    the pre-rolled carried consumables land once (what they drop is
-    what they carry); returns the spec-derived AP total (the worn
-    bonus fold retired with the placeholder fields, doc 102.4.2 —
-    the enemy chrome seam returns with the container)."""
-    from ._actions import roll_carried_consumables
-    from ._ground_effects import enemy_ap_total
-
-    if getattr(_ent, "carried_items", None) is None:
-        _ent.carried_items = roll_carried_consumables(_spec)
-    return enemy_ap_total(_spec, armor_entries=_worn)
-
-
-def _build_enemy_instance(
-    _ent: world.Entity, game_map=None,
-) -> GroundEnemyInstance | None:
-    """Build one enemy instance from a map entity (init + mid-fight joins).
-
-    Reads/stamps ``entity.hp`` so wounds persist across combat sessions
-    (LOS-aggro survivors keep wounds; never a heal-on-retrigger); guards
-    get their ``guard_post`` stamped here (SETTLED 37). Stats resolve
-    through the band resolver (SETTLED 35); the weapon resolves ONCE and
-    persists on the entity (SETTLED 37). The WORN cyber pieces fold
-    here (doc 48 SETTLED 51/27) through the player's own modifier math.
-    """
-    try:
-        _spec = _find_nc(_ent.npc_char_id)
-    except KeyError:
-        return None
-    _band = ground_scale.entity_band(_ent, game_map, spec=_spec)
-    _stats = ground_scale.derive_stats(_spec, _band)
-    _stamp = ground_loadout.ensure_loadout(_ent, game_map, _spec)
-    _pair = ground_loadout.active_pair(_stamp) if _stamp else None
-    _worn = ground_loadout.worn_entries(_stamp)
-    _ap_total = _stamp_enemy_loadout(_ent, _spec, _worn)
-    from . import _ancients
-
-    _ancients.stamp_entry_field(_ent, game_map, _spec)
-    _max_hp, _armor = _worn_fold(_spec, _stats, _worn)
-    if _spec.behavior == "guard" and getattr(_ent, "guard_post", None) is None:
-        _ent.guard_post = world.Position(_ent.pos.x, _ent.pos.y)
-    _cur_hp = min(getattr(_ent, "hp", 0) or _max_hp, _max_hp)
-    _ent.hp = _cur_hp
-    return GroundEnemyInstance(
-        entity=_ent, spec=_spec,
-        weapon_id=_pair[0] if _pair else "",
-        weapon_quality=_pair[1] if _pair else 0,
-        band=_band, stats=_stats,
-        hp=_cur_hp, max_hp=_max_hp, ap=_ap_total, ap_total=_ap_total,
-        armor=_armor,
-    )
-
-
-def _worn_fold(spec, stats, worn) -> tuple[int, int]:
-    """The worn pieces' instance-build fold (doc 48 SETTLED 51/27):
-    each piece's defense into the armor read — one pass over the
-    stamped pieces. What they wear is what they are, on the card and
-    in every soak. (The hp_bonus term retired with the placeholder
-    fields, doc 102.4.2.)"""
-    return (
-        spec.hp + stats.stamina // 3,
-        spec.armor + _sum_armor_defense(worn),
-    )
-
-
-def _build_enemies(
-    enemy_entities: list[world.Entity], game_map=None,
-) -> list[GroundEnemyInstance]:
-    """Build combat instances for every valid enemy entity."""
-    enemies: list[GroundEnemyInstance] = []
-    for entity in enemy_entities:
-        instance = _build_enemy_instance(entity, game_map)
-        if instance is not None:
-            enemies.append(instance)
-    return enemies
-
 def _player_hp_state(ctx) -> tuple[int, int]:
     """Return ``(current_hp, max_hp)``, growing ground HP to a new max."""
     max_hp = _ground_max_hp_total(ctx)
@@ -182,6 +109,22 @@ def _starting_ap_gain_twentieths(ctx) -> int:
     """Per-round AP gain in twentieths: 4 + Ace Pilot + Nimble + legs."""
     return 80 + 20 * (_ace_pilot_bonus(ctx) + _nimble_ap_bonus(ctx))
 
+def _defuse_stale_session(ctx) -> None:
+    """Fight-start hygiene: release an abnormally-ended previous
+    fight's locks (an exception that skipped sync_state) so those
+    NPCs patrol again, retire the stale session, and empty the
+    player's status container — today's fresh fight-state object
+    meant an empty ledger by construction; the ctx home outlives
+    fights (doc 103 Build A)."""
+    if _state is not None:
+        _set_combat_locks(False)
+        _state.active = False
+    _statuses.dispel(
+        getattr(ctx, "active_statuses", None) or {},
+        lambda _active: True,
+    )
+
+
 def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, console=None) -> None:
     """Set up combat session state for a ground combat encounter."""
     global _state
@@ -193,12 +136,7 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
     _player_ap_gain = _starting_ap_gain_twentieths(ctx)
     _player_ap_total = _player_ap_gain // 20
 
-    # Clear combat locks from an abnormally-ended previous fight (e.g.
-    # an exception that skipped sync_state) so those NPCs patrol again;
-    # the same recovery retires the stale session's movement mode.
-    if _state is not None:
-        _set_combat_locks(False)
-        _state.active = False
+    _defuse_stale_session(ctx)
 
     _state = GroundCombatState(
         ctx=ctx, game_map=game_map,
@@ -351,11 +289,13 @@ def hit_chance(
     _range_penalty = _ground_point_blank_penalty(
         weapon_id, _distance_cells,
     )
-    # Sharpshooter trait: +10% hit chance;
-    # the Pirate opener rides the same sum while its window is open.
+    # Sharpshooter trait: +10% hit chance; status hit bonuses ride
+    # the same sum (doc 103); the Pirate opener rides it too while
+    # its window is open.
     _ef, _os = _opener_flags()
     _hit_bonus = (
         _sharpshooter_bonus(ctx)
+        + _player_status_effects(ctx).hit_bonus
         + _opener_hit_bonus(ctx, enemy_fired=_ef, opener_spent=_os)
     )
     if _is_charger_melee(ctx, weapon_id):
@@ -384,11 +324,16 @@ def player_soak(state: GroundCombatState) -> int:
 def _player_melee_bonus(ctx, weapon_id: str, chrome_fx, is_melee: bool) -> int:
     """The player's melee damage bonus term: Sturdy's always-on +2
     (doc 49, fists included) + the Muscle Fibers garnish (doc 102
-    SETTLED 10, melee-only like Sturdy) + the charger's momentum.
-    (The placeholder armor melee_bonus retired with its entries.)"""
+    SETTLED 10, melee-only like Sturdy) + the charger's momentum +
+    status melee bonuses (doc 103). (The placeholder armor melee_bonus
+    retired with its entries.)"""
     _melee_bonus = 0
     if is_melee:
-        _melee_bonus += _sturdy_melee_bonus(ctx) + chrome_fx.melee_damage_bonus
+        _melee_bonus += (
+            _sturdy_melee_bonus(ctx)
+            + chrome_fx.melee_damage_bonus
+            + _player_status_effects(ctx).melee_bonus
+        )
     if _is_charger_melee(ctx, weapon_id):
         _melee_bonus += _charge_bonuses(_charge_tiles(ctx))[1]
     return _melee_bonus
@@ -693,13 +638,15 @@ async def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
 
 def _player_ground_dodge(ctx) -> int:
     """The player's ground dodge: movement dodge + Evasive + the
-    Bounty Hunter class trait (doc 49 SETTLED 7) — the ONE assembly
-    every ground dodge read (enemy aiming, the HUD evasion line, the
-    flee reaction volley) resolves through."""
+    Bounty Hunter class trait (doc 49 SETTLED 7) + status dodge
+    bonuses (doc 103) — the ONE assembly every ground dodge read
+    (enemy aiming, the HUD evasion line, the flee reaction volley)
+    resolves through."""
     return (
         _calc_ground_move_dodge(_state.cells_moved_this_turn)
         + _ground_evade_bonus(ctx)
         + _bounty_evade_bonus(ctx)
+        + _player_status_effects(ctx).dodge_bonus
     )
 
 
@@ -866,14 +813,14 @@ def set_player_ap(ctx, ap: int) -> None:
     _state.player_ap = ap
 
 def reset_turn(ctx) -> None:
-    # Consumable AP bonuses (stim effects) add to this round's gain
-    # before the fractional roll, so a temporary +1 is a full extra AP;
+    # Status AP effects (the stim, the Neural Stim's loan) fold into
+    # this round's gain before the fractional roll — the ledger's
+    # gain-fold wiring preserved (doc 103 Build A): a temporary +1 is
+    # a full extra AP, the loan's -1 lands exactly once at the next
+    # round start (its repay line rides the expire event now);
     # enemy instances tick their own effects (regen heals, stim APs).
     from ._ground_effects import advance_enemy_effects, advance_player_effects
 
-    # The Neural Stim's loan (doc 102 SETTLED 8) rides the ledger as a
-    # -1 AP entry: advance consumes it exactly once this reset.
-    _loan_due = "neural_stim" in _state.active_consumable_effects
     _gain = (
         _state.player_ap_gain_twentieths
         + 20 * advance_player_effects(_state)
@@ -883,9 +830,6 @@ def reset_turn(ctx) -> None:
     _state.player_ap_total = max(0, _avail)
     _state.player_ap = max(0, _avail)
     _state.cells_moved_this_turn = 0
-    if _loan_due and "neural_stim" not in _state.active_consumable_effects:
-        from ..chrome import STIM_REPAY_LINE
-        ctx.log.add_colored(STIM_REPAY_LINE, _ml.COLOR_PLAYER_ACTION)
     if _state.core_cooldown > 0:
         _state.core_cooldown -= 1
     for _gei in _state.enemies:
@@ -895,14 +839,15 @@ def reset_turn(ctx) -> None:
 async def activate_core(ctx) -> None:
     """The Neural Stim (doc 102 SETTLED 8): the t1 core button on
     ``a`` — +2 AP this round, -1 next round (the loan rides the
-    consumable ledger as a -1 AP entry), cooldown 3 rounds. One
-    button, both theaters, same burst and same cost. Async: the
-    loop's rules-hook seam awaits every hook."""
+    player's status container as the neural_stim_loan row, doc 103
+    Build A), cooldown 3 rounds. One button, both theaters, same
+    burst and same cost. Async: the loop's rules-hook seam awaits
+    every hook."""
     from ..chrome import (
         STIM_ACTIVATE_LINE, STIM_NO_CORE_LINE,
         installed_effects, stim_recharge_line,
     )
-    from ..ground_consumables import ActiveConsumableEffect
+    from ..data.statuses import NEURAL_STIM_LOAN_ID
     if not installed_effects(ctx.installed_chrome).has_core:
         ctx.log.add_colored(STIM_NO_CORE_LINE, _ml.COLOR_PLAYER_ACTION)
         return
@@ -912,8 +857,8 @@ async def activate_core(ctx) -> None:
         )
         return
     _state.player_ap += 2
-    _state.active_consumable_effects["neural_stim"] = ActiveConsumableEffect(
-        "neural_stim", 1, 0, -1,
+    _statuses.apply(
+        _state.ctx.active_statuses, NEURAL_STIM_LOAN_ID, theater="ground",
     )
     _state.core_cooldown = 3
     ctx.log.add_colored(STIM_ACTIVATE_LINE, _ml.COLOR_PLAYER_ACTION)
@@ -925,6 +870,15 @@ def sync_state(ctx) -> None:
     _state.active = False
     ctx.ground_hp = max(0, _state.player_hp)
     ctx.ground_max_hp = _state.player_max_hp
+    # Fight end DEFUSES the player container (doc 103 Build A) —
+    # behavior-identical to today's ledger evaporation; Build C
+    # flips the boundary rules on this same home. Removal is silent:
+    # no expire events, so an unconsumed loan never pays its line.
+    # getattr: minimal test ctxs may not carry the container.
+    _statuses.dispel(
+        getattr(ctx, "active_statuses", None) or {},
+        lambda _active: True,
+    )
     # Combat-scoped stare (doc 48 p9): every end path defuses pending
     # zones — disengage never leaves a live trap on the floor.
     from . import _ancients

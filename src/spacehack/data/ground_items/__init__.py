@@ -53,7 +53,9 @@ class GroundConsumableSpec:
     Attributes:
         id: registry key, e.g. ``med_pack``.
         name: display name, e.g. ``Med Pack``.
-        effect_id: table key for the Phase 5 effect registry.
+        effect_id: the status-catalog id the timed use resolves to
+            (``find_status``, doc 103) — ``"tinker"`` is the exempt
+            quality-bump transaction with no timed effect.
         quantity_per_stack: max charges carried in one pack slot.
         use_ap_cost: action points to use in combat.
         price: credits cost to buy.

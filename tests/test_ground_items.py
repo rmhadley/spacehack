@@ -52,8 +52,15 @@ def test_ammo_catalog_carries_settled_bandolier_caps():
 
 
 def test_consumable_catalog_resolves_effect_and_stack_size():
+    from src.spacehack.data.statuses import find_status
+
     spec = find_ground_consumable("med_pack")
-    assert spec.effect_id == "restore_hp"
+    # Doc 103 Build A: the timed effect resolves against the status
+    # catalog — find_status owns the applied numbers, and the spec's
+    # descriptive values agree with the row.
+    assert spec.effect_id == "regen"
+    assert find_status("regen").regen_per_round == spec.combat_regen_amount
+    assert find_status("regen").duration == spec.duration_turns
     assert spec.quantity_per_stack == 3
     assert spec.outside_full_heal is True
     assert spec.combat_heal_amount == 5

@@ -22,7 +22,7 @@ def test_character_rows_make_consumables_selectable():
     assert rows[0].text == "Med Pack [1/3]"
     detail = _item_stack_detail(ctx.ground_expedition_items[0])
     assert "Restore HP" in detail
-    assert "restore_hp" not in detail
+    assert "regen" not in detail  # the registry id never leaks
 
 
 def test_character_rows_show_current_and_max_for_all_stackable_items():
@@ -115,6 +115,7 @@ def _context(hp=10, items=None):
         ground_expedition_items=list(items or []),
         player_traits=[],
         installed_chrome=[],
+        active_statuses={},
         log=SimpleNamespace(
             add=lambda message: messages.append(message),
             add_colored=lambda message, _color: messages.append(message),
@@ -168,14 +169,15 @@ def test_combat_med_pack_heals_and_refreshes_three_turn_regen():
     assert _rules_ground.player_hp(ctx) == 17
     assert _rules_ground.player_ap(ctx) == 3
     assert "Med Pack: +5 HP." in ctx.messages
-    effect = _rules_ground._state.active_consumable_effects["restore_hp"]
-    assert effect.remaining_turns == 3
+    status = ctx.active_statuses["regen"]
+    assert status.remaining_turns == 3
+    assert status.source == "Med Pack"
 
     _rules_ground.reset_turn(ctx)
     assert _rules_ground.player_hp(ctx) == 19
     assert _rules_ground.player_ap(ctx) == 4
     assert "Med Pack regeneration: +2 HP." in ctx.messages
-    assert _rules_ground._state.active_consumable_effects["restore_hp"].remaining_turns == 2
+    assert ctx.active_statuses["regen"].remaining_turns == 2
 
 
 def test_second_combat_med_pack_refreshes_instead_of_stacking():
@@ -188,9 +190,9 @@ def test_second_combat_med_pack_refreshes_instead_of_stacking():
     assert use_consumable(ctx, 0, in_combat=True)
     _rules_ground.reset_turn(ctx)
     assert use_consumable(ctx, 0, in_combat=True)
-    effect = _rules_ground._state.active_consumable_effects["restore_hp"]
-    assert effect.remaining_turns == 3
-    assert len(_rules_ground._state.active_consumable_effects) == 1
+    status = ctx.active_statuses["regen"]
+    assert status.remaining_turns == 3
+    assert len(ctx.active_statuses) == 1
 
 
 def test_combat_stim_adds_one_ap_for_three_following_turns():
@@ -199,7 +201,7 @@ def test_combat_stim_adds_one_ap_for_three_following_turns():
 
     assert use_consumable(ctx, 0, in_combat=True)
     assert _rules_ground.player_ap(ctx) == 3
-    assert _rules_ground._state.active_consumable_effects["stim"].remaining_turns == 3
+    assert ctx.active_statuses["stim"].remaining_turns == 3
 
     _rules_ground.reset_turn(ctx)
     assert _rules_ground.player_ap(ctx) == 5
@@ -209,7 +211,7 @@ def test_combat_stim_adds_one_ap_for_three_following_turns():
     assert _rules_ground.player_ap(ctx) == 5
     _rules_ground.reset_turn(ctx)
     assert _rules_ground.player_ap(ctx) == 4
-    assert "stim" not in _rules_ground._state.active_consumable_effects
+    assert "stim" not in ctx.active_statuses
 
 
 def test_consumable_use_rejects_insufficient_combat_ap_without_mutation():

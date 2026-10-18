@@ -38,6 +38,7 @@ from ._animations import (
     _draw_range_colored_line,
 )
 from ._stats import _distance
+from ._statuses import hud_segments, sum_effects
 from ._ground_presentation import (
     build_target_card as _build_target_card,
     enemy_detail_lines,
@@ -221,20 +222,21 @@ def _render_range_line(
     )
 
 
+def _active_container() -> dict:
+    """The player's status container on the installed session (doc
+    103) — the same ctx home the rules read."""
+    _ctx = _rules()._state.ctx
+    return getattr(_ctx, "active_statuses", None) or {}
+
+
 def _active_regen_amount() -> int:
     """Return the total HP regenerated at the next turn boundary."""
-    return sum(
-        effect.regen_amount
-        for effect in _rules()._state.active_consumable_effects.values()
-    )
+    return sum_effects(_active_container()).regen_per_round
 
 
 def _active_ap_bonus() -> int:
     """Return the temporary AP added on the next turn boundary."""
-    return sum(
-        effect.ap_bonus
-        for effect in _rules()._state.active_consumable_effects.values()
-    )
+    return sum_effects(_active_container()).ap_per_round
 
 
 def _ground_evasion(ctx) -> int:
@@ -288,7 +290,25 @@ def _render_player_panel(console, ctx) -> int:
     if _stim is not None:
         console.print(x=hud_x, y=y, string=_stim[0], fg=_stim[1])
         y += 1
+    _render_status_row(console, hud_x, y)
     return y + 2
+
+
+def _render_status_row(console, hud_x: int, y: int) -> None:
+    """The one-row status line (doc 103 q7): terse polarity-colored
+    labels + remaining, painted into the player panel's closing gap
+    row — WEAPONS never shifts. Label-less rows never render (the
+    loan's debt-line decline; the opener carries no remaining)."""
+    from ..ui import COLOR_STATUS_BUFF, COLOR_STATUS_DEBUFF
+    _x = hud_x
+    for _text, _is_buff in hud_segments(_active_container()):
+        if _x + len(_text) > hud_x + HUD_TEXT_MAX:
+            break
+        console.print(
+            x=_x, y=y, string=_text,
+            fg=COLOR_STATUS_BUFF if _is_buff else COLOR_STATUS_DEBUFF,
+        )
+        _x += len(_text) + 2
 
 
 def _stim_hud_row(ctx) -> tuple[str, tuple[int, int, int]] | None:

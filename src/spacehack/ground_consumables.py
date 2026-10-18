@@ -1,12 +1,12 @@
-"""Ground consumable rules and combat-local effect state.
+"""Ground consumable rules and the combat-local use boundary.
 
 Catalog entries describe values; this module owns the transactional use
 boundary shared by exploration, the character screen, and ground combat.
+Timed effects are status-catalog rows now (doc 103 Build A): a
+consumable's ``effect_id`` resolves against ``data/statuses.py``.
 """
 
 from __future__ import annotations
-
-from dataclasses import dataclass
 
 from .data.ground_items import GroundConsumableSpec, find_ground_consumable
 
@@ -53,30 +53,6 @@ def consume_kit_charge(ctx, index: int) -> bool:
 def kit_drop_payload() -> dict:
     """One qty-1 tinker-kit field-item payload (doc 47.5 SETTLED 34)."""
     return {"item_type": "consumable", "item_id": KIT_ITEM_ID, "quantity": 1}
-
-
-@dataclass(frozen=True)
-class ActiveConsumableEffect:
-    """One temporary combat effect with data-defined remaining duration."""
-
-    effect_id: str
-    remaining_turns: int
-    regen_amount: int = 0
-    ap_bonus: int = 0
-
-
-def effect_from_spec(spec: GroundConsumableSpec) -> ActiveConsumableEffect | None:
-    """Build a temporary effect from a catalog entry, if it has one."""
-    if spec.duration_turns <= 0:
-        return None
-    if spec.combat_regen_amount <= 0 and spec.combat_ap_bonus <= 0:
-        return None
-    return ActiveConsumableEffect(
-        effect_id=spec.effect_id,
-        remaining_turns=spec.duration_turns,
-        regen_amount=spec.combat_regen_amount,
-        ap_bonus=spec.combat_ap_bonus,
-    )
 
 
 def _decrement_stack(items, index: int) -> None:

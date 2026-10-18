@@ -1,9 +1,9 @@
 """Ground consumable catalog — stackable field items with explicit effects.
 
-Each entry is a frozen :class:`GroundConsumableSpec`. ``effect_id`` is
-the table key for the Phase 5 effect registry; numeric healing, AP, and
-duration values remain data-driven so variants do not require runtime
-conditionals.
+Each entry is a frozen :class:`GroundConsumableSpec`. ``effect_id``
+resolves against the status catalog (``find_status``, doc 103); the
+numeric fields below are the descriptive display values (the status
+row owns the applied numbers).
 """
 
 from . import GroundConsumableSpec
@@ -12,7 +12,8 @@ CONSUMABLES: tuple[GroundConsumableSpec, ...] = (
     GroundConsumableSpec(
         id="med_pack",
         name="Med Pack",
-        effect_id="restore_hp",
+        # Doc 103 Build A: the timed effect is the regen status row.
+        effect_id="regen",
         quantity_per_stack=3,
         use_ap_cost=1,
         price=60,

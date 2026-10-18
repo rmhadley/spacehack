@@ -38,6 +38,7 @@ class TestKeybind:
         _log, _lines = _log_spy()
         _ctx = SimpleNamespace(
             installed_chrome=["terminus_neural_stim"], log=_log,
+            active_statuses={},
         )
         _old = _rules_ground._state
         _rules_ground._state = _ground_state(_ctx)
@@ -171,7 +172,10 @@ class TestGroundCore:
             lambda _ids: ChromeEffects(has_core=True),
         )
         _log, lines = _log_spy()
-        _ctx = SimpleNamespace(installed_chrome=["terminus_neural_stim"], log=_log)
+        _ctx = SimpleNamespace(
+            installed_chrome=["terminus_neural_stim"], log=_log,
+            active_statuses={},
+        )
         _old = _rules_ground._state
         _rules_ground._state = _ground_state(_ctx)
         try:
@@ -180,8 +184,10 @@ class TestGroundCore:
             assert _state.player_ap == 6  # 4 + 2
             assert _state.core_cooldown == 3
             assert lines == [ACTIVATION]
-            _effect = _state.active_consumable_effects["neural_stim"]
-            assert (_effect.remaining_turns, _effect.ap_bonus) == (1, -1)
+            _loan = _ctx.active_statuses["neural_stim_loan"]
+            assert _loan.remaining_turns == 1
+            from src.spacehack.data.statuses import find_status
+            assert find_status("neural_stim_loan").ap_per_round == -1
         finally:
             _rules_ground._state = _old
 
@@ -191,14 +197,17 @@ class TestGroundCore:
             lambda _ids: ChromeEffects(has_core=True),
         )
         _log, lines = _log_spy()
-        _ctx = SimpleNamespace(installed_chrome=["terminus_neural_stim"], log=_log)
+        _ctx = SimpleNamespace(
+            installed_chrome=["terminus_neural_stim"], log=_log,
+            active_statuses={},
+        )
         _old = _rules_ground._state
         _rules_ground._state = _ground_state(_ctx)
         try:
             run(_rules_ground.activate_core(_ctx))
             _rules_ground.reset_turn(_ctx)  # -1 this reset, loan consumed
             _state = _rules_ground._state
-            assert "neural_stim" not in _state.active_consumable_effects
+            assert "neural_stim_loan" not in _ctx.active_statuses
             assert _state.player_ap == 3  # 4 AP gain - 1 loan
             assert _state.core_cooldown == 2
             assert lines[-1] == REPAYMENT
@@ -216,7 +225,9 @@ class TestGroundCore:
             lambda _ids: ChromeEffects(),
         )
         _log, lines = _log_spy()
-        _ctx = SimpleNamespace(installed_chrome=[], log=_log)
+        _ctx = SimpleNamespace(
+            installed_chrome=[], log=_log, active_statuses={},
+        )
         _old = _rules_ground._state
         _rules_ground._state = _ground_state(_ctx)
         try:
