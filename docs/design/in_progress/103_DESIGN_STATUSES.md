@@ -4,9 +4,9 @@
 plan-approved (2026-10-17); the advisor ADVISE pass is folded
 (2026-10-18, verdict SOUND-WITH-CATCHES, all 29 issues below); the
 refine RULINGS PASS is COMPLETE (2026-10-18 — all 13 open
-questions settled, see the SETTLED section). Next: the semantics
-pass (tick boundaries, the stacking edges, the roll-law numbers),
-then the Implementation briefs. No implementation until
+questions settled) and the SEMANTICS PASS is COMPLETE (2026-10-18
+— see both SETTLED sections). Next: the Implementation briefs.
+No implementation until
 the user explicitly requests it.**
 
 Companions: `complete/102_DESIGN_CYBERNETICS.md` (the Parked sketch
@@ -403,12 +403,14 @@ Live today: guaranteed −1 current AP per hit, hardcoded
 
 Working shape (numbers = the semantics pass):
 
-- `staggered` — debuff, `ap_per_round: -1`, `rounds: 2` (working),
-  on the ENEMY container (ground). The felt upgrade: the baton
+- `staggered` — debuff, `ap_per_round: -1`, `rounds: 2` (RULED,
+  S4), on the ENEMY container (ground) — and, two-sided, on the
+  PLAYER container when an enemy wielder connects. The felt
+  upgrade: the baton
   stops being a per-hit drain and becomes a real timed condition
   the HUD can show.
 - Delivery: the baton carries `status_id="staggered"` +
-  `status_chance ~50` (working) on its spec.
+  `status_chance: 50` (RULED, S4) on its spec.
 - The application roll: after the hit resolves, guarded, one draw
   per connecting SURVIVING hit → Stun Baton fights re-pin their
   balance rows same-commit (the crit precedent's discipline).
@@ -470,12 +472,9 @@ B's playtest checklist.
 
 - [x] The rulings pass (COMPLETE 2026-10-18 — all 13 open
       questions settled; see the SETTLED section)
-- [ ] The semantics pass (duration classes' exact tick boundaries,
-      the stacking table INCLUDING the three refresh edges —
-      re-apply at `stacks_max`, re-apply at different potency,
-      two-source attribution; the payload vocabulary; the roll
-      law's numbers: base chance, ego slope, staggered duration,
-      the killing-hit guard)
+- [x] The semantics pass (COMPLETE 2026-10-18 — the tick law, the
+      three stacking edges, and the roll-law numbers all confirmed;
+      see the Semantics pass section)
 - [ ] Implementation briefs (the engine + migrations brief; the
       debut brief; advisor ADVISE pass per house rule; budget
       note: `_rules_ground.py` sits at 974 lines and
@@ -778,6 +777,33 @@ carries out of the fight, ticks down on exploration steps, and
 re-engaging with rounds left, it applies (the enemy-wound doctrine
 pointed at the player: you keep your burns). Regen persists
 (ruled with durability itself, 2026-10-18).
+
+### Semantics pass (2026-10-18, user-confirmed)
+
+- **Tick law (S1, confirmed)**: `rounds`-class statuses are active
+  on apply; at each round boundary `advance` fires the payload
+  events THEN decrements; remaining = 0 expires (a 3-round regen
+  heals exactly 3 times; the 1-round loan fires exactly once at
+  the next round start). A re-apply landing in the same boundary
+  as a tick refreshes first — never a double-tick. `fight`-class
+  never decrements (consumed explicitly, or dropped at fight
+  end); `charges`-class never decrements (consumed on trigger).
+- **Re-apply metadata (S2, confirmed — NEW WINS)**: on refresh,
+  the NEW application's potency AND source overwrite; the duration
+  resets. The fresher application is the truth; log attribution
+  names the most recent deliverer. (Nothing in v1 sets potency
+  ≠ 1; the law exists for chrome pass #2's tiered re-keys.)
+- **Stacks at cap (S3, confirmed)**: for authored stacking
+  statuses, re-apply while at `stacks_max` refreshes the duration
+  and grants no new stack. No stacking status ships in v1.
+- **The roll-law numbers (S4, confirmed package)**: base
+  application chance **50** on the baton; the seam reads the
+  victim's existing band (`_BAND_MAX_BURN = (3, 7, 11)`): band 0
+  (burn 0–3) is the DEAD ZONE reading identity ("full ego, full
+  resist" plus shallow burn), **+10 chance points per band from
+  band 1, capped at +30** (band 3 → 80 effective). Staggered
+  duration **2 rounds**. At deep burn an enemy baton that
+  connects staggers the player 4 times in 5.
 
 ## Open questions (the refine pass)
 
