@@ -120,6 +120,7 @@ async def run_shared(
     prefill: int | None = None,
 ) -> int | None:
     """Run quantity selection inside the existing shared Pygame window."""
+    from . import pygame_runtime
     runtime = getattr(context, "_runtime", None)
     engine = getattr(runtime, "engine", None)
     if engine is None or engine.logical_surface is None:
@@ -134,7 +135,7 @@ async def run_shared(
         )
         pygame_ui.draw_context_log(pygame, screen, context)
         engine.present()
-        for event in pygame.event.get():
+        for event in pygame_runtime.drain_sdl(pygame, context):
             outcome, quantity = _handle_key(pygame, event, quantity, maximum)
             if outcome == "IGNORE":
                 continue

@@ -114,7 +114,7 @@ async def _render_frame(
         region_w=region_w, region_h=region_h,
     )
     ctx.context.present(console)
-    await _responsive_sleep(animation_timing.DUNGEON_BREACH)
+    await _responsive_sleep(animation_timing.DUNGEON_BREACH, ctx)
 
 
 def _restore_breaches(

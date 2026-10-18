@@ -396,7 +396,7 @@ def test_mars_door_animation_reveals_stairs_on_real_map(monkeypatch):
     monkeypatch.setattr(act0, "_render_signal_door_frame", lambda *args: None)
     monkeypatch.setattr(act0, "show_sealed_door_overlay", as_async(lambda *args: None))
     import src.spacehack.navigation as navigation
-    monkeypatch.setattr(navigation, "_responsive_sleep", as_async(lambda seconds: None))
+    monkeypatch.setattr(navigation, "_responsive_sleep", as_async(lambda seconds, ctx: None))
 
     run(bump_mars_door(_ctx))
 
@@ -444,7 +444,7 @@ def test_signal_door_animation_undulates_then_splits(monkeypatch):
     _ctx = MagicMock()
     monkeypatch.setattr(act0, "_render_signal_door_frame", lambda *args: _frames.append(args[-1]))
     import src.spacehack.navigation as navigation
-    monkeypatch.setattr(navigation, "_responsive_sleep", as_async(lambda seconds: None))
+    monkeypatch.setattr(navigation, "_responsive_sleep", as_async(lambda seconds, ctx: None))
 
     assert run(act0.animate_signal_door_opening(_ctx, MagicMock(), _game_map, _spawn))
 

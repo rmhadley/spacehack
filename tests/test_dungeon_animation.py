@@ -46,7 +46,7 @@ def _hull(width: int, height: int, breaches: list[tuple[int, int]]):
 
 def test_breach_animation_scrolls_hulls_wider_than_the_viewport(monkeypatch):
     monkeypatch.setattr(
-        "src.spacehack.navigation._responsive_sleep", as_async(lambda _seconds: None),
+        "src.spacehack.navigation._responsive_sleep", as_async(lambda _seconds, _ctx: None),
     )
     game_map = _hull(92, 34, breaches=[(45, 17)])
     ctx = _RecordingContext(80, 54)
@@ -69,7 +69,7 @@ def test_breach_animation_scrolls_hulls_wider_than_the_viewport(monkeypatch):
 
 def test_breach_animation_keeps_small_hulls_centered(monkeypatch):
     monkeypatch.setattr(
-        "src.spacehack.navigation._responsive_sleep", as_async(lambda _seconds: None),
+        "src.spacehack.navigation._responsive_sleep", as_async(lambda _seconds, _ctx: None),
     )
     game_map = _hull(20, 10, breaches=[(5, 5)])
     ctx = _RecordingContext(80, 54)

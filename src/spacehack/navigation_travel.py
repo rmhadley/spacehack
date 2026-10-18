@@ -545,7 +545,7 @@ async def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
 # Jump animation + system transition
 # ---------------------------------------------------------------------------
 
-async def _responsive_sleep(seconds: float) -> None:
+async def _responsive_sleep(seconds: float, ctx) -> None:
     """Sleep for ``seconds`` while polling SDL events.
 
     Breaks the sleep into ~0.01 s chunks and calls the Pygame event
@@ -554,12 +554,15 @@ async def _responsive_sleep(seconds: float) -> None:
     spinning beach ball during animation loops that block with
     ``time.sleep``. The queue is pumped before the deadline check so a
     zero-length sleep (instant animation speed) still keeps the window
-    responsive.
+    responsive. The pump feeds the runtime's held-key state — a keyup
+    swallowed mid-jump must release its key (the press-c-twice bug).
     """
+    from .pygame_runtime import drain_sdl
+
     end = time.monotonic() + animation_timing.scaled(seconds)
     import pygame
     while True:
-        pygame.event.get()
+        drain_sdl(pygame, ctx)
         remaining = end - time.monotonic()
         if remaining <= 0:
             # Instant speed still yields once per frame: the compositor
@@ -660,7 +663,7 @@ async def _render_jump_frame(
     )
     if void:
         _jump_present_hud(ctx, console, _cam_x, _cam_y, _view_w, _view_h)
-        await _responsive_sleep(_JUMP_FRAME_S)
+        await _responsive_sleep(_JUMP_FRAME_S, ctx)
         return
     if not flash_white:
         _jump_draw_rings(
@@ -675,7 +678,7 @@ async def _render_jump_frame(
                 fg=(255, 255, 255), bg=(255, 255, 255),
             )
     _jump_present_hud(ctx, console, _cam_x, _cam_y, _view_w, _view_h)
-    await _responsive_sleep(_JUMP_FRAME_S)
+    await _responsive_sleep(_JUMP_FRAME_S, ctx)
 
 
 async def _animate_jump(ctx, console: FrameBuffer, player_entity: world.Entity) -> None:

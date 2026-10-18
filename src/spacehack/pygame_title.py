@@ -476,6 +476,7 @@ def _draw_splash(
 
 async def run_splash_for_context(context: PygameContext) -> None:
     """Show the illustrated title splash in the existing shared Pygame window."""
+    from . import pygame_runtime
     runtime = getattr(context, "_runtime", None)
     engine = getattr(runtime, "engine", None)
     if engine is None or engine.logical_surface is None:
@@ -487,7 +488,7 @@ async def run_splash_for_context(context: PygameContext) -> None:
     while True:
         _draw_splash(pygame, screen, font)
         engine.present()
-        for event in pygame.event.get():
+        for event in pygame_runtime.drain_sdl(pygame, context):
             if event.type == pygame.QUIT:
                 return
             if event.type == pygame.KEYDOWN:

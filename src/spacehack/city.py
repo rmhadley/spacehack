@@ -41,7 +41,7 @@ async def _animate_ship_to_y(ctx, console: FrameBuffer, ship_ent: world.Entity, 
             ctx, console, game_map, ship_ent, location or "",
         )
         _played += 1
-        await _responsive_sleep(frame_seconds)
+        await _responsive_sleep(frame_seconds, ctx)
     animation_timing.web_beacon_end("cityglide", _played, _t0)
 
 

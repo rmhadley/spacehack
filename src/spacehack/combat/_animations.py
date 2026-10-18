@@ -51,14 +51,12 @@ async def _responsive_sleep(seconds: float, context=None) -> None:
     """
     end = time.monotonic() + animation_timing.scaled(seconds)
     while True:
-        drained = ()
         try:
             import pygame
-            drained = tuple(pygame.event.get())
+            from ..pygame_runtime import drain_sdl
+            drain_sdl(pygame, context)
         except ModuleNotFoundError:
             pass
-        if drained:
-            _note_drained(context, drained)
         remaining = end - time.monotonic()
         if remaining <= 0:
             # Instant speed still yields once per frame — a zero-length
@@ -66,19 +64,6 @@ async def _responsive_sleep(seconds: float, context=None) -> None:
             await asyncio.sleep(0)
             return
         await asyncio.sleep(min(remaining, 0.01))
-
-
-def _note_drained(context, drained: tuple) -> None:
-    """Feed foreign-drained events to the runtime's held-key state.
-
-    Callers pass either the PygameContext or the whole GameContext
-    (space combat hands its ``ctx`` through the frame driver); a
-    context without the hook (test doubles, headless) is skipped.
-    """
-    runtime_context = getattr(context, "context", context)
-    note = getattr(runtime_context, "note_drained", None)
-    if note is not None:
-        note(drained)
 
 
 def _bresenham_line(

@@ -204,3 +204,82 @@ def test_apply_display_config_keeps_animation_speed_and_syncs_timing():
 
     assert runtime.display_config.animation_speed == 4.0
     assert animation_timing.speed_scale() == 4.0
+
+
+def test_drain_sdl_returns_events_and_feeds_held_state():
+    """The shared modal-drain contract: raw events come back for the
+    pump's own dispatch while the runtime's held-key state sees them —
+    and a context without the hook degrades to the raw drain."""
+    runtime = _input_runtime([[_raw_event("down", 40)]])
+    context = SimpleNamespace(note_drained=runtime.note_drained)
+
+    drained = pygame_runtime.drain_sdl(runtime.engine.pygame, context)
+
+    assert [e.key for e in drained] == [40]  # raw SDL shape, not translated
+    assert runtime._held_keys == {"j"}
+    # A hook-less context (headless doubles) skips the feed silently.
+    runtime.engine.pygame  # the fake queue is now empty
+    assert pygame_runtime.drain_sdl(runtime.engine.pygame, None) == ()
+
+
+def test_modal_drain_releases_the_opening_key_so_the_next_press_is_fresh():
+    """THE press-c-twice bug, pinned at the seam it happens: the combat
+    loop stamps the opening keydown (held), a modal's drain swallows
+    the keyup while it owns the window, and the NEXT press of that key
+    must read fresh — never as a dropped repeat."""
+    from src.spacehack.pygame_runtime import PygameContext
+
+    runtime = _input_runtime([
+        [_raw_event("down", 40)],   # the press that opens the modal
+        [_raw_event("up", 40)],     # released while the modal pumps
+        [_raw_event("down", 40)],   # the "first c" that must work
+    ])
+    context = PygameContext(runtime)
+
+    opened = run(runtime.wait_events())
+    assert [(e.kind, e.repeat) for e in opened] == [("keydown", False)]
+    assert runtime._held_keys == {"j"}
+
+    # The modal pump drains raw through the helper; the keyup feeds
+    # held-state on its way past.
+    drained = pygame_runtime.drain_sdl(runtime.engine.pygame, context)
+    assert [e.type for e in drained] == [FakeSdlEventQueue.KEYUP]
+    assert runtime._held_keys == set()
+
+    fresh = run(runtime.wait_events())
+    assert [(e.kind, e.repeat) for e in fresh] == [("keydown", False)]
+
+
+def test_no_raw_sdl_drains_outside_the_runtime_and_engine():
+    """Invariant: every SDL drain flows through the stamping pair —
+    pygame_runtime's collector or the engine's events() (which the
+    runtime stamps over) — or through drain_sdl, which feeds held
+    state. A new raw pygame.event.get() in a pump re-introduces the
+    swallowed-keyup bug silently."""
+    from pathlib import Path
+
+    src = Path(__file__).resolve().parent.parent / "src" / "spacehack"
+    offenders = sorted(
+        f"{path.relative_to(src)}:{i + 1}"
+        for path in src.rglob("*.py")
+        for i, line in enumerate(path.read_text().splitlines())
+        if "pygame.event.get()" in line
+        and path.relative_to(src).as_posix()
+        not in {"pygame_runtime.py", "pygame_engine.py"}
+    )
+    assert offenders == []
+    # The scan bans raw drains only; drain_sdl(pygame, None) would be
+    # exactly as buggy — which is why _responsive_sleep's ctx param is
+    # REQUIRED (a missed caller TypeErrors instead of regressing).
+
+
+def test_drain_sdl_probes_the_gamecontext_shape():
+    """GameContext passes its .context; the feed must survive the probe
+    (a bare PygameContext passes itself)."""
+    runtime = _input_runtime([[_raw_event("down", 40)]])
+    inner = SimpleNamespace(note_drained=runtime.note_drained)
+    game_context = SimpleNamespace(context=inner)
+
+    pygame_runtime.drain_sdl(runtime.engine.pygame, game_context)
+
+    assert runtime._held_keys == {"j"}

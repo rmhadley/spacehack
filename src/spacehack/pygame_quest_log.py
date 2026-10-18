@@ -388,6 +388,7 @@ async def run_shared(
     confirm_abandon: bool = False,
 ) -> tuple[str, int, bool]:
     """Run the stateful Quest Log inside the existing shared window."""
+    from . import pygame_runtime
     pygame, screen, engine, font, count = _prepare_screen(context, ctx)
     selected = selected if count else -1
     confirm = confirm_abandon
@@ -401,7 +402,7 @@ async def run_shared(
         pygame_ui.draw_context_log(pygame, screen, ctx.context)
         engine.present()
         done = False
-        for event in pygame.event.get():
+        for event in pygame_runtime.drain_sdl(pygame, context):
             outcome, selected, confirm, pane = _handle_key(
                 pygame, event, selected, confirm, count, pane,
             )

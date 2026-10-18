@@ -542,6 +542,8 @@ async def _run_shared_loop(
     context: PygameContext,
 ) -> tuple[str, str, int]:
     """Render shared menu frames until a terminal outcome arrives."""
+    from . import pygame_runtime
+
     selected = _initial_selected(frames)
     count = len(frames[0].items)
     while True:
@@ -550,7 +552,7 @@ async def _run_shared_loop(
             screen.fill(pygame_ui.DEFAULT_PALETTE.background)
         _draw_shared_frame(pygame, screen, font, frame, context)
         engine.present()
-        for event in pygame.event.get():
+        for event in pygame_runtime.drain_sdl(pygame, context):
             outcome, selected = _handle_key(
                 pygame, event, selected, count,
             )

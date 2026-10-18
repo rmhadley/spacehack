@@ -709,6 +709,8 @@ async def run_shared(
     caption: str = "spacehack - terminal",
 ) -> tuple[str, str, int, int]:
     """Run one split frame inside the already-open shared Pygame window."""
+    from . import pygame_runtime
+
     engine, pygame, screen = _shared_engine(context)
     width, height = screen.get_size()
     font = _fit_font(pygame, frame, width, height)
@@ -716,7 +718,7 @@ async def run_shared(
         current = replace(frame, selected=_clamp_selected(frame))
         _draw_frame(pygame, screen, font, current, context=context)
         engine.present()
-        for event in pygame.event.get():
+        for event in pygame_runtime.drain_sdl(pygame, context):
             outcome, focus, selected = _handle_key(pygame, event, current)
             if outcome == "IGNORE":
                 frame = replace(frame, focus=focus, selected=selected)
@@ -811,7 +813,7 @@ async def run_for_screen(
         )
         engine.present()
         outcome, action, selected = await _pump_screen_events(
-            pygame, frame, selected,
+            pygame, frame, selected, context,
         )
         if outcome != "IGNORE":
             return outcome, action, selected
@@ -819,13 +821,17 @@ async def run_for_screen(
         await context.pump(0.016)
 
 
-async def _pump_screen_events(pygame: Any, frame: SplitFrame, selected: int):
+async def _pump_screen_events(pygame: Any, frame: SplitFrame, selected: int, context):
     """Drain one event batch for the screen runner.
 
     Returns the terminal ``(outcome, action, selected)`` — or ``IGNORE``
-    with the moved selection for the loop to re-render with.
+    with the moved selection for the loop to re-render with. The drain
+    flows through ``pygame_runtime.drain_sdl`` so the held-key state
+    sees keyups swallowed here (the press-c-twice bug).
     """
-    for event in pygame.event.get():
+    from . import pygame_runtime
+
+    for event in pygame_runtime.drain_sdl(pygame, context):
         outcome, new_selected = _handle_screen_key(pygame, event, frame)
         if outcome == "IGNORE":
             return outcome, "", new_selected
@@ -863,7 +869,7 @@ async def run_dynamic_screen(
         )
         engine.present()
         outcome, action, selected = await _pump_screen_events(
-            pygame, frame, selected,
+            pygame, frame, selected, context,
         )
         if outcome != "IGNORE":
             return outcome, action, selected

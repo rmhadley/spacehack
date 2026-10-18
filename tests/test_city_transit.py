@@ -217,7 +217,7 @@ def test_transit_arrival_pulses_then_restores_the_light_grid(monkeypatch):
         ),
     )
     from src.spacehack import navigation_travel
-    monkeypatch.setattr(navigation_travel, "_responsive_sleep", as_async(lambda _s: None))
+    monkeypatch.setattr(navigation_travel, "_responsive_sleep", as_async(lambda _s, _ctx: None))
 
     dest = game_map.city_transit["militia"]["pos"]
     state = SimpleNamespace(
@@ -316,7 +316,7 @@ def test_arrival_pulse_runs_on_a_previously_unlit_city(monkeypatch):
     monkeypatch.setattr(city_render, "present_city_transition_frame",
                         lambda *_a, **_k: None)
     from src.spacehack import navigation_travel
-    monkeypatch.setattr(navigation_travel, "_responsive_sleep", as_async(lambda _s: None))
+    monkeypatch.setattr(navigation_travel, "_responsive_sleep", as_async(lambda _s, _ctx: None))
 
     dest = game_map.city_transit and next(iter(game_map.city_transit.values()))
     state = SimpleNamespace(

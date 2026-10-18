@@ -695,6 +695,7 @@ async def run_shared(
     caption: str = "spacehack",
 ) -> tuple[str, str, int]:
     """Run a text screen inside the already-open shared Pygame window."""
+    from . import pygame_runtime
     engine, pygame, screen, font, width, frame = _prepare_shared_screen(context, frame)
     while True:
         current = replace(frame, selected=_clamp(frame))
@@ -704,7 +705,7 @@ async def run_shared(
         engine.present(
             physical_overlay=_physical_log_callback(engine, context),
         )
-        for event in pygame.event.get():
+        for event in pygame_runtime.drain_sdl(pygame, context):
             outcome, selected = _handle_key(pygame, event, current)
             if outcome in {"IGNORE", "PAGE_DOWN", "PAGE_UP"}:
                 frame = replace(

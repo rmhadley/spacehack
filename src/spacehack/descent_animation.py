@@ -119,7 +119,7 @@ async def animate_descent(ctx, console, *, frame_seconds: float = animation_timi
         _played += 1
         if frame_index >= _SKIP_GRACE_FRAMES and _skip_requested(context):
             break
-        await _responsive_sleep(frame_seconds)
+        await _responsive_sleep(frame_seconds, context)
     animation_timing.web_beacon_end("descent", _played, _t0)
 
 

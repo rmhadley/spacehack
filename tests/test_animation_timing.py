@@ -55,7 +55,7 @@ def test_responsive_sleeps_pump_sdl_and_return_promptly_at_instant(monkeypatch):
     animation_timing.set_speed_scale(0.0)
 
     started = time.monotonic()
-    run(nav_sleep(0.05))
+    run(nav_sleep(0.05, None))
     run(combat_sleep(0.05))
     elapsed = time.monotonic() - started
 
@@ -178,7 +178,7 @@ def test_instant_speed_still_yields_per_frame(monkeypatch):
     animation_timing.set_speed_scale(0.0)
     for module in (nt, _animations):
         monkeypatch.setattr(module.asyncio, "sleep", fake_sleep)
-        run(module._responsive_sleep(0.05))
+        run(module._responsive_sleep(0.05, None))
     assert yields, "instant-speed animation sleep must still yield"
 
     context = SimpleNamespace(events=lambda: ())

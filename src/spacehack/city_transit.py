@@ -233,7 +233,7 @@ async def animate_transit_arrival(
             _arrival_pulse_sources(base, pos, colour, (1.0 - i / frames) ** 1.6),
             clock, location,
         )
-        await _responsive_sleep(animation_timing.TRANSIT_ARRIVAL)
+        await _responsive_sleep(animation_timing.TRANSIT_ARRIVAL, state.ctx)
     game_map.light_grid = snapshot
     from .city_render import present_city_transition_frame
     present_city_transition_frame(

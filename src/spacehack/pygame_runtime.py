@@ -102,6 +102,25 @@ def _stamp_held_state(
     return event
 
 
+def drain_sdl(pygame: Any, context: Any) -> tuple[Any, ...]:
+    """Drain the raw SDL queue for a loop that owns the window — modal
+    pumps, the title splash, travel animations — while keeping the
+    runtime's held-key state accurate: the drained events feed
+    ``note_drained``, so a keyup swallowed here still releases its
+    key. Without the feed the key sticks held and the NEXT fresh
+    press misreads as a repeat, which the combat loop drops for every
+    non-movement action — the "press c twice" bug. Returns the raw
+    events for the caller's own dispatch; ``context`` may be the
+    PygameContext, a whole GameContext, or anything without the hook
+    (the feed is skipped then, matching the pre-fix behavior)."""
+    drained = tuple(pygame.event.get())
+    runtime_context = getattr(context, "context", context)
+    note = getattr(runtime_context, "note_drained", None)
+    if drained and note is not None:
+        note(drained)
+    return drained
+
+
 def _drop_released_repeats(
     batch: tuple[pygame_engine.PygameInputEvent, ...],
 ) -> tuple[pygame_engine.PygameInputEvent, ...]:

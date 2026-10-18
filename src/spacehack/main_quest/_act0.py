@@ -271,7 +271,7 @@ async def animate_signal_door_opening(
     from ..navigation import _responsive_sleep
     for _frame in _signal_door_frames(len(_barrier)):
         _render_signal_door_frame(ctx, console, game_map, player_pos, _barrier, _frame)
-        await _responsive_sleep(animation_timing.SIGNAL_WAVE)
+        await _responsive_sleep(animation_timing.SIGNAL_WAVE, ctx)
     _open_signal_door_tiles(game_map, _barrier, _stairs)
     _render_signal_door_frame(
         ctx,
@@ -281,7 +281,7 @@ async def animate_signal_door_opening(
         _barrier,
         " " * len(_barrier),
     )
-    await _responsive_sleep(animation_timing.SIGNAL_SETTLE)
+    await _responsive_sleep(animation_timing.SIGNAL_SETTLE, ctx)
     return True
 
 def start_prison_objective(ctx) -> None:

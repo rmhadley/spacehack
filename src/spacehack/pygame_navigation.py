@@ -457,6 +457,7 @@ def _handle_key(pygame: Any, event: Any) -> str:
 
 async def run_shared(context: PygameContext, ctx: GameContext, ship_pos: Any) -> str:
     """Render navigation inside the already-open game window."""
+    from . import pygame_runtime
     runtime = getattr(context, "_runtime", None)
     engine = getattr(runtime, "engine", None)
     if engine is None or engine.logical_surface is None:
@@ -468,7 +469,7 @@ async def run_shared(context: PygameContext, ctx: GameContext, ship_pos: Any) ->
     while True:
         _draw(pygame, screen, font, frame, context=context)
         engine.present()
-        for event in pygame.event.get():
+        for event in pygame_runtime.drain_sdl(pygame, context):
             outcome = _handle_key(pygame, event)
             if outcome != "IGNORE":
                 return outcome

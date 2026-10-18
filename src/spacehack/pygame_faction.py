@@ -343,6 +343,7 @@ def _delete_shown_id(ctx: GameContext) -> None:
 
 async def run_shared(context: PygameContext, ctx: GameContext) -> str:
     """Run faction standings inside the existing shared Pygame window."""
+    from . import pygame_runtime
     runtime = getattr(context, "_runtime", None)
     engine = getattr(runtime, "engine", None)
     if engine is None or engine.logical_surface is None:
@@ -356,7 +357,7 @@ async def run_shared(context: PygameContext, ctx: GameContext) -> str:
         screen.fill(pygame_ui.DEFAULT_PALETTE.background)
         _draw_shared_frame(pygame, screen, font, frame, context)
         engine.present()
-        for event in pygame.event.get():
+        for event in pygame_runtime.drain_sdl(pygame, context):
             outcome = _handle_key(pygame, event)
             if outcome == "DARK":
                 _log_transponder_toggle(ctx)
