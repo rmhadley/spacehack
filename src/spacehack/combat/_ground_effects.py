@@ -98,34 +98,36 @@ def enemy_ap_total(spec, armor_entries=()) -> int:
 
 
 def advance_enemy_effects(enemy) -> int:
-    """Tick one enemy instance's temporary effects at round start (the
-    mirror of :func:`advance_player_effects`): med-pack regeneration
-    heals, a live stim grants its catalog AP bonus. Fight-scoped —
-    never serialized; a new fight re-derives from the carried stamp.
-    The dead do not regenerate — an instance killed inside its regen
-    window stays dead."""
+    """Tick one enemy instance's status container at round start (the
+    mirror of :func:`advance_player_effects`): regen heals SILENTLY
+    (the enemy side never logged its ticks), a live stim grants its
+    AP bonus as the returned fold. Fight-scoped — never serialized;
+    a new fight re-derives from the carried stamp. The dead do not
+    regenerate — an instance killed inside its regen window stays
+    dead, and its container is left untouched."""
     if enemy.hp <= 0:
         return 0
-    if enemy.regen_turns > 0:
-        enemy.hp = min(enemy.max_hp, enemy.hp + enemy.regen_amount)
-        enemy.regen_turns -= 1
-    _bonus = enemy.stim_ap_bonus if enemy.stim_turns > 0 else 0
-    if enemy.stim_turns > 0:
-        enemy.stim_turns -= 1
+    _bonus = 0
+    for _ev in _statuses.advance(enemy.statuses):
+        if _ev[0] == "heal":
+            enemy.hp = min(enemy.max_hp, enemy.hp + _ev[2])
+        elif _ev[0] == "ap":
+            _bonus += _ev[2]
     return _bonus
 
 
 def _triggered(spec, gei, game_map, player_pos) -> bool:
     """Whether one carried consumable's use trigger fires (SETTLED 36):
     a Med Pack at half health; a Combat Stim only when the carrier can
-    see the player and isn't already stimmed. Any other effect id has
-    no enemy-side trigger yet."""
+    see the player and isn't already stimmed — the one live AI-side
+    status read, moved with the field (doc 103 Build A). Any other
+    effect id has no enemy-side trigger yet."""
     from ..dungeon_fov import cell_in_sight
 
     if spec.effect_id == "regen":
         return gei.hp * 2 <= gei.max_hp
     if spec.effect_id == "stim":
-        return gei.stim_turns <= 0 and cell_in_sight(
+        return not _statuses.has(gei.statuses, "stim") and cell_in_sight(
             game_map, gei.entity.pos.x, gei.entity.pos.y,
             player_pos.x, player_pos.y,
         )
@@ -151,15 +153,15 @@ def use_carried_consumable(ctx, gei, game_map, player_pos) -> int:
             return 0
         if _spec.effect_id == "regen":
             gei.hp = min(gei.max_hp, gei.hp + _spec.combat_heal_amount)
-            gei.regen_amount = _spec.combat_regen_amount
-            gei.regen_turns = _spec.duration_turns
             _line = f"{gei.name} uses a {_spec.name}."
         elif _spec.effect_id == "stim":
-            gei.stim_turns = _spec.duration_turns
-            gei.stim_ap_bonus = _spec.combat_ap_bonus
             _line = f"{gei.name} injects a {_spec.name}."
         else:
             continue  # no enemy-side use for other effect ids
+        _statuses.apply(
+            gei.statuses, _spec.effect_id,
+            source=_spec.name, theater="ground",
+        )
         _entry[2] -= 1
         if _entry[2] <= 0:
             (gei.entity.carried_items or []).remove(_entry)

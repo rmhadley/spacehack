@@ -9,11 +9,14 @@ re-exports both (tests and the seam modules import them there).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .. import world
 from ..game_context import GameContext
 from ._types import FleeExit
+
+if TYPE_CHECKING:
+    from ._statuses import ActiveStatus
 
 
 # ---------------------------------------------------------------------------
@@ -46,13 +49,11 @@ class GroundEnemyInstance:
     # chrome in v1 — the field is the symmetric shape the enemy
     # container populates later.
     nano_mesh: bool = False
-    # Enemy-side consumable effect state (doc 48 SETTLED 36) —
-    # fight-scoped, never serialized: a new fight re-derives from the
-    # entity's pre-rolled carried stamp.
-    stim_turns: int = 0
-    stim_ap_bonus: int = 0
-    regen_turns: int = 0
-    regen_amount: int = 0
+    # Enemy-side status container (doc 103 Build A; doc 48 SETTLED 36's
+    # successor) — fight-scoped, never serialized: a new fight re-derives
+    # from the entity's pre-rolled carried stamp. The same
+    # dict[str, ActiveStatus] the player side reads.
+    statuses: dict[str, "ActiveStatus"] = field(default_factory=dict)
     cells_moved_this_turn: int = 0
     # Doc 48 p9: stare-eruption victims are NOT player kills — the
     # flag excludes them from the CombatResult's defeated lists so no

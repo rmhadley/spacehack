@@ -833,7 +833,11 @@ def reset_turn(ctx) -> None:
     if _state.core_cooldown > 0:
         _state.core_cooldown -= 1
     for _gei in _state.enemies:
-        _gei.ap = _gei.ap_total + advance_enemy_effects(_gei)
+        # The enemy reset is a DIRECT add (no _roll_ap, no twentieths)
+        # with its own zero guard — a general negative fold (multiple
+        # debts, doc 103) can never push AP below zero. The three
+        # reset shapes stay distinct, never homogenized.
+        _gei.ap = max(0, _gei.ap_total + advance_enemy_effects(_gei))
         _gei.cells_moved_this_turn = 0
 
 async def activate_core(ctx) -> None:

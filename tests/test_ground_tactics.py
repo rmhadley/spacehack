@@ -893,7 +893,9 @@ def test_med_pack_at_half_health():
 
     assert spent == 1  # use_ap_cost
     assert inst.hp == 13  # +5 heal
-    assert inst.regen_turns == 3 and inst.regen_amount == 2
+    _regen = inst.statuses["regen"]
+    assert _regen.remaining_turns == 3
+    assert _regen.source == "Med Pack"
     assert prowler.carried_items == [["consumable", "med_pack", 1]]
     assert lines == [("Dust Prowler uses a Med Pack.", (255, 95, 95))]
 
@@ -923,10 +925,11 @@ def test_stim_requires_los_and_lasts_three_rounds():
     game_map.tiles[2][5] = world.DUNGEON_FLOOR  # sightline opens
     assert use_carried_consumable(ctx, inst, game_map, player.pos) == 1
     assert lines == [("Pirate Raider injects a Combat Stim.", (255, 95, 95))]
-    assert inst.stim_turns == 3
+    assert inst.statuses["stim"].remaining_turns == 3
     assert raider.carried_items == []  # last charge consumed
 
     assert [advance_enemy_effects(inst) for _ in range(4)] == [1, 1, 1, 0]
+    assert "stim" not in inst.statuses  # expired exactly when the bonus stopped
 
 
 def test_death_drop_reads_the_carried_stamp():
@@ -976,11 +979,13 @@ def test_carried_stamp_survives_save_load():
 def test_dead_enemies_do_not_regenerate():
     """An instance killed inside its regen window stays dead — the
     round-start tick never resurrects (review catch, doc 48 phase 5)."""
+    from src.spacehack.combat import _statuses
     from src.spacehack.combat._ground_effects import advance_enemy_effects
 
     inst = _instance(world.Entity(
         "r", (220, 120, 80), world.Position(2, 2), npc_char_id="pirate_raider",
-    ), hp=0, max_hp=30, regen_turns=1, regen_amount=2)
+    ), hp=0, max_hp=30)
+    _statuses.apply(inst.statuses, "regen")
 
     assert advance_enemy_effects(inst) == 0
     assert inst.hp == 0
