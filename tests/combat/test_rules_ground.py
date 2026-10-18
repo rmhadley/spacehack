@@ -279,76 +279,190 @@ def test_melee_kill_increments_charger_counter(monkeypatch):
     assert _ctx.player_counters.melee_kills == 1
 
 
-def test_stun_baton_hit_reduces_enemy_ap_by_one():
-    _enemy = _rules_ground.GroundEnemyInstance(
-        entity=SimpleNamespace(),
-        spec=SimpleNamespace(armor=0),
-        hp=30,
-        ap=4,
-        ap_total=4,
-    )
-    _ctx = SimpleNamespace(
+def _baton_ctx():
+    """The minimal damage()-side ctx (no chrome, no traits) with a
+    recording log for the ruled apply line; returns (ctx, lines)."""
+    lines: list[str] = []
+    return SimpleNamespace(
         ground_stats=SimpleNamespace(strength=10),
         equipped_ground_armor={},
         player_traits=[],
         installed_chrome=[],
-    )
+        log=SimpleNamespace(
+            add_colored=lambda text, _color, **_k: lines.append(text),
+        ),
+    ), lines
 
-    _rules_ground.damage("stun_baton", _enemy, _ctx)
 
-    assert _enemy.ap == 3
-
-
-def test_stun_baton_reduction_resets_after_the_next_enemy_turn(monkeypatch):
-    _enemy = _rules_ground.GroundEnemyInstance(
+def _baton_enemy(hp=30, ap=4, ap_total=4):
+    """A named, unarmored enemy instance (the victim label reads
+    spec.name)."""
+    return _rules_ground.GroundEnemyInstance(
         entity=SimpleNamespace(),
-        spec=SimpleNamespace(armor=0),
-        hp=30,
-        ap=4,
-        ap_total=4,
+        spec=SimpleNamespace(armor=0, name="Rock Scavenger"),
+        hp=hp, ap=ap, ap_total=ap_total,
     )
-    _ctx = SimpleNamespace(
-        ground_stats=SimpleNamespace(strength=10),
-        equipped_ground_armor={},
-        player_traits=[],
-        installed_chrome=[],
-    )
+
+
+class _RecordingRNG:
+    """A deterministic 1-100 source that records every draw (the
+    draw-count law's pin instrument)."""
+
+    def __init__(self, results):
+        self.results = list(results)
+        self.draws = []
+
+    def randint(self, low, high):
+        self.draws.append((low, high))
+        return self.results.pop(0)
+
+
+def test_stun_baton_rolls_and_applies_staggered_not_instant_drain(monkeypatch):
+    """The debut's felt change (doc 103 Build B): a connecting,
+    surviving hit ROLLS once (50 through the seam — the enemy victim
+    reads band 0, identity) and lands the timed condition; the AP
+    drain is gone from the hit itself."""
+    import src.spacehack.engine as _engine_mod
+    from src.spacehack.combat import _statuses
+    from src.spacehack.data.statuses import STAGGERED_ID
+
+    _enemy = _baton_enemy()
+    _ctx, _lines = _baton_ctx()
+    _rng = _RecordingRNG([50])  # <= 50 through the seam: lands
+    monkeypatch.setattr(_engine_mod, "RNG", _rng)
+
     _rules_ground.damage("stun_baton", _enemy, _ctx)
-    assert _enemy.ap == 3
+
+    assert _statuses.has(_enemy.statuses, STAGGERED_ID)
+    assert _enemy.statuses[STAGGERED_ID].remaining_turns == 2
+    assert _enemy.ap == 4  # NOT the retired instant drain
+    assert _rng.draws == [(1, 100)]  # exactly one application draw
+    assert _lines == ["Rock Scavenger is staggered!"]  # ledger #1
+
+
+def test_stun_baton_missed_roll_consumes_its_draw_and_lands_nothing(monkeypatch):
+    import src.spacehack.engine as _engine_mod
+    from src.spacehack.combat import _statuses
+
+    _enemy = _baton_enemy()
+    _ctx, _lines = _baton_ctx()
+    _rng = _RecordingRNG([51])  # > 50: the roll misses
+    monkeypatch.setattr(_engine_mod, "RNG", _rng)
+
+    _rules_ground.damage("stun_baton", _enemy, _ctx)
+
+    assert not _statuses.has(_enemy.statuses, "staggered")
+    assert _rng.draws == [(1, 100)]  # drawn and spent, never refunded
+    assert _lines == []
+
+
+def test_stun_baton_killing_hit_never_rolls(monkeypatch):
+    """q10: a killing hit leaves no victim — rolling anyway would burn
+    a draw to no effect and shift every subsequent stream draw."""
+    import src.spacehack.engine as _engine_mod
+
+    _enemy = _baton_enemy(hp=1)
+    _ctx, _lines = _baton_ctx()
+    _rng = _RecordingRNG([])
+    monkeypatch.setattr(_engine_mod, "RNG", _rng)
+
+    _rules_ground.damage("stun_baton", _enemy, _ctx)
+
+    assert not _enemy.alive
+    assert _rng.draws == []  # zero draws on the killing hit
+    assert not _enemy.statuses
+    assert _lines == []
+
+
+def test_chance_carrierless_hit_consumes_zero_draws(monkeypatch):
+    """The zero-draw law at the fire site: a fight without a
+    chance-carrying weapon keeps its seeded stream bit-identical."""
+    import src.spacehack.engine as _engine_mod
+
+    _enemy = _baton_enemy()
+    _ctx, _lines = _baton_ctx()
+    _rng = _RecordingRNG([])
+    monkeypatch.setattr(_engine_mod, "RNG", _rng)
+
+    _rules_ground.damage("combat_knife", _enemy, _ctx)
+
+    assert _rng.draws == []  # no crit chrome, no rider: no draws at all
+
+
+def test_staggered_enemy_loses_1_ap_at_its_next_two_round_starts(monkeypatch):
+    """The timed condition's shape: two consecutive resets each read
+    ap_total - 1, the third returns to full (duration 2, S1)."""
+    from src.spacehack.combat import _statuses
+    from src.spacehack.data.statuses import STAGGERED_ID
+
+    _enemy = _baton_enemy()
+    _ctx, _lines = _baton_ctx()
+    _rng = _RecordingRNG([50])
+    import src.spacehack.engine as _engine_mod
+    monkeypatch.setattr(_engine_mod, "RNG", _rng)
+    _rules_ground.damage("stun_baton", _enemy, _ctx)
 
     monkeypatch.setattr(
-        _rules_ground,
-        "_state",
-        _rules_ground.GroundCombatState(
-            ctx=_ctx,
-            game_map=SimpleNamespace(),
-            enemies=[_enemy],
+        _rules_ground, "_state", _rules_ground.GroundCombatState(
+            ctx=_ctx, game_map=SimpleNamespace(), enemies=[_enemy],
         ),
     )
     _rules_ground.reset_turn(_ctx)
+    assert _enemy.ap == 3  # first round start: ap_total - 1
+    _rules_ground.reset_turn(_ctx)
+    assert _enemy.ap == 3  # second round start: still paying
+    assert not _statuses.has(_enemy.statuses, STAGGERED_ID)  # expired
+    _rules_ground.reset_turn(_ctx)
+    assert _enemy.ap == 4  # full again
 
-    assert _enemy.ap == 4
 
+def test_staggered_rehit_refreshes_duration_never_stacks(monkeypatch):
+    import src.spacehack.engine as _engine_mod
+    from src.spacehack.data.statuses import STAGGERED_ID
 
-def test_stun_baton_cannot_reduce_enemy_ap_below_zero():
-    _enemy = _rules_ground.GroundEnemyInstance(
-        entity=SimpleNamespace(),
-        spec=SimpleNamespace(armor=0),
-        hp=30,
-        ap=1,
-        ap_total=4,
-    )
-    _ctx = SimpleNamespace(
-        ground_stats=SimpleNamespace(strength=10),
-        equipped_ground_armor={},
-        player_traits=[],
-        installed_chrome=[],
-    )
-
+    _enemy = _baton_enemy()
+    _ctx, _lines = _baton_ctx()
+    _rng = _RecordingRNG([50, 50])
+    monkeypatch.setattr(_engine_mod, "RNG", _rng)
     _rules_ground.damage("stun_baton", _enemy, _ctx)
+    _enemy.statuses[STAGGERED_ID].remaining_turns = 1  # one round in
     _rules_ground.damage("stun_baton", _enemy, _ctx)
 
-    assert _enemy.ap == 0
+    assert _enemy.statuses[STAGGERED_ID].remaining_turns == 2  # reset
+    assert _enemy.statuses[STAGGERED_ID].stacks == 1  # never stacks
+    assert _lines == ["Rock Scavenger is staggered!"] * 2  # refresh logs
+
+
+def test_staggered_fold_can_never_push_enemy_ap_below_zero(monkeypatch):
+    from src.spacehack.combat import _statuses
+    from src.spacehack.data.statuses import STAGGERED_ID
+
+    _enemy = _baton_enemy(ap_total=1)
+    _statuses.apply(_enemy.statuses, STAGGERED_ID)
+    _ctx, _lines = _baton_ctx()
+    monkeypatch.setattr(
+        _rules_ground, "_state", _rules_ground.GroundCombatState(
+            ctx=_ctx, game_map=SimpleNamespace(), enemies=[_enemy],
+        ),
+    )
+    _rules_ground.reset_turn(_ctx)
+    assert _enemy.ap == 0  # max(0, 1 - 1) — the fold's own guard
+
+
+def test_dead_enemies_skip_their_round_reset(monkeypatch):
+    """The tick-death clause (doc 103's adapter contract): a corpse
+    never refreshes AP."""
+    _live = _baton_enemy(ap=2)
+    _dead = _baton_enemy(hp=0, ap=1)
+    _ctx, _lines = _baton_ctx()
+    monkeypatch.setattr(
+        _rules_ground, "_state", _rules_ground.GroundCombatState(
+            ctx=_ctx, game_map=SimpleNamespace(), enemies=[_live, _dead],
+        ),
+    )
+    _rules_ground.reset_turn(_ctx)
+    assert _live.ap == 4
+    assert _dead.ap == 1  # untouched: no refresh for corpses
 
 
 def test_damage_subtracts_enemy_armor():
@@ -359,7 +473,7 @@ def test_damage_subtracts_enemy_armor():
     """
     _enemy = _rules_ground.GroundEnemyInstance(
         entity=SimpleNamespace(),
-        spec=SimpleNamespace(armor=3),
+        spec=SimpleNamespace(armor=3, name="Armored Dummy"),
         hp=30,
         armor=3,  # the FOLDED read (doc 48 SETTLED 51) — spec + worn
     )

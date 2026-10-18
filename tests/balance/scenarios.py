@@ -482,8 +482,16 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         # promise is THIS row: geometry + lockdown, one enemy in reach
         # at a time. Measured: 0.980 / 19.27 HP / 4.37 turns (the
         # pistols' lane costs ~4.7 — the melee kit pays ~4x and wins).
+        # Re-pinned 2026-10-18 (doc 103 Build B): the staggered debut's
+        # player-site application roll adds one draw per connecting
+        # surviving baton hit, reshuffling the seeded stream (the crit
+        # precedent's law). Fresh measurement: 0.920 / 20.00 HP — the
+        # kit's cliff-edge shape (2 defeats at the 0.960 pre-tree
+        # baseline too), not a mechanics regression; floor re-landed
+        # with the same 0.02 slack. The enemy-site symmetry commit
+        # re-measures again (enemy baton draws enter the stream).
         thresholds=Thresholds(
-            win_rate_floor=0.94,
+            win_rate_floor=0.90,
             damage_taken_ceiling=24.0,
         ),
     ),

@@ -138,7 +138,7 @@ def _fists_enemy():
         entity=world.Entity(
             char="r", fg=(200, 60, 60), pos=world.Position(1, 1), name="rat",
         ),
-        spec=SimpleNamespace(armor=0),
+        spec=SimpleNamespace(armor=0, name="rat"),
     )
 
 

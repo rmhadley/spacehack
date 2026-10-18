@@ -384,7 +384,9 @@ def damage(
     unpacks the triple for both rule sets — ground always reports
     ``False`` there. The crit roll (doc 102 SETTLED 6) splits melee
     vs ranged on the existing ``damage_type`` read; zero chance
-    consumes no RNG draw (kill-draws doctrine).
+    consumes no RNG draw (kill-draws doctrine). The on-hit lingering
+    rider (doc 103 Build B) rolls after the hit resolves — survivors
+    only, one draw per chance-carrying connection.
     """
     from ..chrome import installed_effects
     _fx = installed_effects(ctx.installed_chrome)
@@ -395,12 +397,48 @@ def damage(
         _fx.crit_damage_points,
     )
     enemy.hp -= _dmg
-    enemy.ap = max(0, enemy.ap - int(weapon_id == "stun_baton"))
     # Wound persistence: sync to the map entity so a fight that ends
     # with survivors (LOS aggro) keeps their wounds on re-engagement.
     if enemy.entity is not None:
         enemy.entity.hp = max(0, enemy.hp)
+    _apply_hit_status(
+        ctx, enemy.statuses, weapon_id, enemy.name,
+        victim_band=0, victim_survives=enemy.alive,
+        line_color=_ml.COLOR_PLAYER_ACTION,
+    )
     return _dmg, False, _is_crit
+
+
+def _apply_hit_status(
+    ctx, container, weapon_id: str, victim_label: str, *,
+    victim_band: int, victim_survives: bool, line_color,
+) -> None:
+    """The on-hit lingering rider's ONE law (doc 103 Build B), shared
+    by both fire sites: guarded (no chance-carrier consumes ZERO draws
+    — the crit precedent), survivors only (a killing hit leaves no
+    victim), the ego seam prices the VICTIM's band, one roll, and the
+    ruled apply line logs on every landed roll — fresh or refresh
+    (the countdown visibly resets). An unresolvable weapon id raises
+    (an authoring error, the apply KeyError law — every fire site
+    resolves its id through the catalog before it gets here)."""
+    _ws = _find_gw(weapon_id)
+    if _ws.status_chance <= 0 or not _ws.status_id or not victim_survives:
+        return
+    from ..chrome import status_chance_adjusted
+    from ..engine import RNG
+    from ..data.statuses import find_status
+
+    if RNG.randint(1, 100) > status_chance_adjusted(
+        _ws.status_chance, victim_band,
+    ):
+        return
+    _statuses.apply(
+        container, _ws.status_id, source=_ws.name, theater="ground",
+    )
+    _line = find_status(_ws.status_id).apply_line
+    if _line:
+        ctx.log.add_colored(_line.format(victim=victim_label), line_color)
+
 
 def is_explosive(weapon_id: str) -> bool:
     """Whether a ground weapon resolves as an area blast."""
@@ -850,6 +888,11 @@ def reset_turn(ctx) -> None:
     if _state.core_cooldown > 0:
         _state.core_cooldown -= 1
     for _gei in _state.enemies:
+        if not _gei.alive:
+            # Corpses skip the reset (doc 103's tick-death clause): a
+            # dead actor never refreshes AP — load-bearing the day a
+            # damage-tick row can kill inside the walk.
+            continue
         # The enemy reset is a DIRECT add (no _roll_ap, no twentieths)
         # with its own zero guard — a general negative fold (multiple
         # debts, doc 103) can never push AP below zero. The three

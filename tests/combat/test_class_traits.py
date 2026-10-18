@@ -92,7 +92,7 @@ def test_pirate_opener_armed_truth_table():
 def _ground_enemy(armor=0, reflexes=30):
     return _rules_ground.GroundEnemyInstance(
         entity=SimpleNamespace(pos=world.Position(1, 0)),
-        spec=SimpleNamespace(armor=armor),
+        spec=SimpleNamespace(armor=armor, name="Dummy"),
         stats=SimpleNamespace(reflexes=reflexes),
         hp=100,
         armor=armor,  # the FOLDED read (doc 48 SETTLED 51) — spec + worn
