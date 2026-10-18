@@ -234,6 +234,28 @@ def band_name(band_index: int) -> str:
     return BAND_NAMES[max(0, min(3, band_index))]
 
 
+# The status-susceptibility slope (doc 103 q5/S4, Build B): each band
+# past the dead zone lowers the victim's resist by 10 chance points,
+# capped at +30. The ego drain's combat entry — the seam that
+# supersedes doc 102's no-combat-read rejection, and only this seam.
+_SUSCEPTIBILITY_PER_BAND: int = 10
+_SUSCEPTIBILITY_CAP: int = 30
+
+
+def status_chance_adjusted(base: int, victim_band: int) -> int:
+    """An application chance priced through the VICTIM's burnt-ego
+    band (doc 103 q5): band 0 is the dead zone reading identity
+    ("full ego, full resist" — zero burn and shallow burn resist
+    alike), each band past it lowers the victim's resist by 10 points,
+    capped at +30. The attacker's burn never reads. Pure — the fire
+    sites roll; this only prices."""
+    _bonus = min(
+        _SUSCEPTIBILITY_CAP,
+        max(0, victim_band) * _SUSCEPTIBILITY_PER_BAND,
+    )
+    return min(100, base + _bonus)
+
+
 def local_band(ctx: "GameContext", planet_id: str) -> int:
     """The planet-shifted band read (SETTLED 4): strict cores read
     the burn one band HARSHER (+1), tolerant havens one band milder

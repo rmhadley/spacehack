@@ -47,6 +47,28 @@ class TestBandFunction:
             "Natural", "Tainted", "Chromed", "Psycho",
         ]
 
+
+class TestStatusSusceptibilitySeam:
+    """The ego drain's one combat read (doc 103 q5/S4, Build B):
+    victim-side, band-keyed, identity in the dead zone."""
+
+    def test_four_bands_at_base_50(self):
+        # S4's ruled package: 50 / 60 / 70 / 80.
+        assert [chrome.status_chance_adjusted(50, b) for b in range(4)] == [
+            50, 60, 70, 80,
+        ]
+
+    def test_dead_zone_is_identity(self):
+        assert chrome.status_chance_adjusted(75, 0) == 75
+
+    def test_bonus_caps_at_30(self):
+        assert chrome.status_chance_adjusted(50, 3) == 80
+        assert chrome.status_chance_adjusted(90, 3) == 100  # clamped
+
+    def test_garbage_bands_guard_to_the_dead_zone(self):
+        assert chrome.status_chance_adjusted(50, -1) == 50
+        assert chrome.status_chance_adjusted(50, 9) == 80  # band cap holds
+
     def test_local_band_valence_compositions(self):
         assert chrome.local_band(_ctx(3), "earth") == 0    # dead zone anywhere
         assert chrome.local_band(_ctx(4), "mars") == 1     # neutral taint
