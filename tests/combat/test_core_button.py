@@ -97,14 +97,19 @@ class TestSpaceCore:
             lambda _ids: ChromeEffects(has_core=True),
         )
         _log, lines = _log_spy()
-        _ctx = SimpleNamespace(installed_chrome=["terminus_neural_stim"], log=_log)
+        _ctx = SimpleNamespace(
+            installed_chrome=["terminus_neural_stim"], log=_log,
+            active_statuses={},
+        )
         _old = _rules_space._state
         _rules_space._state = _space_state(_ctx)
         try:
             run(_rules_space.activate_core(_ctx))
             _ps = _rules_space._state.player_state
             assert _ps["ap_remaining"] == 5  # 3 + 2
-            assert _ps["stim_loan_ap"] == -1
+            _loan = _ctx.active_statuses["neural_stim_loan"]
+            assert _loan.remaining_turns == 1
+            assert _loan.theater == "space"
             assert _ps["stim_cooldown"] == 3
             assert lines == [ACTIVATION]
 
@@ -121,14 +126,17 @@ class TestSpaceCore:
             lambda _ids: ChromeEffects(has_core=True),
         )
         _log, lines = _log_spy()
-        _ctx = SimpleNamespace(installed_chrome=["terminus_neural_stim"], log=_log)
+        _ctx = SimpleNamespace(
+            installed_chrome=["terminus_neural_stim"], log=_log,
+            active_statuses={},
+        )
         _old = _rules_space._state
         _rules_space._state = _space_state(_ctx, ap=4)
         try:
             run(_rules_space.activate_core(_ctx))
             _rules_space.reset_turn(_ctx)  # next round: -1, cd 3 -> 2
             _ps = _rules_space._state.player_state
-            assert "stim_loan_ap" not in _ps  # consumed exactly once
+            assert "neural_stim_loan" not in _ctx.active_statuses  # once
             assert _ps["stim_cooldown"] == 2
             assert lines[-1] == REPAYMENT
             assert _ps["ap_total"] == 2  # 3 AP gain (piloting 0) - 1 loan
@@ -141,13 +149,41 @@ class TestSpaceCore:
         finally:
             _rules_space._state = _old
 
+    def test_sync_state_defuses_a_live_loan(self, monkeypatch):
+        """The container outlives the fight now (doc 103 Build A,
+        advisor catch 4): sync_state explicitly defuses — a popped but
+        unpaid loan never bleeds -1 AP into the player's next space
+        fight (today the loan key died with the fight's player_state)."""
+        monkeypatch.setattr(
+            "src.spacehack.chrome.installed_effects",
+            lambda _ids: ChromeEffects(has_core=True),
+        )
+        _log, _lines = _log_spy()
+        _ctx = SimpleNamespace(
+            installed_chrome=["terminus_neural_stim"], log=_log,
+            player_owned_ship=None,
+            active_statuses={},
+        )
+        _old = _rules_space._state
+        _rules_space._state = _space_state(_ctx)
+        try:
+            run(_rules_space.activate_core(_ctx))
+            assert "neural_stim_loan" in _ctx.active_statuses
+            _rules_space.sync_state(_ctx)
+            assert _ctx.active_statuses == {}  # defused, silently
+            assert _lines == [ACTIVATION]  # no repay line on defuse
+        finally:
+            _rules_space._state = _old
+
     def test_no_core_logs_the_ruled_line(self, monkeypatch):
         monkeypatch.setattr(
             "src.spacehack.chrome.installed_effects",
             lambda _ids: ChromeEffects(),
         )
         _log, lines = _log_spy()
-        _ctx = SimpleNamespace(installed_chrome=[], log=_log)
+        _ctx = SimpleNamespace(
+            installed_chrome=[], log=_log, active_statuses={},
+        )
         _old = _rules_space._state
         _rules_space._state = _space_state(_ctx)
         try:

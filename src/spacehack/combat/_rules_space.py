@@ -11,8 +11,6 @@ a single module-level dataclass replacing the old scattered globals.
 
 from __future__ import annotations
 
-from typing import Any
-
 from .. import world
 from .. import hud_combat as _hud
 from .. import message_log as _ml
@@ -28,6 +26,7 @@ from ._space_init import (
     find_player_entity as _find_player_entity,
     flown_weapons as _flown_weapons,
     match_enemy_entities as _match_enemy_entities,
+    sync_enemy_entity_positions as _sync_enemy_entity_positions,
 )
 from ._types import EnemyInstance, CombatResult, SpaceCombatState
 from . import _missile_flight
@@ -98,12 +97,6 @@ def _set_combat_locks(locked: bool, entities=None) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _sync_enemy_entity_positions(enemy_ents: dict[int, Any], enemy_insts: list[EnemyInstance]) -> None:
-    """Copy deduped instance positions back onto their map entities."""
-    for _i, _ent in enemy_ents.items():
-        if _i < len(enemy_insts):
-            _ent.pos = enemy_insts[_i].pos
-
 def _activate_combat_state(
     ctx, console, game_map, log,
     player_state, enemy_insts, enemy_specs, enemy_ents, player_ent,
@@ -135,10 +128,7 @@ def _activate_combat_state(
     # with the old fight by construction), then the Pirate opener
     # arms where the trait holds.
     from . import _statuses
-    _statuses.dispel(
-        getattr(ctx, "active_statuses", None) or {},
-        lambda _active: True,
-    )
+    _statuses.dispel(_player_statuses(), lambda _active: True)
     _opener.arm(ctx, enemy_insts, theater="space")
 
 def init(
@@ -304,6 +294,15 @@ def enemy_alive(enemy: EnemyInstance) -> bool:
 # Combat math
 # ---------------------------------------------------------------------------
 
+def _player_statuses() -> dict:
+    """The player's status container on the installed session (doc
+    103) — the guarded read the space container sites share (getattr:
+    formula-only test ctxs may not carry it). Read/no-op shaped:
+    writes that must LAND (``apply``) use ``_state.ctx.active_statuses``
+    directly."""
+    return getattr(_state.ctx, "active_statuses", None) or {}
+
+
 def _opener_flags() -> tuple[bool, bool]:
     """``(enemy_fired, opener_spent)`` derived from the opener
     statuses (doc 103 Build A — the fight-state latch pair retired):
@@ -314,10 +313,7 @@ def _opener_flags() -> tuple[bool, bool]:
     last) installed — None reads as a fresh fight."""
     if _state is None:
         return False, False
-    return _opener.flags(
-        _state.enemy_insts,
-        getattr(_state.ctx, "active_statuses", None) or {},
-    )
+    return _opener.flags(_state.enemy_insts, _player_statuses())
 
 
 def _player_hit_bonus(ctx, weapon_id: str) -> int:
@@ -485,9 +481,7 @@ def mark_opener_spent() -> None:
     hit or miss — the bonus never returns this fight. (Doc 103 Build
     A: the window is the fight-class pirate_opener status on the
     player's container.)"""
-    _opener.consume_player_window(
-        getattr(_state.ctx, "active_statuses", None) or {},
-    )
+    _opener.consume_player_window(_player_statuses())
 
 def weapon_name(weapon_id: str, ctx, quality: int = 0) -> str:
     # ``quality``: the ground-instance tier seam (ignored in space).
@@ -854,17 +848,23 @@ def refund_volley_ap(ctx, amount: int) -> None:
 
 def reset_turn(ctx) -> None:
     start_player_turn(_state.player_state)
-    # The Neural Stim's loan repayment (doc 102 SETTLED 8): the -1 AP
-    # lands on the round AFTER the pop, exactly once; the cooldown
-    # ticks at every round start (pop round N, blocked N+1/N+2,
-    # ready again N+3).
-    _loan = _state.player_state.pop("stim_loan_ap", 0)
-    if _loan:
-        _ps = _state.player_state
-        _ps["ap_total"] = max(0, _ps["ap_total"] + _loan)
-        _ps["ap_remaining"] = max(0, _ps["ap_remaining"] + _loan)
-        from ..chrome import STIM_REPAY_LINE
-        ctx.log.add_colored(STIM_REPAY_LINE, _ml.COLOR_PLAYER_ACTION)
+    # The Neural Stim's loan repayment (doc 102 SETTLED 8; doc 103
+    # Build A): the -1 lands on the round AFTER the pop, twin-field
+    # POST-RESET — the event walk applies the ap event to BOTH fields
+    # (each max(0)-guarded), fires it exactly once, then the row
+    # expires and its ruled line logs; the cooldown ticks at every
+    # round start (pop round N, blocked N+1/N+2, ready again N+3).
+    from ..data.statuses import find_status
+    from . import _statuses
+    _ps = _state.player_state
+    for _ev in _statuses.advance(_player_statuses()):
+        if _ev[0] == "ap":
+            _ps["ap_total"] = max(0, _ps["ap_total"] + _ev[2])
+            _ps["ap_remaining"] = max(0, _ps["ap_remaining"] + _ev[2])
+        elif _ev[0] == "expire":
+            _row = find_status(_ev[1])
+            if _row.expire_line:
+                ctx.log.add_colored(_row.expire_line, _ml.COLOR_PLAYER_ACTION)
     if _state.player_state.get("stim_cooldown", 0) > 0:
         _state.player_state["stim_cooldown"] -= 1
 
@@ -888,7 +888,11 @@ async def activate_core(ctx) -> None:
         )
         return
     _ps["ap_remaining"] += 2
-    _ps["stim_loan_ap"] = -1
+    from . import _statuses
+    from ..data.statuses import NEURAL_STIM_LOAN_ID
+    _statuses.apply(
+        _state.ctx.active_statuses, NEURAL_STIM_LOAN_ID, theater="space",
+    )
     _ps["stim_cooldown"] = 3
     ctx.log.add_colored(STIM_ACTIVATE_LINE, _ml.COLOR_PLAYER_ACTION)
 
@@ -902,10 +906,7 @@ def sync_state(ctx) -> None:
     # state; without it a popped loan or an unspent opener would
     # bleed into the player's next space fight. Removal is silent.
     from . import _statuses
-    _statuses.dispel(
-        getattr(ctx, "active_statuses", None) or {},
-        lambda _active: True,
-    )
+    _statuses.dispel(_player_statuses(), lambda _active: True)
     # Release the combatants: with the fight over they resume normal
     # patrol movement on the next space tick.
     _set_combat_locks(False)

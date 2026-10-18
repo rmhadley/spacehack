@@ -134,3 +134,10 @@ def dedupe_enemy_positions(
                 _inst.pos = world.Position(_nx, _inst.pos.y)
                 _attempts += 1
             _occupied.add((_inst.pos.x, _inst.pos.y))
+
+
+def sync_enemy_entity_positions(enemy_ents: dict[int, Any], enemy_insts: list[EnemyInstance]) -> None:
+    """Copy deduped instance positions back onto their map entities."""
+    for _i, _ent in enemy_ents.items():
+        if _i < len(enemy_insts):
+            _ent.pos = enemy_insts[_i].pos
