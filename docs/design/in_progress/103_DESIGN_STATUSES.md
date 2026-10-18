@@ -1139,7 +1139,7 @@ two fire sites, the seam, the HUD/overlay surfaces, the instruments.
 
 | # | Surface | Ruled text | Verdict |
 |---|---|---|---|
-| 1 | staggered apply_line (combat log, every landed roll, fresh or refresh; `{victim}` pre-cased by the site) | `{victim} is staggered!` | Ship it |
+| 1 | staggered apply_line (combat log, every landed roll, fresh or refresh; `{victim}` pre-cased by the site) | `{victim} is staggered!` — rendered "You are staggered!" / "Rock Scavenger is staggered!" (mechanical amendment at the enemy-site build: the placeholder carries the conjugated subject — "You are" / "X is" — template `"{victim} staggered!"`; the RENDERED strings are the ruled ones bit-identical, "You is" never was) | Ship it |
 | 2 | staggered expire_line (combat log, PLAYER-side only — the enemy adapter stays silent, the suffix's disappearance is the signal) | `The stagger wears off.` | Ship it |
 | 3 | staggered hud_label (player status line renders `STAGGERED 2`; same label rides the enemy panel name-row suffix + target card) | `STAGGERED` | Ship it |
 | 4 | inspect overlay title (scrollable frame header; TAB cycles subjects) | `STATUSES - YOU` / `STATUSES - {NAME}` | Ship it |

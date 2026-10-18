@@ -28,6 +28,76 @@ def player_status_effects(ctx) -> "_statuses.StatusEffects":
     )
 
 
+def apply_hit_status(
+    ctx, container, weapon_id: str, victim_label: str, *,
+    victim_band: int, victim_survives: bool, line_color,
+) -> None:
+    """The on-hit lingering rider's ONE law (doc 103 Build B), shared
+    by both fire sites: guarded (no chance-carrier consumes ZERO draws
+    — the crit precedent), survivors only (a killing hit leaves no
+    victim), the ego seam prices the VICTIM's band, one roll, and the
+    ruled apply line logs on every landed roll — fresh or refresh
+    (the countdown visibly resets). An unresolvable weapon id raises
+    (an authoring error, the apply KeyError law — every fire site
+    resolves its id through the catalog before it gets here)."""
+    from ..data.ground_weapons import find_ground_weapon as _find_gw
+
+    _ws = _find_gw(weapon_id)
+    if _ws.status_chance <= 0 or not _ws.status_id or not victim_survives:
+        return
+    from ..chrome import status_chance_adjusted
+    from ..engine import RNG
+
+    if RNG.randint(1, 100) > status_chance_adjusted(
+        _ws.status_chance, victim_band,
+    ):
+        return
+    _statuses.apply(
+        container, _ws.status_id, source=_ws.name, theater="ground",
+    )
+    _line = find_status(_ws.status_id).apply_line
+    if _line:
+        ctx.log.add_colored(_line.format(victim=victim_label), line_color)
+
+
+def player_survives_hit(state, hit_dmg: int) -> bool:
+    """Whether the player still stands after this hit lands: current
+    HP minus the turn's PENDING (resolved-but-unapplied) damage minus
+    the hit itself — doc 103 Build B's survivors-only guard at the
+    enemy fire site, where shots resolve before their turn's damage
+    applies."""
+    return state.player_hp - state.enemy_turn_damage_pending - hit_dmg > 0
+
+
+def apply_enemy_hit_status(ctx, weapon_id: str, hit_dmg: int) -> None:
+    """The enemy fire site's rider tail (doc 103 Build B): the same
+    law the player's ``damage()`` runs, aimed at the PLAYER's
+    container — the ego seam's live exerciser (the victim is you;
+    YOUR band prices the roll). No live session: no fight, no rider.
+    The container passes STRAIGHT through (never an ``or {}``
+    fallback — an empty dict is falsy and the fallback would orphan
+    the write; the field is declared on GameContext, Build A)."""
+    from . import _rules_ground
+    from ..chrome import base_band
+
+    _state = _rules_ground._state
+    if _state is None:
+        return
+    # The declared home passes through untouched — only a ctx MISSING
+    # the field (minimal test doubles; GameContext always carries it,
+    # Build A) gets a container attached. Never ``or {}``: an empty
+    # dict is falsy and the fallback would orphan the write.
+    _container = getattr(ctx, "active_statuses", None)
+    if _container is None:
+        _container = ctx.active_statuses = {}
+    apply_hit_status(
+        ctx, _container, weapon_id, "You are",
+        victim_band=base_band(ctx),
+        victim_survives=player_survives_hit(_state, hit_dmg),
+        line_color=_ml.COLOR_ENEMY_ACTION,
+    )
+
+
 def apply_player_effect(state, ctx, spec) -> bool:
     """Apply a validated consumable effect to the active combat state."""
     if spec.effect_id == "regen":

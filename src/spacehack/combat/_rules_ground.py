@@ -48,7 +48,10 @@ from ._ground_build import (  # noqa: F401  # re-exported seam (tests + joins)
 )
 from . import _statuses
 from . import _opener
-from ._ground_effects import player_status_effects as _player_status_effects
+from ._ground_effects import (
+    apply_hit_status as _apply_hit_status,
+    player_status_effects as _player_status_effects,
+)
 from ._stats import _crit_multiplier, _distance, _roll_ap, _roll_crit
 from . import _ground_actions, _ground_blast
 from ._ground_math import (
@@ -402,42 +405,11 @@ def damage(
     if enemy.entity is not None:
         enemy.entity.hp = max(0, enemy.hp)
     _apply_hit_status(
-        ctx, enemy.statuses, weapon_id, enemy.name,
+        ctx, enemy.statuses, weapon_id, f"{enemy.name} is",
         victim_band=0, victim_survives=enemy.alive,
         line_color=_ml.COLOR_PLAYER_ACTION,
     )
     return _dmg, False, _is_crit
-
-
-def _apply_hit_status(
-    ctx, container, weapon_id: str, victim_label: str, *,
-    victim_band: int, victim_survives: bool, line_color,
-) -> None:
-    """The on-hit lingering rider's ONE law (doc 103 Build B), shared
-    by both fire sites: guarded (no chance-carrier consumes ZERO draws
-    — the crit precedent), survivors only (a killing hit leaves no
-    victim), the ego seam prices the VICTIM's band, one roll, and the
-    ruled apply line logs on every landed roll — fresh or refresh
-    (the countdown visibly resets). An unresolvable weapon id raises
-    (an authoring error, the apply KeyError law — every fire site
-    resolves its id through the catalog before it gets here)."""
-    _ws = _find_gw(weapon_id)
-    if _ws.status_chance <= 0 or not _ws.status_id or not victim_survives:
-        return
-    from ..chrome import status_chance_adjusted
-    from ..engine import RNG
-    from ..data.statuses import find_status
-
-    if RNG.randint(1, 100) > status_chance_adjusted(
-        _ws.status_chance, victim_band,
-    ):
-        return
-    _statuses.apply(
-        container, _ws.status_id, source=_ws.name, theater="ground",
-    )
-    _line = find_status(_ws.status_id).apply_line
-    if _line:
-        ctx.log.add_colored(_line.format(victim=victim_label), line_color)
 
 
 def is_explosive(weapon_id: str) -> bool:
@@ -735,10 +707,17 @@ def _apply_enemy_hit(ctx, _gei: GroundEnemyInstance, _dmg: int) -> int:
     extraction): the doc-53 damage counter, HP, the killer label. The
     per-hit damage reduction now lives at shot resolution (the volley
     era's per-event shape, doc 48 SETTLED 41); callers pass already-
-    reduced totals."""
+    reduced totals. Also DRAINS the turn's pending-damage counter
+    (doc 103 Build B): what lands here is applied — the enemy-turn
+    path pays the whole turn's total, the flee reaction volley pays
+    per shot, and a later shot's survivors-only projection must never
+    double-subtract either way."""
     if hasattr(ctx, "player_counters"):
         ctx.player_counters.ground_damage_taken += _dmg
     _state.player_hp -= _dmg
+    _state.enemy_turn_damage_pending = max(
+        0, _state.enemy_turn_damage_pending - _dmg,
+    )
     _state.last_attacker = _killer_label(_gei)
     return _dmg
 

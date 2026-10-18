@@ -667,9 +667,17 @@ async def _resolve_enemy_shot(
 ) -> int:
     """The unobstructed shot's tail: the roll, the per-event
     player-defense reduction (doc 49 — each landed shot pays it,
-    never the summed turn), presentation, and the knockback tail."""
+    never the summed turn), presentation, and the knockback tail.
+    Doc 103 Build B: a connecting hit also rolls the on-hit rider at
+    the player (the knockback branch's sibling), and the shot's
+    damage PENDS on the session until the shared hit tail applies
+    it — the next shot's survivors-only projection reads the pending
+    total (a mid-burst lethal-looking hit still rolls iff the player
+    would survive it)."""
     from ..xp import apply_ground_damage_reduction as _reduce
     from ._stats import _distance
+    from . import _rules_ground
+    from ._ground_effects import apply_enemy_hit_status
 
     _hit, _damage, _popup = _roll_ground_shot(
         ctx, enemy_weapon_id, enemy_stats, armor_defense, player_dodge,
@@ -687,6 +695,9 @@ async def _resolve_enemy_shot(
         _apply_hit_knockback(
             ctx, game_map, enemy_entity, player_pos, enemy_weapon_id,
         )
+        apply_enemy_hit_status(ctx, enemy_weapon_id, _damage)
+    if _rules_ground._state is not None:
+        _rules_ground._state.enemy_turn_damage_pending += _damage
     return _damage
 
 

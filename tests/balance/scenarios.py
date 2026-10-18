@@ -454,9 +454,9 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         theater="ground",
         goal=(
             "The control-melee kit wins the SAME lane by lockdown: "
-            "queue the pack, lock the one in reach (each landed stun "
-            "drains its AP), kill it, repeat — at a heavier health "
-            "cost than the pistols' posted hold."
+            "queue the pack, lock the one in reach (a landed stun can "
+            "stagger it: -1 AP a round for 2 rounds), kill it, repeat "
+            "— at a heavier health cost than the pistols' posted hold."
         ),
         player=PlayerSheet(
             species_id="human",

@@ -261,7 +261,10 @@ def test_staggered_row_numbers_and_ruled_prose():
     )
     assert spec.ap_per_round == -1
     assert spec.stacking == "refresh"
-    assert spec.apply_line == "{victim} is staggered!"
+    # {victim} carries the CONJUGATED subject ("You are" / "X is") so
+    # one template renders both directions grammatically — the ruled
+    # renderings, bit-identical.
+    assert spec.apply_line == "{victim} staggered!"
     assert spec.expire_line == "The stagger wears off."
     assert spec.hud_label == "STAGGERED"
     assert spec.description == "-1 AP per round."

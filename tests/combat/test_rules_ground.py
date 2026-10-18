@@ -296,11 +296,12 @@ def _baton_ctx():
 
 def _baton_enemy(hp=30, ap=4, ap_total=4):
     """A named, unarmored enemy instance (the victim label reads
-    spec.name)."""
+    spec.name; the killer label reads the wielded weapon)."""
     return _rules_ground.GroundEnemyInstance(
         entity=SimpleNamespace(),
         spec=SimpleNamespace(armor=0, name="Rock Scavenger"),
         hp=hp, ap=ap, ap_total=ap_total,
+        weapon_id="stun_baton", weapon_quality=0,
     )
 
 
@@ -463,6 +464,148 @@ def test_dead_enemies_skip_their_round_reset(monkeypatch):
     _rules_ground.reset_turn(_ctx)
     assert _live.ap == 4
     assert _dead.ap == 1  # untouched: no refresh for corpses
+
+
+# --- the enemy fire site's symmetry (doc 103 Build B) -----------------------------
+
+
+def _enemy_site_ctx(**over):
+    """The player-victim ctx for the enemy rider site (full ego by
+    default — the dead zone)."""
+    _ctx, _lines = _baton_ctx()
+    _ctx.active_statuses = {}
+    _ctx.ego_burn = 0
+    _ctx.ground_stats = SimpleNamespace(reflexes=10, strength=10)
+    _ctx.player_traits = []
+    for _field, _value in over.items():
+        setattr(_ctx, _field, _value)
+    return _ctx, _lines
+
+
+def _install_enemy_site_state(monkeypatch, ctx, hp=30, pending=0):
+    _state = _rules_ground.GroundCombatState(
+        ctx=ctx, game_map=SimpleNamespace(), enemies=[],
+        player_hp=hp, player_max_hp=30, armor_defense=0,
+    )
+    _state.enemy_turn_damage_pending = pending
+    monkeypatch.setattr(_rules_ground, "_state", _state)
+    return _state
+
+
+def test_enemy_baton_hit_staggers_you_at_full_ego_base_chance(monkeypatch):
+    """The two-sided debut: an enemy wielder's connecting hit rolls
+    the same law at the PLAYER — full ego is the dead zone, the base
+    50 stands (the seam's identity row, exercised live)."""
+    import src.spacehack.engine as _engine_mod
+    from src.spacehack.combat import _statuses
+    from src.spacehack.combat._ground_effects import apply_enemy_hit_status
+    from src.spacehack.data.statuses import STAGGERED_ID
+
+    _ctx, _lines = _enemy_site_ctx()
+    _install_enemy_site_state(monkeypatch, _ctx, hp=30)
+    _rng = _RecordingRNG([50])  # <= 50 at band 0: lands
+    monkeypatch.setattr(_engine_mod, "RNG", _rng)
+
+    apply_enemy_hit_status(_ctx, "stun_baton", 3)
+
+    assert _statuses.has(_ctx.active_statuses, STAGGERED_ID)
+    assert _ctx.active_statuses[STAGGERED_ID].remaining_turns == 2
+    assert _lines == ["You are staggered!"]  # ledger #1, pre-cased victim
+
+
+def test_deep_burn_raises_your_susceptibility_but_full_ego_resists(monkeypatch):
+    """q5's feelable seam, live: the same roll (60) misses at full
+    ego and lands at band 3 (burn 13 -> 80 effective)."""
+    import src.spacehack.engine as _engine_mod
+    from src.spacehack.combat import _statuses
+    from src.spacehack.combat._ground_effects import apply_enemy_hit_status
+
+    _ctx, _lines = _enemy_site_ctx(ego_burn=0)
+    _install_enemy_site_state(monkeypatch, _ctx, hp=30)
+    monkeypatch.setattr(_engine_mod, "RNG", _RecordingRNG([60]))
+    apply_enemy_hit_status(_ctx, "stun_baton", 3)
+    assert not _statuses.has(_ctx.active_statuses, "staggered")  # 60 > 50
+
+    _ctx, _lines = _enemy_site_ctx(ego_burn=13)  # band 3: 50 + 30 = 80
+    _install_enemy_site_state(monkeypatch, _ctx, hp=30)
+    _lines.clear()
+    monkeypatch.setattr(_engine_mod, "RNG", _RecordingRNG([60]))
+    apply_enemy_hit_status(_ctx, "stun_baton", 3)
+    assert _statuses.has(_ctx.active_statuses, "staggered")  # 60 <= 80
+    assert _lines == ["You are staggered!"]
+
+
+def test_survivors_only_projection_accumulates_across_the_burst(monkeypatch):
+    """The pending-damage mechanism (the brief's blocking advisor
+    catch): a burst's earlier shots count against the later shots'
+    survival projection — the second hit of a lethal pair never
+    burns a draw."""
+    import src.spacehack.engine as _engine_mod
+    from src.spacehack.combat import _statuses
+    from src.spacehack.combat._ground_effects import apply_enemy_hit_status
+
+    _ctx, _lines = _enemy_site_ctx()
+    _state = _install_enemy_site_state(monkeypatch, _ctx, hp=5)
+    _rng = _RecordingRNG([50])
+    monkeypatch.setattr(_engine_mod, "RNG", _rng)
+
+    apply_enemy_hit_status(_ctx, "stun_baton", 3)  # 5 - 0 - 3 > 0: rolls
+    assert _statuses.has(_ctx.active_statuses, "staggered")
+    _state.enemy_turn_damage_pending = 3  # the shot tail pends its damage
+    apply_enemy_hit_status(_ctx, "stun_baton", 3)  # 5 - 3 - 3 <= 0: no roll
+    assert _rng.draws == [(1, 100)]  # ONE draw total — the second never rolled
+
+
+def test_apply_enemy_hit_drains_the_pending_counter(monkeypatch):
+    """Both application shapes route through the shared tail: what
+    lands here is applied, and the pending counter drains by exactly
+    that — neither path double-subtracts a later projection."""
+    _ctx, _lines = _enemy_site_ctx()
+    _state = _install_enemy_site_state(monkeypatch, _ctx, hp=30, pending=7)
+    _gei = _baton_enemy(ap=2)
+
+    _rules_ground._apply_enemy_hit(_ctx, _gei, 7)
+
+    assert _state.player_hp == 23
+    assert _state.enemy_turn_damage_pending == 0
+
+
+def test_resolve_enemy_shot_rolls_the_rider_and_pends_its_damage(monkeypatch):
+    """The real site integration: draw order and bookkeeping through
+    `_resolve_enemy_shot` — hit roll, then the rider roll, then the
+    pend; the organic claws (no rider) consume only the hit draw."""
+    import src.spacehack.engine as _engine_mod
+    from src.spacehack.combat import _ai_ground, _statuses
+
+    def _drive(weapon_id, draws):
+        _ctx, _lines = _enemy_site_ctx()
+        _install_enemy_site_state(monkeypatch, _ctx, hp=30)
+        _rng = _RecordingRNG(draws)
+        monkeypatch.setattr(_engine_mod, "RNG", _rng)
+        # _ai_ground binds engine.RNG at import time; the rider's lazy
+        # import re-reads the module attr — patch both so ONE recorder
+        # sees the whole stream (hit roll, then the rider).
+        monkeypatch.setattr(_ai_ground, "RNG", _rng)
+        _dmg = run(_ai_ground._resolve_enemy_shot(
+            _ctx, None, None, SimpleNamespace(),
+            SimpleNamespace(pos=world.Position(0, 0)),
+            world.Position(1, 0), weapon_id, 0,
+            SimpleNamespace(name="Rock Scavenger"),
+            SimpleNamespace(reflexes=10, strength=10),
+            0, 0,
+        ))
+        return _ctx, _lines, _dmg, _rng
+
+    _ctx, _lines, _dmg, _rng = _drive("stun_baton", [1, 50])
+    assert _dmg > 0
+    assert _statuses.has(_ctx.active_statuses, "staggered")
+    assert _rng.draws == [(1, 100), (1, 100)]  # hit roll, then the rider
+    assert _lines[-1] == "You are staggered!"
+    assert _rules_ground._state.enemy_turn_damage_pending == _dmg
+
+    _ctx, _lines, _dmg, _rng = _drive("monster_claws", [1])
+    assert _rng.draws == [(1, 100)]  # organic weapon: no rider, no draw
+    assert not _ctx.active_statuses
 
 
 def test_damage_subtracts_enemy_armor():

@@ -131,3 +131,10 @@ class GroundCombatState:
     # the neural_stim_loan row (doc 103 Build A). Fight-scoped,
     # never serialized.
     core_cooldown: int = 0
+    # Doc 103 Build B's survivors-only guard: enemy-shot damage
+    # RESOLVED this enemy turn that has not yet landed on
+    # ``player_hp`` (the enemy-turn path applies the whole turn's
+    # total at its end; the flee reaction volley applies per shot).
+    # Pended at the shot-resolution tail, drained inside
+    # ``_apply_enemy_hit`` — the rider roll's projection reads it.
+    enemy_turn_damage_pending: int = 0

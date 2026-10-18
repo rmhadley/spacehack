@@ -65,7 +65,9 @@ class StatusSpec:
             a row declares only the lines it has. ``{source}``
             interpolates the deliverer's display name, ``{healed}``
             the adapter-clamped healed amount, ``{victim}`` the
-            recipient's pre-cased label ("You" / the enemy name).
+            recipient's CONJUGATED subject phrase ("You are" / the
+            enemy name + " is") so one template renders both
+            directions grammatically.
         hud_label: the terse HUD-line label (q7); empty rows never
             render on the status line.
         description: the inspect overlay's text (q7) — prose-gated,
@@ -173,7 +175,7 @@ STATUSES: tuple[StatusSpec, ...] = (
         duration=2,
         duration_class="rounds",
         ap_per_round=-1,
-        apply_line="{victim} is staggered!",
+        apply_line="{victim} staggered!",
         expire_line="The stagger wears off.",
         hud_label="STAGGERED",
         description="-1 AP per round.",
