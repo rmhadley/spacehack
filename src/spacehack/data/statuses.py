@@ -135,12 +135,15 @@ STATUSES: tuple[StatusSpec, ...] = (
     StatusSpec(
         # Doc 49 SETTLED 5 via doc 103 q4: the player's unspent
         # opening attack — applied at fight init where the trait
-        # arms, consumed by mark_opener_spent.
+        # arms, consumed by mark_opener_spent. Label ruled at the
+        # Build A playtest (2026-10-18): the label-only fight-class
+        # row reads OPENER while the window is live.
         id=PIRATE_OPENER_ID,
         name="Pirate Opener",
         polarity=True,
         duration=0,
         duration_class="fight",
+        hud_label="OPENER",
     ),
     StatusSpec(
         # The enemy side of the opener window — no enemy has fired

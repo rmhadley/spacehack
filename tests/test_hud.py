@@ -604,3 +604,30 @@ def test_weapon_toggle_hint_conditional_on_mounted_count():
         console.cell(x, y).char for y in range(6) for x in range(40)
     )
     assert "Toggle Wpn" not in _flat
+
+
+def test_combat_status_row_paints_labelled_rows_and_consumes_one_row():
+    """The space panel's status-row twin (doc 103 q7 + the OPENER
+    ruling): empty containers consume no row; labelled rows paint in
+    their class shape (rounds carry their remaining, fight-class rows
+    are label-only) inside the panel's ~40 half-width characters."""
+    from src.spacehack.combat import _statuses
+    from src.spacehack.data.statuses import PIRATE_OPENER_ID
+    from src.spacehack.engine import HUD_WIDTH, SCREEN_WIDTH
+
+    ctx = SimpleNamespace(active_statuses={})
+    _statuses.apply(ctx.active_statuses, "regen", source="Med Pack")
+    _statuses.apply(ctx.active_statuses, PIRATE_OPENER_ID)
+    frame = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, 12)
+    hud_x = SCREEN_WIDTH - HUD_WIDTH
+
+    assert hud_combat._render_status_row(frame, hud_x, 5, ctx) is True
+    _row = "".join(
+        frame.cell(x, 5).char for x in range(hud_x, hud_x + HUD_WIDTH * 2)
+    ).rstrip()
+    assert _row == "REGEN 3  OPENER"
+
+    _statuses.dispel(ctx.active_statuses, lambda _a: True)
+    assert hud_combat._render_status_row(
+        FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, 12), hud_x, 5, ctx,
+    ) is False

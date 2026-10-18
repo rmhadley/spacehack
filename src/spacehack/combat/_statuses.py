@@ -209,19 +209,24 @@ def hud_segments(
     container: dict[str, ActiveStatus],
 ) -> tuple[tuple[str, bool], ...]:
     """The one-row status line's segments (q7): one ``(text,
-    polarity)`` per active ROUNDS-class row carrying a ``hud_label``
-    — ``("REGEN 2", True)``. Label-less rows never render (the
-    loan's debt-line decline; fight-class rows carry no remaining).
-    Pure data — panels map polarity to the shared ui palette."""
+    polarity)`` per active row carrying a ``hud_label`` — rounds rows
+    render ``LABEL n``; a labelled fight/charges row renders the
+    label ALONE (no countdown to show — the ruled OPENER token).
+    Label-less rows never render (the loan's debt-line decline)."""
     segments: list[tuple[str, bool]] = []
     for status_id, active in container.items():
         try:
             spec = find_status(status_id)
         except KeyError:
             continue
-        if not spec.hud_label or spec.duration_class != "rounds":
+        if not spec.hud_label:
             continue
-        segments.append((f"{spec.hud_label} {active.remaining_turns}", spec.polarity))
+        if spec.duration_class == "rounds":
+            segments.append(
+                (f"{spec.hud_label} {active.remaining_turns}", spec.polarity),
+            )
+        else:
+            segments.append((spec.hud_label, spec.polarity))
     return tuple(segments)
 
 

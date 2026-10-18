@@ -678,12 +678,21 @@ modeling" open.
   verified). The spec's numeric fields (`combat_regen_amount`,
   `duration_turns`…) become descriptive (character-screen detail
   text); the STATUS ROW owns the applied numbers — the catalog law.
-- **The HUD line renders only rounds-class rows carrying
-  `hud_label`** (declare-only-what-you-have): `regen` → `REGEN n`,
-  `stim` → `STIM n` (both approved by the q7 ruling's example +
-  this brief's checkpoint 5); the loan row declines a label (the
-  debt-line decline, doc 102 prose ledger) and the opener rows ship
-  unlabelled (no ruling; Build B's prose gate owns any label).
+- **The HUD line renders only rows carrying `hud_label`**
+  (declare-only-what-you-have): `regen` → `REGEN n`, `stim` →
+  `STIM n` (both approved by the q7 ruling's example + this brief's
+  checkpoint 5); the loan row declines a label (the debt-line
+  decline, doc 102 prose ledger). AMENDED at the Build A playtest
+  (2026-10-18): the opener row's LABEL is ruled — `OPENER` (user,
+  verbatim pick from the offered options); a labelled fight-class
+  row renders label-only (its class carries no countdown — the
+  build's mechanical consequence, not part of the ruling).
+  `opener_window` stays unlabelled (the enemy panel suffix is
+  Build B's surface). Reviewer note folded: the row's glyph budget
+  is the panel's standard HUD_TEXT_MAX like every sibling row —
+  the combat console is one HUD-width wider than the window (the
+  ~40 half-width chars), and the render pins build fixtures at
+  that real width.
 
 ## Implementation brief — Build A: the engine + catalog + the migrations
 
@@ -856,7 +865,9 @@ ALL new strings settle through the prose loop BEFORE any land:
 staggered apply/expire lines, the HUD label, the inspect
 overlay's title + per-status descriptions (staggered, regen,
 stim, the loan), both guide edits. A build session never authors
-unapproved strings.
+unapproved strings. (The opener's HUD label settled EARLY at the
+Build A playtest, 2026-10-18: OPENER — landed with the
+label-only fight-class row shape; not re-litigated here.)
 
 ### Scope (files + hook points)
 

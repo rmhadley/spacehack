@@ -1898,20 +1898,26 @@ def test_ground_status_row_reads_and_never_shifts_weapons():
     _ctx, _game_map, _console, _enemy = _ground_fixture()
     _rules_ground.init(_ctx, [_enemy], _game_map)
     from src.spacehack.combat import _statuses
-    from src.spacehack.data.statuses import NEURAL_STIM_LOAN_ID
+    from src.spacehack.data.statuses import NEURAL_STIM_LOAN_ID, PIRATE_OPENER_ID
 
+    # Fight order: the opener arms at init, consumables land after.
+    _statuses.apply(_ctx.active_statuses, PIRATE_OPENER_ID)
     _statuses.apply(_ctx.active_statuses, "regen", source="Med Pack")
     _statuses.apply(_ctx.active_statuses, "stim")
     _statuses.apply(_ctx.active_statuses, NEURAL_STIM_LOAN_ID)
 
-    _frame = FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT)
+    # The real combat console is one HUD-width wider than the window
+    # (the panel's ~40 half-width chars — test_hud's fixture precedent).
+    _frame = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, SCREEN_HEIGHT)
     _ground_render._render_player_panel(_frame, _ctx)
     _hud_x = SCREEN_WIDTH - HUD_WIDTH
     _row = "".join(
         _frame.cell(x, 7).char
-        for x in range(_hud_x, SCREEN_WIDTH)
+        for x in range(_hud_x, _hud_x + HUD_WIDTH * 2)
     ).rstrip()
-    assert _row == "REGEN 3  STIM 3"  # the loan declines a label
+    # OPENER is label-only (fight class, no countdown — the label
+    # ruled at the Build A playtest); the loan still declines a label.
+    assert _row == "OPENER  REGEN 3  STIM 3"
     assert _frame.cell(_hud_x, 7).fg == (100, 235, 115)
 
     # The gap-row paint never shifts WEAPONS: the panel's next-row

@@ -226,15 +226,15 @@ def test_actor_symmetry_same_battery_both_container_kinds():
 # --- presentation data + the chrome alias ----------------------------------------
 
 
-def test_hud_segments_render_labelled_rounds_rows_only():
+def test_hud_segments_render_labelled_rows_in_their_class_shape():
     player: dict[str, ActiveStatus] = {}
     assert _statuses.hud_segments(player) == ()
     _statuses.apply(player, REGEN_ID)
     _statuses.apply(player, STIM_ID)
     _statuses.apply(player, NEURAL_STIM_LOAN_ID)  # no label: declined
-    _statuses.apply(player, PIRATE_OPENER_ID)  # fight class: no remaining
+    _statuses.apply(player, PIRATE_OPENER_ID)  # fight class: label only
     assert _statuses.hud_segments(player) == (
-        ("REGEN 3", True), ("STIM 3", True),
+        ("REGEN 3", True), ("STIM 3", True), ("OPENER", True),
     )
 
 
