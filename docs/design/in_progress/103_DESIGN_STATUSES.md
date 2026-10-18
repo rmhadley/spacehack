@@ -1,7 +1,8 @@
 # DESIGN: Statuses — the durable buff/debuff system
 
-**Status: BUILD A LANDED (2026-10-18 — built, bit-identity proven,
-reviewer round-2 APPROVE; awaiting the Build A playtest). The
+**Status: BUILD A LANDED + PLAYTEST PASSED (2026-10-18 — user
+confirmed; bit-identity proven, reviewer round-2 APPROVE, the
+mid-playtest input fix + the OPENER label ruling folded). The
 Implementation briefs for
 Build A and Build B are DRAFTED, ADVISE-folded, and APPROVED
 (2026-10-18). Next build: `/implement-phase 103.5` (Build B, the
@@ -499,9 +500,21 @@ B's playtest checklist.
       med pack's effect_id renamed restore_hp→regen; the enemy
       instance construction and space position-sync moves paid the
       ratchet in-commit; the opener plumbing lives in
-      combat/_opener.py. PLAYTEST: a med pack, a stim, the Stim
-      loan, an enemy carrier, a Pirate opener fight — behavior
-      indistinguishable, the HUD line reads.
+      combat/_opener.py. PLAYTEST PASSED (user, 2026-10-18): the
+      checklist read clean — behavior indistinguishable, the HUD
+      line reads. Mid-playtest events, both folded same-day: (1)
+      the swallowed-keyup input bug (user report: "press c twice in
+      a fight", also f after pickers — modal pumps drained SDL raw,
+      leaving the opening key stuck in the runtime's held-key set
+      so the next press misread as a repeat; one shared
+      pygame_runtime.drain_sdl feed + every raw drain routed
+      through it, commit 390333bd); (2) the opener's HUD label
+      RULED and landed early — OPENER, the label-only fight-class
+      row (commit f6874484; the reviewer's fixture-artifact width
+      catch folded with it). GUIDE EDITS: none — Build A
+      deliberately deferred all guide work to Build B's guide row
+      (the decision recorded in the brief; the falsified Stun
+      Baton entry rewrites in Build B).
 - [ ] Build B: the staggered debut (two-sided: player wields →
       enemy staggered; enemy wielder → player staggered) + the
       rolled application + the ego seam (exercised via organic
