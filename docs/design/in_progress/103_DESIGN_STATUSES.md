@@ -995,6 +995,146 @@ ruling).
    descriptions read; both guide entries are correct (the baton
    rewrite + the statuses/key).
 
+## Pre-implementation audit (Build B, 2026-10-18 — written before code)
+
+Every anchor below re-verified against the tree this session (commit
+`92623186`, post-Build-A). Build A's audit covers the engine/catalog
+layer Build B builds ON; this one covers the debut's own ground: the
+two fire sites, the seam, the HUD/overlay surfaces, the instruments.
+
+### 1. Existing classes / modules to extend or reuse
+
+- **The engine needs NOTHING** — `apply` (refresh law), `advance`
+  (the AP event + expire), `sum_effects`, `hud_segments` all serve
+  staggered as-is: the debut is a ROW plus adapters, exactly the
+  acceptance bar. The staggered row joins `data/statuses.py` with
+  `ap_per_round=-1`, `duration=2`, `polarity=False`, prose-gated
+  `apply_line`/`expire_line`/`hud_label`/`description`.
+- **The guarded-roll precedent**: `_stats._roll_crit`'s law (zero
+  chance → zero draws) is the template; the application roll is
+  `RNG.randint(1, 100) <= adjusted` at the fire sites, drawn only
+  when `status_chance > 0` AND the victim survives.
+- **The on-hit-rider template**: `_ai_ground._resolve_enemy_shot`'s
+  `if _hit: _apply_hit_knockback(...)` branch — the enemy-side
+  status tail lands beside it (knockback first, then the roll: the
+  displacement is wordless, the status speaks).
+- **The seam's home**: `chrome.py` beside `band` —
+  `status_chance_adjusted(base, victim_band)`, pure, banded
+  (+10/band from band 1, +30 cap). The victim-band read at the
+  enemy site is `base_band(ctx)` (the victim's OWN burn;
+  `local_band` stays out — susceptibility is not the port's
+  business). The player→enemy direction passes band 0 (q5: only
+  the player gets burnt ego — no is-player branch, the seam stays
+  victim-keyed).
+- **The enemy reset already folds staggered** (Build A's generic
+  law): `reset_turn`'s direct add + `advance_enemy_effects`' ap
+  fold need NO staggered-specific code; Build B adds only the
+  dead-skip guard (the adapter contract's tick-death clause —
+  observably neutral today, load-bearing the day a dot row lands).
+- **HUD**: the player line ships (`hud_segments` +
+  `_render_status_row`); the enemy suffix joins the panel name rows
+  (`_render_enemies_panel`) and the target card
+  (`_ground_presentation.enemy_detail_lines` /
+  `_ground_card_rows`), both REUSING `hud_segments`'s row walk.
+- **The overlay's vehicle**: `pygame_screen.ScreenFrame(
+  scrollable=True)` via the `console_log.open_console_log` pattern
+  (rebuild-and-reopen while-loop); the combat wiring point is
+  `_loop._handle_meta_action`'s HISTORY shape — opens, costs no
+  turn, returns.
+- **Dev instruments**: `dev_mode.py`'s picker pattern
+  (`_run_pygame_menu_pick` + `ui.MenuScreen`, the F7 chrome
+  precedent) carries both the burn dial and the arming toggle; the
+  arming hook lands at `_ground_build._build_enemy_instance`
+  (post-`ensure_loadout`, rewrite the melee pair under the flag —
+  both init and mid-fight joins route through it).
+- **Guide**: `data/guide/__init__.py`'s melee bullet (the falsified
+  baton sentence) rewrites in place; the statuses + key
+  documentation joins the guide near the combat text.
+
+### 2. Duplication hotspots (predicted traps)
+
+1. **The two application-roll sites** — player `damage()`'s tail
+   and `_resolve_enemy_shot`'s tail run the SAME law (guard →
+   seam → roll → apply → log). Two hand-copied blocks would fork
+   the draw guard and the seam read on day one.
+2. **The survivors-only projection** — the pending-damage
+   bookkeeping touches the shot tail, the shared hit tail, and the
+   state field; any second "will the player die" read (or an
+   increment without its drain) double-subtracts and silently
+   skips legal rolls.
+3. **Status formatting drift** — enemy panel suffix, target-card
+   line, and overlay rows all render "(label/name, remaining)";
+   three hand-rolled formatters drift (the `hud_segments` law
+   exists to prevent exactly this).
+
+### 3. DRY strategy per hotspot
+
+1. ONE shared adapter helper in `_rules_ground`
+   (`_apply_hit_status(ctx, container, weapon_id, source_label,
+   victim_label, victim_band, victim_survives)`) — both fire sites
+   call it; `_ai_ground` already lazy-imports `_rules_ground`
+   (the `_fire_enemy_burst` precedent). The seam call, the draw
+   guard, and the apply/refresh log decision live once.
+2. ONE counter, ONE drain: `GroundCombatState` gains the
+   per-turn pending-damage field; `_resolve_enemy_shot`'s tail
+   PENDS its returned damage; `_apply_enemy_hit` DRAINS what it
+   applies. This refines the brief's "set/cleared by
+   `_spend_one_enemy_turn`" to cover the REACTION VOLLEY too
+   (verified: `_ground_flee.reaction_volley` applies per SHOT
+   through the same `_apply_enemy_hit`, while the enemy turn
+   applies the per-TURN total — a turn-scoped-only counter would
+   go stale during the volley and double-subtract). The projection
+   helper sits beside `_apply_enemy_hit`.
+3. `hud_segments` IS the formatter: the enemy suffix paints its
+   segments after the name (same `paint_hud_segments` ink, bound
+   to the panel edge); the card line and the overlay rows derive
+   from the same walk (the overlay reads `spec.name` +
+   `description`, not the label — it is the reader, not the glyph
+   budget).
+
+### Build-session design decisions (brief's "ruled at build" rows, recorded before code)
+
+- **The instrumentation ruling: the DIAL, not the kiosk** — a dev
+  picker that SETS `ctx.ego_burn` to a representative value per
+  band (Natural 0 / Tainted 5 / Chromed 9 / Psycho 13), because the
+  playtest needs quick band flips mid-session; the Terminus kiosk
+  stays the organic economy path and F7 stays burn-neutral
+  (`install_chrome`, never `ratchet_install`). Both instruments
+  live behind ONE new dev key (F8 — F3/F5/F6/F7/F9 are taken, F4
+  is reserved by window managers): a small "playtest instruments"
+  picker with the burn dial + the enemy-baton arming toggle.
+- **The arming hook shape**: a dev flag (default off) that makes
+  `_build_enemy_instance` rewrite the loadout stamp's melee pair
+  to `stun_baton` — every enemy built while the flag lives wields
+  one (init AND mid-fight joins), so "an enemy staggers me" is
+  reliably encounterable without touching any content pool.
+- **The overlay's wiring**: `i` (free in the combat map — swept:
+  not an action key, not movement, not wait, not a weapon number;
+  `e`/`g`/`m`/`o`/`p`/`t`/`z` also free, `i` wins on mnemonic).
+  `i` opens the scrollable frame on the PLAYER's container; TAB
+  inside cycles the subject (you → alive enemies in panel order →
+  you — the target-cycle muscle memory, per "selection rides the
+  existing enemy-examine/target flow"); ESC closes; costs no turn
+  (the HISTORY shape). Handled in the SHARED `_handle_meta_action`
+  so both theaters get the self-inspect (the loan is space-live);
+  enemy subjects come from `rules.get_enemies(ctx)` — no theater
+  branch.
+- **The apply line's subjects**: the template interpolates
+  `{victim}` (pre-cased by the site: "You" / the enemy's name);
+  `{source}` stays available but the drafted line is
+  victim-anchored (an object-anchored "Stun Baton staggers you!"
+  personifies the weapon — prose tell 4). The line logs on every
+  LANDED roll, fresh apply or refresh (the refresh is honest
+  feedback; the countdown visibly resets).
+- **The expire line logs player-side only** — `advance_player_
+  effects` already logs the row's `expire_line` after the walk
+  (zero new adapter code); the enemy adapter stays silent (Build
+  A's law), the suffix's disappearance is the enemy-side signal.
+- **The staggered suffix shape**: the enemy panel name row and the
+  target card both carry the SAME segments the player line renders
+  (`STAGGERED 2`), polarity-colored — one row walk, three
+  presentations.
+
 ## Acceptance criteria
 
 1. **One mechanism**: no new ad-hoc timed-effect field, key, or
