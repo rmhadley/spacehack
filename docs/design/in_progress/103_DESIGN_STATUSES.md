@@ -5,9 +5,9 @@ plan-approved (2026-10-17); the advisor ADVISE pass is folded
 (2026-10-18, verdict SOUND-WITH-CATCHES, all 29 issues below); the
 refine RULINGS PASS is COMPLETE (2026-10-18 — all 13 open
 questions settled) and the SEMANTICS PASS is COMPLETE (2026-10-18
-— see both SETTLED sections). Next: the Implementation briefs.
-No implementation until
-the user explicitly requests it.**
+— see both SETTLED sections). The Implementation briefs for
+Build A and Build B are DRAFTED, ADVISE-folded, and APPROVED
+(2026-10-18). Build A is buildable: `/implement-phase 103.4`.**
 
 Companions: `complete/102_DESIGN_CYBERNETICS.md` (the Parked sketch
 this doc inherits — "a general statuses container (`id → rounds
@@ -480,11 +480,12 @@ B's playtest checklist.
 - [x] The semantics pass (COMPLETE 2026-10-18 — the tick law, the
       three stacking edges, and the roll-law numbers all confirmed;
       see the Semantics pass section)
-- [ ] Implementation briefs (the engine + migrations brief; the
-      debut brief; advisor ADVISE pass per house rule; budget
-      note: `_rules_ground.py` sits at 974 lines and
-      `_rules_space.py` at 966 — both one touched-file growth from
-      the in-commit extraction ratchet)
+- [x] Implementation briefs (APPROVED 2026-10-18: the engine +
+      migrations brief and the debut brief, both drafted, advisor
+      ADVISE-folded — verdict ADVICE, 16 issues, 6 blocking, all
+      folded — and user-approved; budget note verified:
+      total-line headroom only, zero oversized functions in
+      either touched module)
 - [ ] Build A: the engine + catalog + the migrations (incl. the
       Pirate opener, q4) — bit-identity
       proof (harness rows + unit pins, per the proof law) + gate
