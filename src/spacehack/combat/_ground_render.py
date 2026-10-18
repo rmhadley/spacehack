@@ -38,7 +38,7 @@ from ._animations import (
     _draw_range_colored_line,
 )
 from ._stats import _distance
-from ._statuses import hud_segments, sum_effects
+from ._statuses import hud_segments, paint_hud_segments as _statuses_paint, sum_effects
 from ._ground_presentation import (
     build_target_card as _build_target_card,
     enemy_detail_lines,
@@ -299,16 +299,10 @@ def _render_status_row(console, hud_x: int, y: int) -> None:
     labels + remaining, painted into the player panel's closing gap
     row — WEAPONS never shifts. Label-less rows never render (the
     loan's debt-line decline; the opener carries no remaining)."""
-    from ..ui import COLOR_STATUS_BUFF, COLOR_STATUS_DEBUFF
-    _x = hud_x
-    for _text, _is_buff in hud_segments(_active_container()):
-        if _x + len(_text) > hud_x + HUD_TEXT_MAX:
-            break
-        console.print(
-            x=_x, y=y, string=_text,
-            fg=COLOR_STATUS_BUFF if _is_buff else COLOR_STATUS_DEBUFF,
-        )
-        _x += len(_text) + 2
+    _statuses_paint(
+        console, hud_x, y,
+        hud_segments(_active_container()), hud_x + HUD_TEXT_MAX,
+    )
 
 
 def _stim_hud_row(ctx) -> tuple[str, tuple[int, int, int]] | None:

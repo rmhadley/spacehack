@@ -31,6 +31,7 @@ from ._space_init import (
 from ._types import EnemyInstance, CombatResult, SpaceCombatState
 from . import _missile_flight
 from . import _opener
+from . import _statuses
 from ._space_kills import on_kill as _kill_chain
 from ._space_reinforce import check_reinforcements as _reinforce_check
 from ._stats import (
@@ -124,10 +125,8 @@ def _activate_combat_state(
     # Freeze the engaged set immediately.
     _set_combat_locks(True, enemy_ents)
     # A fresh fight starts from an empty player container (doc 103
-    # Build A — today's fresh player_state meant the loan key died
-    # with the old fight by construction), then the Pirate opener
-    # arms where the trait holds.
-    from . import _statuses
+    # Build A — today the loan key died with the old player_state),
+    # then the Pirate opener arms where the trait holds.
     _statuses.dispel(_player_statuses(), lambda _active: True)
     _opener.arm(ctx, enemy_insts, theater="space")
 
@@ -294,12 +293,16 @@ def enemy_alive(enemy: EnemyInstance) -> bool:
 # Combat math
 # ---------------------------------------------------------------------------
 
+def _player_evade() -> int:
+    """Space dodge + status dodge bonuses (doc 103) — the one read."""
+    return player_dodge_from_state(_state.player_state) + \
+        _statuses.sum_effects(_player_statuses()).dodge_bonus
+
+
 def _player_statuses() -> dict:
     """The player's status container on the installed session (doc
-    103) — the guarded read the space container sites share (getattr:
-    formula-only test ctxs may not carry it). Read/no-op shaped:
-    writes that must LAND (``apply``) use ``_state.ctx.active_statuses``
-    directly."""
+    103) — the guarded read the space container sites share. Read/
+    no-op shaped: writes that must LAND use the direct attribute."""
     return getattr(_state.ctx, "active_statuses", None) or {}
 
 
@@ -318,12 +321,16 @@ def _opener_flags() -> tuple[bool, bool]:
 
 def _player_hit_bonus(ctx, weapon_id: str) -> int:
     """The player's per-weapon permanent hit bonus: Sharpshooter plus
-    weapon specialists plus Momentum's always-on +5 (doc 49) plus the
-    Pirate opener while the window is open (doc 49 phase 2) — the ONE
-    assembly both hit-chance sites read."""
+    weapon specialists plus Momentum's always-on +5 (doc 49) plus
+    status hit bonuses (doc 103) plus the Pirate opener while its
+    window is open (doc 49 phase 2) — the ONE assembly both
+    hit-chance sites read."""
     _ef, _os = _opener_flags()
     _hit_bonus = (
         _sharpshooter_bonus(ctx) + _momentum_hit_bonus(ctx)
+        + _statuses.sum_effects(
+            getattr(ctx, "active_statuses", None) or {},
+        ).hit_bonus
         + _opener_hit_bonus(ctx, enemy_fired=_ef, opener_spent=_os)
     )
     try:
@@ -731,7 +738,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
     _paint_combat_target(console, _cam_x, _cam_y)
 
     _hit_chances = _build_hit_chances(_current_target())
-    _evade = player_dodge_from_state(_state.player_state)
+    _evade = _player_evade()
     _paint_status_hud(console, _hit_chances, _evade, _range_wid)
     # The message band is painted natively by pygame_combat.present from
     # ctx.log via the shared log_band_rows builder — no cell capture.
@@ -747,7 +754,7 @@ async def animate_fire(
 
     _hit_chances = _build_hit_chances(_current_target())
 
-    _evade = player_dodge_from_state(_state.player_state)
+    _evade = _player_evade()
 
     _wid = weapon_id or (_state.weapons_list[0] if _state.weapons_list else "light_laser")
     await _animate_weapon_shot(
@@ -808,7 +815,7 @@ async def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
 
     _hit_chances = _build_hit_chances(_current_target())
 
-    _evade = player_dodge_from_state(_state.player_state)
+    _evade = _player_evade()
 
     _result = await _enemy_ai(
         _state,
@@ -850,12 +857,10 @@ def reset_turn(ctx) -> None:
     start_player_turn(_state.player_state)
     # The Neural Stim's loan repayment (doc 102 SETTLED 8; doc 103
     # Build A): the -1 lands on the round AFTER the pop, twin-field
-    # POST-RESET — the event walk applies the ap event to BOTH fields
-    # (each max(0)-guarded), fires it exactly once, then the row
-    # expires and its ruled line logs; the cooldown ticks at every
-    # round start (pop round N, blocked N+1/N+2, ready again N+3).
+    # POST-RESET (both fields max(0)-guarded, fired exactly once,
+    # then the expire logs the ruled line); the cooldown ticks every
+    # round start (pop N, blocked N+1/N+2, ready N+3).
     from ..data.statuses import find_status
-    from . import _statuses
     _ps = _state.player_state
     for _ev in _statuses.advance(_player_statuses()):
         if _ev[0] == "ap":
@@ -902,10 +907,8 @@ def sync_state(ctx) -> None:
     # 2026-10-02 amendment) and never serializes — sweep first.
     _missile_flight.sweep_flights(_state, _state.game_map)
     # Fight end DEFUSES the player container (doc 103 Build A) —
-    # behavior-identical to today's fight-scoped keys dying with the
-    # state; without it a popped loan or an unspent opener would
-    # bleed into the player's next space fight. Removal is silent.
-    from . import _statuses
+    # today's fight-scoped keys died with the state; without this a
+    # popped loan would bleed into the next space fight. Silent.
     _statuses.dispel(_player_statuses(), lambda _active: True)
     # Release the combatants: with the fight over they resume normal
     # patrol movement on the next space tick.
@@ -947,7 +950,7 @@ async def reaction_volley(ctx, game_map: world.GameMap) -> bool:
 
     _p_pos = _state.player_state["pos"]
     _hit_chances = _build_hit_chances(_current_target())
-    _evade = player_dodge_from_state(_state.player_state)
+    _evade = _player_evade()
     for _ei in get_enemies(ctx):
         if not _has_los(game_map, _ei.pos.x, _ei.pos.y, _p_pos.x, _p_pos.y):
             continue

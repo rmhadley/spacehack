@@ -223,3 +223,41 @@ def test_consumable_use_rejects_insufficient_combat_ap_without_mutation():
     assert ctx.ground_expedition_items == [
         GroundItemStack("consumable", "stim", 1),
     ]
+
+
+def test_regen_ticks_three_times_then_expires_cleanly():
+    """The 3-round regen heals exactly 3 times and logs its source on
+    EVERY tick including the expiring one (the engine drops the entry
+    at the boundary; the adapter's source snapshot keeps the third
+    line's attribution), then leaves nothing behind."""
+    from src.spacehack.combat import _statuses
+
+    ctx = _context(hp=10)
+    _rules_ground.init(ctx, [], ctx.game_map)
+    _statuses.apply(
+        ctx.active_statuses, "regen", source="Med Pack", theater="ground",
+    )
+
+    for _ in range(3):
+        _rules_ground.reset_turn(ctx)
+    assert ctx.messages.count("Med Pack regeneration: +2 HP.") == 3
+    assert ctx.active_statuses == {}
+
+
+def test_repay_line_lands_after_a_shared_boundary_regen_tick():
+    """The loan's repay line logs AFTER the walk (today's repay-last
+    shape): a regen sharing the boundary keeps its tick line first."""
+    from src.spacehack.combat import _statuses
+    from src.spacehack.data.statuses import NEURAL_STIM_LOAN_ID
+
+    ctx = _context(hp=10)
+    _rules_ground.init(ctx, [], ctx.game_map)
+    _statuses.apply(ctx.active_statuses, NEURAL_STIM_LOAN_ID, theater="ground")
+    _statuses.apply(
+        ctx.active_statuses, "regen", source="Med Pack", theater="ground",
+    )
+
+    _rules_ground.reset_turn(ctx)
+    _tick = ctx.messages.index("Med Pack regeneration: +2 HP.")
+    _repay = ctx.messages.index("Reality slows as the Neural Stim's effect wears off.")
+    assert _tick < _repay

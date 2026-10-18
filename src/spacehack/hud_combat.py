@@ -152,20 +152,11 @@ def _render_status_row(console, hud_x: int, y: int, ctx) -> bool:
     terse polarity-colored labels + remaining from the player's
     shared status container. Consumes a row only when something
     renders (label-less rows never do); returns whether it did."""
-    from .combat._statuses import hud_segments
-    from .ui import COLOR_STATUS_BUFF, COLOR_STATUS_DEBUFF
+    from .combat._statuses import hud_segments, paint_hud_segments
     _segments = hud_segments(getattr(ctx, "active_statuses", None) or {})
     if not _segments:
         return False
-    _x = hud_x
-    for _text, _is_buff in _segments:
-        if _x + len(_text) > hud_x + HUD_TEXT_MAX:
-            break
-        console.print(
-            x=_x, y=y, string=_text,
-            fg=COLOR_STATUS_BUFF if _is_buff else COLOR_STATUS_DEBUFF,
-        )
-        _x += len(_text) + 2
+    paint_hud_segments(console, hud_x, y, _segments, hud_x + HUD_TEXT_MAX)
     return True
 
 

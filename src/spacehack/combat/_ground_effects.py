@@ -53,39 +53,49 @@ def apply_player_effect(state, ctx, spec) -> bool:
     return spec.effect_id in {"regen", "stim"}
 
 
+def _apply_heal_event(state, spec, source, amount: int) -> None:
+    """One heal event: clamp at max and log the row's tick line only
+    when healed > 0 (today's ledger shape, the source interpolated —
+    callers pass the PRE-ADVANCE snapshot's source, because the
+    engine drops the entry at the expiring boundary and that round's
+    tick still logs its attribution)."""
+    _before = state.player_hp
+    state.player_hp = min(
+        state.player_max_hp,
+        state.player_hp + amount,
+    )
+    _healed = state.player_hp - _before
+    if _healed > 0 and spec.tick_line:
+        state.ctx.log.add_colored(
+            spec.tick_line.format(
+                source=source or spec.name, healed=_healed,
+            ),
+            _ml.COLOR_PLAYER_ACTION,
+        )
+
+
 def advance_player_effects(state) -> int:
     """Advance the player's status container one round boundary and
     return the temporary AP bonus for the gain fold: heal events
-    clamp at max and log the row's tick line only when healed > 0
-    (today's ledger shape, the source interpolated); ap events fold
-    into the returned bonus; expire events log the row's ruled line
-    when one is authored (the Neural Stim loan's repay line)."""
+    clamp-and-log via :func:`_apply_heal_event`; ap events fold into
+    the returned bonus; expire events log the row's ruled line AFTER
+    the walk (today the repay line landed after the whole advance, so
+    a regen sharing the boundary keeps its tick line first)."""
     _container = getattr(state.ctx, "active_statuses", None) or {}
+    _sources = {_sid: _a.source for _sid, _a in _container.items()}
     _ap_bonus = 0
+    _expire_lines: list[str] = []
     for _ev in _statuses.advance(_container):
         _kind, _sid = _ev[0], _ev[1]
         _spec = find_status(_sid)
         if _kind == "heal":
-            _before = state.player_hp
-            state.player_hp = min(
-                state.player_max_hp,
-                state.player_hp + _ev[2],
-            )
-            _healed = state.player_hp - _before
-            if _healed > 0 and _spec.tick_line:
-                _source = _container[_sid].source or _spec.name
-                state.ctx.log.add_colored(
-                    _spec.tick_line.format(
-                        source=_source, healed=_healed,
-                    ),
-                    _ml.COLOR_PLAYER_ACTION,
-                )
+            _apply_heal_event(state, _spec, _sources.get(_sid), _ev[2])
         elif _kind == "ap":
             _ap_bonus += _ev[2]
         elif _kind == "expire" and _spec.expire_line:
-            state.ctx.log.add_colored(
-                _spec.expire_line, _ml.COLOR_PLAYER_ACTION,
-            )
+            _expire_lines.append(_spec.expire_line)
+    for _line in _expire_lines:
+        state.ctx.log.add_colored(_line, _ml.COLOR_PLAYER_ACTION)
     return _ap_bonus
 
 

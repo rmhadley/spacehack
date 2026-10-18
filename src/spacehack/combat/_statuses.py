@@ -223,3 +223,20 @@ def hud_segments(
             continue
         segments.append((f"{spec.hud_label} {active.remaining_turns}", spec.polarity))
     return tuple(segments)
+
+
+def paint_hud_segments(console, x: int, y: int, segments, bound_x: int) -> None:
+    """Paint :func:`hud_segments` output at ``(x, y)`` — the one ink
+    both theaters' panels share (polarity through the ui pair, two
+    spaces between segments, nothing past ``bound_x``). Panels own
+    their flow semantics (the ground gap row vs the space consumed
+    row); this owns the drawing."""
+    from ..ui import COLOR_STATUS_BUFF, COLOR_STATUS_DEBUFF
+    for _text, _is_buff in segments:
+        if x + len(_text) > bound_x:
+            break
+        console.print(
+            x=x, y=y, string=_text,
+            fg=COLOR_STATUS_BUFF if _is_buff else COLOR_STATUS_DEBUFF,
+        )
+        x += len(_text) + 2
