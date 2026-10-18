@@ -3,7 +3,10 @@
 **Status: DESIGN IN PROGRESS — the architecture is shaped and
 plan-approved (2026-10-17); the advisor ADVISE pass is folded
 (2026-10-18, verdict SOUND-WITH-CATCHES, all 29 issues below); the
-open rulings are this doc's refine pass. No implementation until
+refine RULINGS PASS is COMPLETE (2026-10-18 — all 13 open
+questions settled, see the SETTLED section). Next: the semantics
+pass (tick boundaries, the stacking edges, the roll-law numbers),
+then the Implementation briefs. No implementation until
 the user explicitly requests it.**
 
 Companions: `complete/102_DESIGN_CYBERNETICS.md` (the Parked sketch
@@ -139,20 +142,26 @@ ego. This is where the ego drain was going to come in to play."**
   `status_id: str = ""` + `status_chance: int = 0` on
   `GroundWeaponSpec` is the data home the
   `int(weapon_id == "stun_baton")` branch never had.
-- **Burnt ego adjusts the chance through ONE seam function** — the
-  ego drain's combat entry, exactly where doc 102's recorded
-  endgame parked it ("chrome trades combat advantages for certain
-  risky disadvantages"). **Supersession recorded (advisor catch,
-  2026-10-18): doc 102 explicitly rejected combat-axis
-  consequences of low ego ("the world reprices you; it does not dim
-  your aim and does not open fire," lines 176-180). THIS SEAM
-  supersedes that rejection, and only this seam — the recorded
-  endgame ("chrome then trades combat advantages for certain risky
-  disadvantages") is the re-opening, and everything else
-  socioeconomic stays exactly as 102 ruled it.** Slope, direction,
-  and which sides (attacker's burn aiding their own application vs
-  the victim's burn raising susceptibility — or both) are open
-  rulings below. The seam's home: `chrome.py`, beside `band`.
+- **Burnt ego adjusts the chance through ONE seam function, keyed
+  on the VICTIM (RULED 2026-10-18, q5)** — the ego drain's combat
+  entry, exactly where doc 102's recorded endgame parked it
+  ("chrome trades combat advantages for certain risky
+  disadvantages"). Burn reduces the victim's ability to resist an
+  applied status: zero burn = identity ("full ego, full resist"),
+  susceptibility monotone up with burn; the attacker's burn NEVER
+  reads. The seam IS exercised in the debut — by ORGANIC enemy
+  baton wielders (see the debut section: the `melee` family
+  already contains the baton; the enemy's fire site makes the
+  player the victim). **Supersession recorded (advisor catch,
+  2026-10-18):
+  doc 102 explicitly rejected combat-axis consequences of low ego
+  ("the world reprices you; it does not dim your aim and does not
+  open fire," lines 176-180). THIS SEAM supersedes that rejection,
+  and only this seam — debuff-susceptibility IS the "certain
+  risky disadvantage" the recorded endgame priced, and everything
+  else socioeconomic stays exactly as 102 ruled it.** Slope, cap,
+  and dead-zone flatness are semantics-pass rows. The seam's home:
+  `chrome.py`, beside `band`.
 - **The roll sits at the fire site, after the hit resolves**,
   guarded `chance > 0` (the crit precedent): fights without a
   chance-carrying delivery consume ZERO new draws, bit-identical;
@@ -191,9 +200,10 @@ shouldn't immediately remove your current buff/debuff."**
   regen CONTINUES ticking outside combat.
 - **Theater crossing is the careful-planning case**: a ground
   damage tick following the player into space combat "might be the
-  wrong choice" (user instinct, agreed) — per-status crossing
-  rules, ruled in the refine pass (lean: ground statuses pause or
-  expire on boarding; fire smothering in the cockpit is thematic).
+  wrong choice" (user instinct, agreed) — RULED 2026-10-18 (q11):
+  statuses tick only in their home theater; crossing PAUSES by
+  catalog default, a fire-type status AUTHORS smother (dies at
+  the airlock). No damage tick ever follows you into the cockpit.
 - **Sequencing ruling (the efficiency question, answered by
   split-by-layer):** the Build A migration stays BEHAVIOR-identical
   (fight end still defuses the player container, exactly as
@@ -222,6 +232,12 @@ shouldn't immediately remove your current buff/debuff."**
 - `stacking: str = "refresh"`, `stacks_max: int = 1` — re-apply
   resets the duration (today's behavior) vs independent stacks to a
   cap.
+- Boundary fields (RULED q11/q13, both defaulting kind; working
+  names — exact naming is brief material): `crossing: str =
+  "pause"` (theater-crossing behavior; a fire-type status authors
+  `"smother"` — statuses tick only in their home theater) and
+  `persists_past_fight: bool = True` (the ground and space stim
+  loans author `False` — combat tempo).
 - Flat defaulted additive payload — a status declares only what it
   carries (the ChromeSpec law; the fold stays table-driven). The
   migrations need exactly TWO terms (`regen_per_round` for the med
@@ -239,13 +255,17 @@ shouldn't immediately remove your current buff/debuff."**
   SOURCE's display name (the `ActiveStatus.source` carries it), so
   today's "Med Pack regeneration: +2 HP." survives migration
   bit-identically ("Regeneration" stays the sourceless fallback).
+  Plus the inspect overlay's DESCRIPTION text (q7) — same prose
+  gate, same declare-only-what-you-have law.
 
 ### ActiveStatus (runtime, engine-home)
 
 `status_id`, `remaining_turns`, `stacks = 1`, `potency = 1`,
-`source = None`. Potency multiplies additive payload at sum time;
-source carries the deliverer for attribution (log lines, future AI
-reads).
+`source = None`, `theater = None`. Potency multiplies additive
+payload at sum time; source carries the deliverer for attribution
+(log lines, future AI reads); theater is stamped at application
+from the delivery vehicle's theater — the crossing rule (q11)
+reads it: statuses tick only in their home theater.
 
 ### One container type — the durable player home + the fight-scoped enemy homes
 
@@ -359,11 +379,10 @@ discoveries:
 | enemy `stim_turns`/`regen_turns` fields | enemy containers, `apply` from `use_carried_consumable` — AND the trigger read: `_triggered`'s `stim_turns <= 0` (`_ground_effects.py:110-114`) becomes `has(container, "stim")`; the one live AI-side status read moves with the field (advisor catch) | enemy stim/regen tests |
 | `GroundConsumableSpec.effect_id` | points at `find_status` — the "effect registry" its own docstring has promised since authoring (EXCEPT `tinker`: a quality-bump transaction with no timed effect; the id stays exempt) | round-trip |
 | `ActiveConsumableEffect` + `effect_from_spec` | RETIRED | — |
+| fight-state opener latches `enemy_fired`/`opener_spent` | fight-class opener statuses (RULED, q4), consumed at the respective first actions; trait reads become `has()` reads | `test_enemy_fire.py`, `test_class_traits.py` + fresh bit-identity run |
 
-The Pirate opener (once-per-fight booleans) is a CANDIDATE for the
-`fight` duration class — included iff the bit-identity proof is
-cheap; open ruling 4. Chrome conditionals, traits, map zones: NOT
-migrated (boundary doctrines above).
+Chrome conditionals, traits, map zones: NOT migrated (boundary
+doctrines above).
 
 **Proof law (advisor-corrected):** the balance harness drives real
 seeded ground fights including enemy weapon AND carried-consumable
@@ -393,16 +412,28 @@ Working shape (numbers = the semantics pass):
 - The application roll: after the hit resolves, guarded, one draw
   per connecting SURVIVING hit → Stun Baton fights re-pin their
   balance rows same-commit (the crit precedent's discipline).
-- The ego seam adjusts the roll through ONE function
-  (`chrome.py`, beside `band`); dead-zone reads flat (working lean,
-  open ruling 5). **Playtest instrumentation (advisor catch): F7
-  grants are burn-NEUTRAL by design (`dev_mode.py:196-215` calls
-  `install_chrome`, never `ratchet_install`) — Build B adds a dev
-  burn dial, or the playtest buys its burn at a kiosk; ruled in
-  the brief.**
+- The ego seam is victim-side susceptibility (q5): one function
+  (`chrome.py`, beside `band`), identity at zero burn, exercised
+  in the debut by enemy wielders (below).
 - Enemy-side symmetry: staggered on enemies IS the actor-symmetry
   proof — the same container, ticked by `advance_enemy_effects`'
   successor.
+
+**The debut is TWO-SIDED (verified 2026-10-18):** enemies draw
+weapons from the same catalog by family — the baton is `melee`
+family, tech_level 2 — so tier-2+ melee-family enemies (pirates,
+militia) can ALREADY organically come up holding it; today nothing
+happens because the AP-drain branch sits in the player's damage
+function (`_rules_ground.py:443`). Under the new system the enemy's
+fire site rolls application actor-symmetrically: PLAYER wields →
+staggered on the enemy (enemy container + HUD suffix); ENEMY
+wields → staggered on the PLAYER (player container, the ego seam
+EXERCISED — burnt ego raises the player's susceptibility, "full
+ego, full resist" feel-able in live play). Build B's playtest
+instrumentation: the dev burn dial or a kiosk buy (F7 grants are
+burn-neutral by design — `dev_mode.py` calls `install_chrome`,
+never `ratchet_install`); playtest reliability of meeting a
+wielder = brief row.
 
 Later debuffs (suppression, damage-over-time, disruption — the
 chrome-risk family) join as catalog rows on these rails; that
@@ -410,17 +441,22 @@ content is NOT this doc's build scope beyond the debut.
 
 ## HUD surface (both panels — and the enemy side, ruled open)
 
-A compact status line: per active status, the spec's terse label +
-remaining (`STAGGERED 2`, `REGEN 1` — polarity-colored), read from
-the container, on both theaters' player panels (the ground panel
-has a free row at ~y8 before WEAPONS, `_ground_render.py:259-291`;
-`HUD_TEXT_MAX` truncation is already the pattern). **The ENEMY
-surface is its own open ruling (advisor catch: the debut's only
-debuff lives on the enemy container — a player-panel-only plan
-would never show it): lean = a status suffix on the ground enemy
-panel rows / target card, alternative = apply/expire log lines
-only.** The existing regen/temp-AP suffixes stay (they read the
-same sums now). Strings prose-gated; CP437-safe.
+A compact status line (RULED one row, q7): per active status, the
+spec's terse label + remaining (`STAGGERED 2`, `REGEN 1` —
+polarity-colored), read from the container, on both theaters'
+player panels (the ground panel has a free row at ~y8 before
+WEAPONS, `_ground_render.py:259-291`; `HUD_TEXT_MAX` truncation is
+already the pattern). The ENEMY surface (RULED, q7): a status
+suffix on the ground enemy panel rows / target card. The existing
+regen/temp-AP suffixes stay (they read the same sums now). Strings
+prose-gated; CP437-safe.
+
+**The status INSPECT overlay (RULED, q7 — user):** a keypress
+opens a scrollable window of current statuses WITH DESCRIPTIONS,
+for the player's own container AND for enemies (selection rides
+the existing enemy-examine/target flow). Descriptions are a new
+prose-gated StatusSpec string field; the keybind fires the guide
+contract. Exact key + wiring are Build B brief material.
 
 **The guide row (advisor catch, blocking per the guide contract):
 the debut falsifies a LIVE guide entry** — "The Stun Baton reduces
@@ -432,8 +468,8 @@ B's playtest checklist.
 
 ## Phases
 
-- [ ] The rulings pass (refine sessions with the user: every open
-      question below)
+- [x] The rulings pass (COMPLETE 2026-10-18 — all 13 open
+      questions settled; see the SETTLED section)
 - [ ] The semantics pass (duration classes' exact tick boundaries,
       the stacking table INCLUDING the three refresh edges —
       re-apply at `stacks_max`, re-apply at different potency,
@@ -445,31 +481,42 @@ B's playtest checklist.
       note: `_rules_ground.py` sits at 974 lines and
       `_rules_space.py` at 966 — both one touched-file growth from
       the in-commit extraction ratchet)
-- [ ] Build A: the engine + catalog + the migrations — bit-identity
+- [ ] Build A: the engine + catalog + the migrations (incl. the
+      Pirate opener, q4) — bit-identity
       proof (harness rows + unit pins, per the proof law) + gate
       green + the engine's own unit tests (apply/advance/sum_effects
       are mutation-wrappers: same-commit tests, plus the
       actor-symmetry pin). PLAYTEST: a med pack, a stim, the Stim
-      loan, an enemy carrier — behavior indistinguishable, the HUD
-      line reads.
-- [ ] Build B: the staggered debut + the rolled application + the
-      ego seam + the HUD line + the dev burn dial + the guide row;
-      baton balance rows re-pinned, baton unit tests rewritten.
-      PLAYTEST: the baton staggers sometimes, deep burn moves the
-      odds (dial or kiosk), the enemy wears it and shows it.
+      loan, an enemy carrier, a Pirate opener fight — behavior
+      indistinguishable, the HUD line reads.
+- [ ] Build B: the staggered debut (two-sided: player wields →
+      enemy staggered; enemy wielder → player staggered) + the
+      rolled application + the ego seam (exercised via organic
+      enemy baton wielders, q5) + the HUD line + the status
+      inspect overlay + the guide row + the dev burn dial; baton
+      balance rows re-pinned, baton unit tests rewritten.
+      PLAYTEST: the baton staggers sometimes, the enemy wears it
+      and shows it, an enemy baton hit staggers YOU and deep burn
+      makes it land more (dial or kiosk).
 - [ ] Build C: the durable boundaries — the fight-end defuse rule
       flips to carry-over (leftover regen keeps healing while you
       explore), the exploration tick hook (what counts as a turn
-      out of combat), theater-crossing rules (q.11), what persists
-      vs defuses per status (q.13 — lean: loans defuse, they are
-      combat tempo; hostile statuses persist), and the
-      out-of-combat consumable behaviors (q.12: the stim's
-      exploration legality; the med pack's outside-combat use —
-      full-heal stays or becomes the regen buff). Save round-trip
+      out of combat), theater-crossing rules (RULED q.11: pause
+      default + per-status smother field), what persists vs
+      defuses per status (RULED q.13: persist default, the loans
+      author defuse, staggered carries and walks off on steps),
+      and the out-of-combat
+      consumable behaviors (RULED q.12: the stim is
+      exploration-legal and ticks on steps; EVERY med pack use is
+      the regen — the instant full heal RETIRES, economy watch
+      row). Save round-trip
       of a mid-tick container pinned (the ctx home + wiring
       already landed in Build A). PLAYTEST: disengage mid-regen and
       keep healing while walking; save/quit/continue mid-tick;
-      board with a ground status active; end a fight burning.
+      board with a ground status active (it pauses); end a fight
+      burning or staggered and feel it carry; use a med pack out
+      of combat and watch it regen
+      over steps (no more full heal).
 - [ ] Close (SYSTEMS.md inventory amended same-commit; move to
       complete/)
 
@@ -543,55 +590,228 @@ issues, folded above:
   morale/suppression/stagger/disruption vocabulary anywhere in src
   — the "What does NOT exist" claim holds).
 
+## SETTLED — the refine pass (2026-10-18)
+
+### q1 — Naming: STATUSES
+
+The parked sketch's word is the law: module `combat/_statuses.py`,
+catalog `data/statuses.py`, ctx field `active_statuses`, and the
+player-facing word "status". "Conditions" rejected (a rename sweep
+of the working vocabulary for no gain); "effects" rejected (the
+retiring mechanism's word — `_ground_effects.py`, `effect_id`).
+
+### q2 — Stacking default: REFRESH
+
+Re-apply resets the remaining duration; the stack count stays 1.
+Bit-matches every live behavior (med pack re-drink, stim re-use,
+the single-round loan). Independent stacks remain a per-status
+catalog override (`stacking="stacks"`, `stacks_max`), authored
+when content first needs them. The three refresh edges (re-apply
+at `stacks_max`; re-apply at different potency; two sources, one
+id) are SEMANTICS-PASS rows — the ruled law is the default only.
+
+### q3 — Cooldowns: SEPARATE, with the bridge
+
+Ability cooldowns (`core_cooldown`, `stim_cooldown`) keep their
+latch/countdown homes — ability gating is a different axis from
+actor conditions ("when may I use it" vs "what is on me"), on the
+ability's own clock and its own surface ("ready in N" on the
+ability, not the actor's status line). **The bridge (user-voiced,
+ruled):** a future debuff that PREVENTS a buff — or jams an
+ability — is a STATUS with a behavior flag (the
+`blocks_dodge`/`blocks_melee` family), read at `engine.apply` /
+the ability gate; those sites are container-reading assemblies,
+so such debuffs land as catalog rows plus at most one read-site
+term. The unification is available as a READ, never a home
+change. A cooldown unification doc, if ever wanted, designs
+ready-at-zero and ability-UI semantics into duration classes —
+not this doc.
+
+### q5 — The ego seam: VICTIM-SIDE susceptibility (user, 2026-10-18)
+
+User ruling, verbatim: **"The idea here is that having burnt ego
+makes one more susceptible to status effects. It reduces your
+ability to resist. Full ego, full resist. Right now only the
+player gets burnt ego. Right now no enemies apply a status to
+the player. So while this is the plan, there is nothing in game
+right now that exercises it."**
+
+- The seam keys the VICTIM's burn ONLY: burn reduces the victim's
+  ability to resist an applied status; the attacker's burn NEVER
+  reads (no aim-dimming read on your own attacks, no desperation
+  inversion). Ruled shape constraints: zero burn = identity
+  ("full ego, full resist" — the delivery's base chance stands
+  unmodified); susceptibility is monotone up with burn. Slope,
+  cap, and dead-zone flatness remain semantics-pass rows.
+- **Exerciser CORRECTED same day (user: "I misspoke actually. We
+  can test this by giving a stun baton to an enemy, right?"):**
+  enemies author `weapon_families` against the SAME catalog, and
+  the baton lives in the `melee` family (`data/ground_weapons/
+  melee.py`, tech_level 2) — so tier-2+ melee-family enemies
+  (pirate raiders/riflemen/brutes, militia troopers) can ALREADY
+  organically draw it. The enemy's fire site rolls application
+  through the same actor-symmetric law, making the PLAYER the
+  victim: the seam IS exercised in the debut. The dev burn dial /
+  kiosk buy returns as playtest instrumentation and the F7
+  burn-neutral catch (`dev_mode.py` grants via `install_chrome`,
+  never `ratchet_install`) is live again. No content change
+  required (RULED: organic); playtest reliability — whether a
+  baton wielder is reliably ENCOUNTERED vs family-roll luck — is
+  a Build B brief row (dev arming hook vs a specific pool tweak).
+- The seam stays ONE function in `chrome.py`, beside `band`.
+- The 102 supersession is re-scoped to match: what supersedes is
+  debuff-SUSCEPTIBILITY — see the Application section.
+
+### q6 — Universal chance
+
+The application roll is a delivery-vehicle property, blind to
+polarity: any delivered status can carry `status_chance`. Our
+consumables ship at 100% (you paid — the med pack's regen lands);
+a chance-carrying buff vehicle is authorable when content wants
+one.
+
+### q10 — The killing-hit guard: SURVIVORS ONLY
+
+Roll application only when the victim survives the hit — a
+killing hit leaves no victim; rolling anyway burns a draw to no
+effect and shifts every subsequent stream draw.
+
+### q4 — Pirate opener: MIGRATE — the `fight` class ships with a real consumer
+
+The once-per-fight opener window (`enemy_fired` + `opener_spent`,
+doc 49 SETTLED 5) joins Build A as the `fight` duration class's
+first consumer. Verified shape (2026-10-18): the latch pair lives
+on the FIGHT state in BOTH theaters (`_types.py:183-188` space,
+`_ground_types.py:128-133` ground) — not on the enemy instance —
+stamped at the enemy's first volley (`_ai.py:791,843`,
+`_ai_ground.py:611`) and the player's first attack
+(`_loop.py:599`), and read by the trait math
+(`xp._opener_hit_bonus` / `_opener_damage_pct`, kwarg-threaded
+through both theaters' `hit_chance`). The migration: fight-class
+statuses consumed by the respective first actions, the trait reads
+becoming `has()` reads; the exact modeling (status type per
+container, window semantics) is brief material. Build A's
+bit-identity proof grows the opener rows (unit pins:
+`test_enemy_fire.py`, `test_class_traits.py`; no harness rows).
+The lean ("leave the trait math") was considered and overridden:
+proving the class early beats zero-risk.
+
+### q7 — HUD: one row + enemy suffix + the status INSPECT overlay
+
+Player line (user: "One Row, yes"): ONE row of terse
+polarity-colored labels + remaining on both theaters' player
+panels. Enemy surface (user: "Panel Suffix"): a status suffix on
+the ground enemy panel rows / target card, joining the
+regen/temp-AP suffixes (which stay — they read the same sums
+now). AND a ruled NEW surface, user verbatim: **"I feel like we
+need a key we can press that opens a scrollable window of current
+statuses with descriptions? The player will need to be able to
+not just inspect their own statuses, but also inspect an
+enemy."** — a status-inspect overlay: scrollable, per-status
+DESCRIPTION text (a new prose-gated StatusSpec string field),
+covering the player's own container AND enemies' (selection
+rides the existing enemy-examine/target flow; exact keybind and
+wiring are brief material). The new key fires the guide contract;
+descriptions settle through the prose loop before landing.
+
+### q9 — Regen stays ground vocabulary in v1
+
+`regen_per_round` is ground-only vocabulary in v1. No space
+content delivers regen (the med pack is ground-only); what a
+regen tick would heal in space is the theater-crossing ruling's
+business (q11), not the catalog's. A hull-repair status family
+lands theater-symmetric the day space content delivers one.
+
+### q11 — Theater crossing: PAUSE default, per-status catalog field
+
+User ruling (2026-10-18): statuses tick ONLY in their home
+theater. Boarding PAUSES ground statuses (they resume on return
+to the ground); docking pauses space statuses (the same rule,
+structurally unexercised in v1 — no space statuses exist). The
+crossing behavior is a per-status StatusSpec field, DEFAULT
+"pause", polarity-blind (the doctrine: polarity is presentation,
+never a code fork) — a fire/burn-type status AUTHORS "smother"
+(dies at the airlock; the thematic death). The home-theater tag
+rides application (the delivery vehicle knows its theater). The
+user's instinct is honored by construction: a damage tick never
+follows you into the cockpit.
+
+### q12 — Out-of-combat consumables: stim LEGAL; med pack = REGEN EVERYWHERE
+
+- **q12a (user: legal, ticks):** the Combat Stim becomes
+  exploration-legal; exploration steps tick its duration — the
+  approach spends it (pre-buffing with a walking cost). The
+  asymmetry is gone: a mid-fight sip already outlives the fight
+  (the durability ruling), so a fresh out-of-combat use being
+  illegal was the odd shape.
+- **q12b (user: REGEN EVERYWHERE — the keep-full-heal lean was
+  considered and OVERRIDDEN):** EVERY med pack use applies the
+  regen status. The out-of-combat instant full heal RETIRES (a
+  Build C behavior change: healing is always over time, in or out
+  of combat; out of combat the regen ticks on exploration
+  steps). Consequences recorded: the med pack's out-of-combat
+  value drops from a full top-up to the regen's total (+6 at the
+  working numbers) — a live-economy WATCH ROW for Build C's
+  playtest; regen at max HP is a no-op; a re-drink refreshes
+  (q2). Any full-heal strings change — prose-gated, called out
+  in Build C's checklist.
+
+### q8 — Potency: structural only in v1
+
+Nothing sets potency ≠ 1 in v1 — the field ships structural
+(day-one seam, the inherited sketch: re-keyable from burnt ego
+through willpower later) and chrome pass #2 owns the first re-key
+(tiered chrome delivering stronger statuses), per doc 102's
+succession. The debut reads burn through the application seam,
+never potency.
+
+### q13 — Fight end: PERSIST default, per-status field; the loans defuse
+
+User ruling (2026-10-18): fight-end behavior is a per-status
+catalog field PARALLEL to q11's crossing field — DEFAULT persist
+(ending combat does not remove statuses, the durability ruling's
+spirit). The ground AND space stim loans AUTHOR defuse (combat
+tempo, not conditions — a −1 AP loan must never bleed into a next
+fight's first rounds). Staggered PERSISTS on the player (revived
+by the two-sided debut: enemy baton wielders put it on YOU) — it
+carries out of the fight, ticks down on exploration steps, and
+re-engaging with rounds left, it applies (the enemy-wound doctrine
+pointed at the player: you keep your burns). Regen persists
+(ruled with durability itself, 2026-10-18).
+
 ## Open questions (the refine pass)
 
-1. **Naming**: "statuses" (working; the parked sketch's word) vs
-   "effects" vs "conditions" — module, catalog, and the
-   player-facing word.
-2. **Stacking default**: `refresh` matches today's behavior —
-   confirm as the law, with the three edges ruled (re-apply at
-   `stacks_max`; re-apply at different potency — overwrite or
-   keep; two sources, one id — last-writer attribution?).
-3. **Cooldowns**: stay separate (lean — ability gating is a
-   different axis) or unify as a timers container later?
-4. **Pirate opener migration**: adopt the `fight` duration class
-   now (proves the class early) or leave the trait math (lean:
-   leave — zero behavior risk; the class ships when content needs
-   it)?
-5. **The ego seam's shape** (the big one): which sides read burn —
-   attacker's application, victim's susceptibility, or both (lean:
-   both eventually; the debut wires attacker-side only, the
-   staggered victim being an enemy)? Slope and cap; dead-zone
-   flatness.
-6. **Do buffs roll too**, or is the application chance a
-   debuff-only law (lean: any DELIVERED status can carry a chance;
-   consumables stay 100%)?
-7. **HUD line shape**: one row of terse labels (lean) vs
-   per-status rows — AND the enemy-side surface (lean: a suffix on
-   the ground enemy panel rows / target card vs apply/expire log
-   lines only).
-8. **Potency wiring**: the field exists day one; does anything key
-   it in v1 (lean: no — chrome pass #2 owns the first re-key, per
-   doc 102's succession)?
-9. `regen_per_round` in space (a hull-repair status family): v1
-   ground-only (lean) or theater-symmetric vocabulary now?
-10. **The killing-hit guard** (advisor): roll application only if
-    the victim survives (lean yes — a killing hit has no victim,
-    and the wasted draw shifts every subsequent stream draw)?
-11. **Theater crossing** (user-flagged, 2026-10-18): what happens
-    to an active ground status when the player boards / enters
-    space combat — pause until back on the ground, expire, or
-    continue ticking (lean: pause-or-smother; a damage tick
-    following you into the ship "might be the wrong choice")? And
-    the mirror: space statuses when docking?
-12. **Out-of-combat consumable use** (follows from durability):
-    does the Combat Stim become exploration-legal (pre-buffing
-    into fights), and does the med pack's outside-combat use stay
-    the full heal or become the regen buff (consistency vs
-    kindness)? If pre-buffing ships: do exploration turns tick
-    duration during the approach (lean yes — walking spends it)?
-13. **What survives fight end vs defuses** (Build C's per-status
-    law): the loan (lean: defuses — it is combat tempo, not a
-    condition), fire/poison (lean: persist — you keep your burns,
-    the enemy-wound doctrine pointed at the player), staggered
-    (moot for now — enemy-side only)?
+1. **Naming** — SETTLED 2026-10-18: **statuses** (SETTLED section
+   above).
+2. **Stacking default** — SETTLED 2026-10-18: **refresh**; the
+   three edges are semantics-pass rows (SETTLED section above).
+3. **Cooldowns** — SETTLED 2026-10-18: separate, with the
+   blocking/jamming-debuff bridge (SETTLED section above).
+4. **Pirate opener migration** — SETTLED 2026-10-18: **migrate
+   now**; the opener is the `fight` class's first consumer
+   (SETTLED section above).
+5. **The ego seam's shape** — SETTLED 2026-10-18: victim-side
+   susceptibility only, identity at zero burn, unexercised in the
+   debut (SETTLED section above); slope/cap/dead-zone = semantics
+   rows; Build B structural-vs-deferred = brief row.
+6. **Do buffs roll too** — SETTLED 2026-10-18: universal chance,
+   consumables at 100% (SETTLED section above).
+7. **HUD line shape** — SETTLED 2026-10-18: one row + enemy panel
+   suffix + the status INSPECT overlay (player and enemy;
+   descriptions prose-gated) — SETTLED section above.
+8. **Potency wiring** — SETTLED 2026-10-18: structural only,
+   nothing keys it in v1 (SETTLED section above).
+9. **Regen in space** — SETTLED 2026-10-18: ground-only vocabulary
+   in v1 (SETTLED section above).
+10. **The killing-hit guard** — SETTLED 2026-10-18: survivors
+    only (SETTLED section above).
+11. **Theater crossing** — SETTLED 2026-10-18: pause default +
+    per-status smother field, home-theater ticking (SETTLED
+    section above).
+12. **Out-of-combat consumable use** — SETTLED 2026-10-18: stim
+    exploration-legal (ticks on steps); med pack = regen
+    everywhere, the instant full heal RETIRES (SETTLED section
+    above).
+13. **What survives fight end vs defuses** — SETTLED 2026-10-18:
+    persist default + per-status field; the loans author defuse;
+    staggered carries (SETTLED section above).
