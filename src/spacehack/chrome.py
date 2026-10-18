@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Iterable
 
 from .data.chrome import find_chrome
 from .data.species import find_species
+from .data.statuses import NEURAL_STIM_REPAY_LINE
 
 if TYPE_CHECKING:
     from .game_context import GameContext
@@ -419,7 +420,11 @@ STIM_ACTIVATE_LINE = (
     "You activate the Terminus Neural Stim and your senses heighten "
     "as energy courses through you."
 )
-STIM_REPAY_LINE = "Reality slows as the Neural Stim's effect wears off."
+# Doc 103 Build A: the repay narration's canonical home moved to its
+# status row (the expire template it always was — identical bytes);
+# this alias keeps the historical chrome name every importer and the
+# doc 102 ledger use.
+STIM_REPAY_LINE = NEURAL_STIM_REPAY_LINE
 STIM_NO_CORE_LINE = "No neural core installed."
 
 
