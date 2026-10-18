@@ -1889,3 +1889,38 @@ class TestEnemyQualityStatDisplay:
         )
         _texts = [t for row in rows for t, _c in row]
         assert any("DMG 6" in t for t in _texts)
+
+
+def test_ground_status_row_reads_and_never_shifts_weapons():
+    """The one-row status line (doc 103 q7): labelled rounds rows read
+    `LABEL n` polarity-colored in the player panel's closing gap row —
+    WEAPONS stays put, and label-less rows (the loan) never render."""
+    _ctx, _game_map, _console, _enemy = _ground_fixture()
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    from src.spacehack.combat import _statuses
+    from src.spacehack.data.statuses import NEURAL_STIM_LOAN_ID
+
+    _statuses.apply(_ctx.active_statuses, "regen", source="Med Pack")
+    _statuses.apply(_ctx.active_statuses, "stim")
+    _statuses.apply(_ctx.active_statuses, NEURAL_STIM_LOAN_ID)
+
+    _frame = FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT)
+    _ground_render._render_player_panel(_frame, _ctx)
+    _hud_x = SCREEN_WIDTH - HUD_WIDTH
+    _row = "".join(
+        _frame.cell(x, 7).char
+        for x in range(_hud_x, SCREEN_WIDTH)
+    ).rstrip()
+    assert _row == "REGEN 3  STIM 3"  # the loan declines a label
+    assert _frame.cell(_hud_x, 7).fg == (100, 235, 115)
+
+    # The gap-row paint never shifts WEAPONS: the panel's next-row
+    # return is unchanged with statuses on.
+    _y_with = _ground_render._render_player_panel(
+        FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT), _ctx,
+    )
+    _statuses.dispel(_ctx.active_statuses, lambda _a: True)
+    _y_without = _ground_render._render_player_panel(
+        FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT), _ctx,
+    )
+    assert _y_with == _y_without
