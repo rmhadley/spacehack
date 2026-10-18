@@ -1,12 +1,12 @@
 # DESIGN: Statuses — the durable buff/debuff system
 
-**Status: BUILD A LANDED + PLAYTEST PASSED (2026-10-18 — user
-confirmed; bit-identity proven, reviewer round-2 APPROVE, the
-mid-playtest input fix + the OPENER label ruling folded). The
-Implementation briefs for
-Build A and Build B are DRAFTED, ADVISE-folded, and APPROVED
-(2026-10-18). Next build: `/implement-phase 103.5` (Build B, the
-staggered debut — its pre-build prose gate runs first).**
+**Status: BUILD B LANDED (2026-10-18 — the staggered debut: the
+pre-build prose gate ran first, 13 ledger items settled through the
+loop; 8 commits; reviewer rounds on every code commit — APPROVE /
+APPROVE / REQUEST_CHANGES x2 with all blockers+minors folded
+in-commit; full suite green at 3951). PLAYTEST PENDING. Next:
+the Build B playtest verdict, then `/implement-phase 103.6` (Build C,
+the durable boundaries).**
 
 Companions: `complete/102_DESIGN_CYBERNETICS.md` (the Parked sketch
 this doc inherits — "a general statuses container (`id → rounds
@@ -515,7 +515,7 @@ B's playtest checklist.
       deliberately deferred all guide work to Build B's guide row
       (the decision recorded in the brief; the falsified Stun
       Baton entry rewrites in Build B).
-- [ ] Build B: the staggered debut (two-sided: player wields →
+- [x] Build B: the staggered debut (two-sided: player wields →
       enemy staggered; enemy wielder → player staggered) + the
       rolled application + the ego seam (exercised via organic
       enemy baton wielders, q5) + the HUD line + the status
@@ -524,6 +524,32 @@ B's playtest checklist.
       PLAYTEST: the baton staggers sometimes, the enemy wears it
       and shows it, an enemy baton hit staggers YOU and deep burn
       makes it land more (dial or kiosk).
+      BUILT 2026-10-18 (8 commits: the prose-gate ledger; the
+      staggered row + the status_id/status_chance spec fields + all
+      ruled descriptions; the chrome seam; the player fire-site
+      roll with the retired id branch deleted + rewritten baton
+      pins + the lane_batons re-pin; the enemy fire-site symmetry
+      with the pending-damage counter + projection; the surfaces —
+      the `v` overlay (Tab cycles subjects, no turn cost), the
+      enemy panel suffix + target-card row, the guide edits, the
+      card toggle moved to `e` (`i` reserved for inventory, user
+      ruling mid-build); the F8 playtest instruments — the burn
+      dial + the enemy-baton arming hook). Key build events, all
+      folded: the `or-{}` write-orphan on an EMPTY container
+      caught by trace (the getattr-None pattern replaces it); the
+      conjugated apply subject ("You are"/"X is" — the rendered
+      strings stay the ruled ones); the floating card's own
+      `[V] hide` hint falsified by the key move (reviewer round 3,
+      swept with its pins); the twin-site band_name bug in the
+      dial label (round 4). BALANCE: lane_batons re-pinned
+      0.94→0.90 fresh-measured (the player-site roll reshuffles
+      the stream, the crit precedent's law; the enemy site moved
+      nothing — no balance enemy carries a rider);
+      mars_batons reads 0.00 at BOTH trees (its bars were retired
+      2026-10-04; report-only — pre-existing drift the tuning
+      pass owns, verified not this build's). The med pack guide's
+      "fully heal outside combat" sentence stands until Build C
+      retires the full heal (q12b). PLAYTEST PENDING.
 - [ ] Build C: the durable boundaries — the fight-end defuse rule
       flips to carry-over (leftover regen keeps healing while you
       explore), the exploration tick hook (what counts as a turn
@@ -1108,6 +1134,13 @@ two fire sites, the seam, the HUD/overlay surfaces, the instruments.
   to `stun_baton` — every enemy built while the flag lives wields
   one (init AND mid-fight joins), so "an enemy staggers me" is
   reliably encounterable without touching any content pool.
+  (AMENDED at the build: the hook landed at the two ENGAGED build
+  sites — `init` + `refresh_engaged`, via the shared
+  `_arm_dev_batons` helper — not inside `_build_enemy_instance`;
+  the third build site (stare-eruption zone victims,
+  `_ancients._cell_victims`) never joins the fight, and arming it
+  would rewrite bystanders' persisted stamps and drop payloads.
+  Reviewer round 4 endorsed the as-built cut as the better shape.)
 - **The overlay's wiring**: `i` (free in the combat map — swept:
   not an action key, not movement, not wait, not a weapon number;
   `e`/`g`/`m`/`o`/`p`/`t`/`z` also free, `i` wins on mnemonic).
