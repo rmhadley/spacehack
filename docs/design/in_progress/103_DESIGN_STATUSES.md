@@ -321,7 +321,12 @@ declarations. Nothing attaches at runtime.
   `20 × ap_per_round` to the gain BEFORE `_roll_ap`
   (`_rules_ground.py:877-884`) — and a general fold can now go
   NEGATIVE (multiple negative statuses, untested by today's
-  single-loan arithmetic); the gain guards at zero.
+  single-loan arithmetic); the gain guards at zero; the ENEMY
+  reset is a direct add (`_gei.ap = _gei.ap_total + advance(...)`,
+  `_rules_ground.py:891-893` — no `_roll_ap`, no twentieths) and
+  takes its own `max(0, ...)` guard for negative folds (advisor
+  2026-10-18) — the three shapes stay distinct, never
+  homogenized.
 - **The two loan wirings are DIFFERENT code shapes and stay that
   way** (advisor catch): ground folds the −1 into the next round's
   GAIN before the fractional roll; space applies it AFTER the AP
@@ -518,6 +523,292 @@ B's playtest checklist.
       over steps (no more full heal).
 - [ ] Close (SYSTEMS.md inventory amended same-commit; move to
       complete/)
+
+## Implementation brief — Build A: the engine + catalog + the migrations
+
+### Scope (files + hook points)
+
+1. NEW `combat/_statuses.py` — the pure engine: `apply(container,
+   status_id, potency=1, source=None, theater=None)` (stacking law:
+   refresh default, NEW-WINS metadata, refresh-at-cap; RAISES
+   KeyError on unknown ids), `advance(container) -> tuple[
+   TickEvent, ...]` (events fire THEN decrement; drops expired),
+   `sum_effects(container) -> StatusEffects` (silent-skip on
+   unknown ids), `has` / `potency_of` / `consume` / `dispel`. No
+   RNG, no logging, no HP/AP writes — ever.
+2. NEW `data/statuses.py` — the frozen catalog + `find_status` /
+   `list_status`. v1 rows: `regen` (regen_per_round 2, 3 rounds),
+   `stim` (ap_per_round +1, 3 rounds), `neural_stim_loan`
+   (ap_per_round −1, 1 round, `persists_past_fight=False`), and
+   the two `fight`-class opener rows (exact ids follow the doc-49
+   trait math at build: one per container, consumed at the
+   respective first action). Boundary fields ship STRUCTURAL
+   (`crossing="pause"`, `persists_past_fight=True` defaults) — no
+   boundary BEHAVIOR until Build C. String templates reproduce
+   TODAY's lines bit-identically — copy from CODE, not doc quotes
+   (the regen tick line pinned from `_ground_effects.py`; source
+   interpolation + the sourceless fallback).
+3. `combat/_ground_types.py` — `GroundEnemyInstance.statuses`
+   declared; the enemy `stim_turns`/`stim_ap_bonus`/`regen_turns`/
+   `regen_amount` fields RETIRED; the opener latch pair removed
+   from the ground fight state.
+4. `combat/_types.py` — `EnemyInstance.statuses` declared; the
+   opener pair removed from the space fight state.
+   (`shields_charged` untouched — the retire candidate this doc
+   deliberately walks past.)
+5. `game_context.py` — `ctx.active_statuses: dict[str,
+   ActiveStatus]` declared (the FINAL home, placed now so it
+   never moves twice).
+6. `saveload.py` — the ctx field wired into `_core_fields` /
+   `_restore_core_fields`, empty-dict backfill, through
+   entry-level serialize/reconstruct helpers (the container is a
+   `dict[str, ActiveStatus]`, not a scalar — the restore side is
+   never a bare `data.get`; advisor catch 11; the chrome
+   empty-backfill precedent sits at `:703`).
+7. `combat/_ground_effects.py` — `ActiveConsumableEffect` +
+   `effect_from_spec` RETIRED; advance/read logic becomes engine
+   adapters; `_triggered`'s `stim_turns <= 0` read becomes
+   `has(container, "stim")` (the one live AI-side status read
+   moves WITH the field).
+8. `combat/_rules_ground.py` — `reset_turn`: fold `20 ×
+   ap_per_round` into the gain BEFORE `_roll_ap`, guard the gain
+   at zero (a general fold can go negative — multiple negative
+   statuses); hit/melee/dodge assemblies read `sum_effects`;
+   fight end DEFUSES the player container (behavior-identical to
+   today's evaporation — Build C flips it); the baton branch at
+   `:443` UNTOUCHED (Build B deletes it).
+9. `combat/_rules_space.py` — `stim_loan_ap` migrates to the
+   container with the twin-field POST-RESET application preserved
+   (`max(0, ap_total + loan)` / `max(0, ap_remaining + loan)`,
+   popped exactly once — the `_rules_space.py:840-844` shape);
+   `stim_cooldown` STAYS a cooldown key (q3); the opener flag
+   reads become `has()` reads. AND the fight-end DEFUSE (advisor
+   catch 4): the container now OUTLIVES the fight, so `sync_state`
+   (`_rules_space.py:874-884`) explicitly clears fight-born
+   entries — without it a popped loan bleeds −1 AP into the
+   player's next space fight.
+10. Opener consumption + birth (advisor catches 3/5): the
+    implementations are `mark_opener_spent` at
+    `_rules_ground.py:455` and `_rules_space.py:465` (`_loop.py`'s
+    hook call at `:599` needs NO change) — each consumes the
+    player-side opener status. The statuses are APPLIED at both
+    theaters' fight init where the trait arms
+    (`pirate_opener_armed`, `xp.py:332-338` — positive modeling:
+    window-open statuses from fight construction; reads at the
+    `_opener_flags` sites `_rules_ground.py:271-278` /
+    `_rules_space.py:296-303`).
+11. `combat/_ai.py` + `_ai_ground.py` — the `enemy_fired` stamp
+    sites (`_ai.py:791,843`, `_ai_ground.py:611`) consume the
+    enemy-side opener status.
+12. `xp.py` — signatures UNCHANGED (pure, bool params); the call
+    sites (`_rules_ground.py:278,359,420`, `_rules_space.py:303,
+    314,355`, `_ground_blast.py:164`) compute the pair from
+    `has()` and pass bools.
+13. `data/ground_items/__init__.py:50` — `GroundConsumableSpec.
+    effect_id` resolves against `find_status` (tinker exempt).
+14. HUD (the migration-observable slice): the player one-row
+    status line on the ground panel (`_ground_render.py`, the
+    free row ~y8 before WEAPONS) + the space panel twin in
+    `hud_combat.py` (its `stim_cooldown` read at `:144` stays —
+    cooldowns keep their homes); the existing regen/temp-AP
+    suffixes re-derive from `sum_effects` (same output). The
+    inspect overlay is Build B. GUIDE (advisor catch 12): the
+    statuses documentation is DEFERRED to Build B's guide row —
+    this brief records the no-change decision per the contract.
+
+### Build order
+
+engine + catalog + unit tests (pure, unwired) → ctx field + save
+wiring (empty backfill) → ground player-side migration (med pack,
+stim, loan) + assemblies + the HUD line → enemy-side migration
+(carriers + the trigger read) → the opener migration (both
+theaters) → the space loan migration. Each retirement rides ITS
+OWN migration commit (atomic discipline — no terminal dead-code
+sweep; advisor ordering note) → bit-identity proofs + full gate.
+
+### Binding rulings
+
+Bit-identical, ZERO new draws (the engine is RNG-free; every
+today-string reproduced from code). S1/S2/S3 laws (tick order,
+new-wins, refresh-at-cap). Fight end defuses the PLAYER container
+(C flips). Enemy containers fight-scoped, never serialized.
+`apply` raises on unknown ids; `sum_effects` silently skips them.
+Polarity never forks logic. The cohesion law owns every new field
+(GameContext + both instance types, declared in their homes).
+BUDGET NOTE: `_rules_ground.py` (974 lines) and `_rules_space.py`
+(966) each sit one touched-file growth from the in-commit
+extraction ratchet — the build pays the split in-commit, per the
+gate's law. (Advisor-verified refinement: ZERO functions over 40
+lines in either module — the exposure is total-line headroom
+only; `_ai.py` is also touched at 954 lines with line-neutral
+consume changes.)
+
+### Required tests
+
+Engine unit tests same-commit: apply/advance/sum_effects +
+the ACTOR-SYMMETRY pin (the same tests drive a player-shaped and
+an enemy-shaped container); the S1 pins (3-tick regen, 1-tick
+loan, same-boundary refresh never double-ticks); the KeyError /
+silent-skip pair; new-wins + refresh-at-cap. The
+representation-coupled pins are REWRITTEN same-commit, behavior
+assertions preserved (advisor catch 7):
+`test_ground_consumables.py` (reads `active_consumable_effects`
+directly), `test_ground_tactics.py` (constructs the retiring
+enemy fields), `test_core_button.py` (reads the loan keys),
+`test_enemy_fire.py` + `test_class_traits.py` (opener window
+semantics). NEW catalog-resolution pin: every non-tinker
+`effect_id` resolves via `find_status` (advisor catch 8).
+Worktree pre/post FULL-suite harness diff (advisor catch 2: NO
+pirate-class player exists in the scenarios — the opener has no
+dedicated rows; the full suite organically covers the stamp
+mechanics and carrier rolls through seeded init). Save
+round-trip: empty container backfill + a mid-fight container
+(unchanged: defused), through the entry-level helpers.
+
+### Stop point
+
+No staggered / baton changes (Build B). No boundary flips — no
+carry-over, crossing, exploration ticks (Build C). No inspect
+overlay (Build B). No prose beyond today's strings. No potency
+keying.
+
+### Playtest checkpoint
+
+1. Med pack in combat: same log lines, same +2/round × 3; a
+   re-drink resets duration.
+2. Combat stim: +1 AP/round same; the core-button loan −1 next
+   round same (both theaters).
+3. An enemy stim/regen carrier: same behavior, same trigger
+   timing.
+4. A Pirate opener fight: the opener bonus is identical.
+5. The HUD status line reads REGEN n / STIM n correctly; enemy
+   suffixes unchanged.
+6. The Stun Baton behaves EXACTLY as today (guaranteed instant
+   −1 AP, no roll).
+7. Save/quit/continue: clean, no status residue.
+
+## Implementation brief — Build B: the staggered debut
+
+### Pre-build gate (prose)
+
+ALL new strings settle through the prose loop BEFORE any land:
+staggered apply/expire lines, the HUD label, the inspect
+overlay's title + per-status descriptions (staggered, regen,
+stim, the loan), both guide edits. A build session never authors
+unapproved strings.
+
+### Scope (files + hook points)
+
+1. `data/statuses.py` — the `staggered` row (debuff,
+   ap_per_round −1, duration 2, refresh).
+2. `GroundWeaponSpec` + `data/ground_weapons/melee.py` — new
+   `status_id: str = ""` + `status_chance: int = 0` fields (the
+   instant-rider family's first lingering member); the baton
+   carries staggered / 50.
+3. `combat/_rules_ground.py` — DELETE the `:443` hardcoded
+   branch; after the hit resolves (guarded `chance > 0`, victim
+   survives) roll ONCE → `apply` to the enemy container; log per
+   the ruled templates.
+4. `combat/_ai_ground.py` `_resolve_enemy_shot` (`:663-690`) —
+   the symmetric site (melee and ranged resolve at the SAME
+   site, via `_melee_reach_pick` → `_fire_the_pick` →
+   `_fire_enemy_burst` → `_one_enemy_shot`; the `if _hit:`
+   knockback branch at `:686` is the existing on-hit-rider
+   template): the enemy's connecting hit rolls the same guarded
+   law → `apply` to `ctx.active_statuses` THROUGH THE SEAM.
+   SURVIVORS-ONLY MECHANISM (advisor catch 1, blocking): player
+   HP is applied per enemy TURN at `_apply_enemy_hit`
+   (`_rules_ground.py:734-744`), so the roll site cannot see
+   survival — add a per-turn accumulated-damage counter on
+   `GroundCombatState` (declared in `_ground_types.py` per
+   cohesion; set/cleared by `_spend_one_enemy_turn`), read by a
+   projection helper (`player_hp − turn_damage − this_hit > 0`)
+   at the roll. Draws are never refunded (kill-draws); hooking
+   `_apply_enemy_hit` instead would break the per-hit draw law
+   (per-turn roll; `_dmg > 0` only approximates "connected" — DR
+   can zero a landed hit).
+5. `chrome.py` — the seam beside `band`:
+   `status_chance_adjusted(base, victim_band)` — identity at
+   band 0, +10/+20/+30 at bands 1/2/3 (S4). Pure, unit-pinned.
+6. The enemy round reset folds staggered at
+   `_rules_ground.py:891-893` — a DIRECT ADD (`_gei.ap =
+   _gei.ap_total + advance_enemy_effects(_gei)`), NOT the
+   player's gain-fold; a negative fold takes its own
+   `max(0, ...)` guard; the distinct shapes stay distinct, never
+   homogenized (advisor catch 9 — same law as the loan ruling).
+   A dead actor skips its reset (the tick-death clause).
+7. HUD: the enemy panel rows + target card gain the status
+   suffix; the player line (shipped in A) shows STAGGERED n.
+8. The inspect overlay: a scrollable status window (name,
+   remaining, description) — player container directly, enemies
+   via the existing examine/target flow. Keybind = build row:
+   sweep the live keymap for a free key, propose WITH the prose.
+9. `data/guide/__init__.py` — REWRITE the falsified Stun Baton
+   entry (`:308-310`); add the statuses + inspect-key
+   documentation. Both edits called out on the playtest
+   checklist.
+10. Playtest instrumentation: a dev burn dial (dev_mode.py — F7
+    stays burn-neutral; the dial explicitly ratchets) OR the
+    kiosk path, ruled at build; plus an enemy-baton arming hook so
+    "an enemy staggers me" is reliably encounterable.
+11. `tests/combat/test_rules_ground.py:282-349` — the baton unit
+    tests REWRITTEN (deliberate behavior change): the 50 roll
+    (seeded), duration 2, survivors-only, refresh, the four-band
+    seam pins.
+
+### Build order
+
+prose gate first → spec fields + the staggered row → the player
+fire-site roll + branch deletion + rewritten unit tests → the
+seam + the enemy-site symmetry → HUD suffix + inspect overlay +
+guide → the dial + the arming hook. RE-PINS RIDE THE
+DRAW-CHANGING COMMITS (advisor catch 6, blocking: the balance
+gate is inside `make check` — the moment the player-site roll
+lands, the baton rows (`scenarios.py:353,467`) trip and every
+later commit sits gate-red; re-pin in THAT commit, and again for
+the enemy-site commit; fresh measurement, cause noted).
+
+### Binding rulings
+
+One draw per connecting SURVIVING hit, direct fire only
+(missiles/blasts never roll application — their arrivals call
+`resolve_damage` bare). Killing hits never roll. Fights without a
+chance-carrying weapon consume ZERO new draws. The seam is the
+ONLY ego read (victim-side, band-keyed, identity at band 0 — S4).
+Staggered on the player DEFUSES at fight end in Build B
+(carry-over is Build C). AP arrives at the victim's next round
+reset, not instantly — the felt upgrade, a deliberate behavior
+change (the baton goes from instant drain to a timed condition;
+the balance re-pins own the delta).
+
+### Required tests
+
+The rewritten baton pins; the seam unit pins (four bands +
+identity); the survivors-only guard; the zero-draw pin (no
+chance-carrier → stream unchanged); the enemy-site symmetry pin;
+`make check` + reviewer REVIEW.
+
+### Stop point
+
+No carry-over / crossing / exploration ticks (Build C). No new
+statuses (suppression / DOT / disruption are later catalog rows).
+No slope re-tuning beyond S4. No AoE application (its own future
+ruling).
+
+### Playtest checkpoint
+
+1. Wield the baton: connecting hits stagger enemies about half
+   the time; a staggered enemy wears the suffix; its next TWO
+   round-starts each lose 1 AP (not instant).
+2. Re-hits while staggered refresh the duration, never stack.
+3. Killing hits stagger nothing.
+4. An enemy baton wielder (the arming hook) staggers YOU: the
+   player line shows STAGGERED n, your next resets dip; deep
+   burn (dial/kiosk) pushes application toward 80 at band 3;
+   full ego holds the base 50.
+5. The inspect window opens for you AND for an enemy; the
+   descriptions read; both guide entries are correct (the baton
+   rewrite + the statuses/key).
 
 ## Acceptance criteria
 
