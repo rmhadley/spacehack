@@ -245,3 +245,46 @@ def test_chrome_stim_repay_alias_is_bit_exact():
 
     assert STIM_REPAY_LINE == NEURAL_STIM_REPAY_LINE
     assert find_status(NEURAL_STIM_LOAN_ID).expire_line == STIM_REPAY_LINE
+
+
+# --- the staggered debut (doc 103 Build B) ---------------------------------------
+
+
+def test_staggered_row_numbers_and_ruled_prose():
+    """The debut row carries the ruled package (S4: -1 AP, 2 rounds,
+    refresh) and the Build B prose ledger's exact strings."""
+    from src.spacehack.data.statuses import STAGGERED_ID
+
+    spec = find_status(STAGGERED_ID)
+    assert (spec.polarity, spec.duration, spec.duration_class) == (
+        False, 2, "rounds",
+    )
+    assert spec.ap_per_round == -1
+    assert spec.stacking == "refresh"
+    assert spec.apply_line == "{victim} is staggered!"
+    assert spec.expire_line == "The stagger wears off."
+    assert spec.hud_label == "STAGGERED"
+    assert spec.description == "-1 AP per round."
+
+
+def test_stun_baton_carries_the_staggered_rider():
+    """The delivery vehicle's data home (the retired id branch's
+    replacement): staggered at 50 on the spec, the instant-rider
+    family's first lingering member."""
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+    from src.spacehack.data.statuses import STAGGERED_ID
+
+    baton = find_ground_weapon("stun_baton")
+    assert baton.status_id == STAGGERED_ID
+    assert baton.status_chance == 50
+    # The rider resolves: a delivery site naming a dead id is an
+    # authoring error (apply raises) — pin the resolution now.
+    assert find_status(baton.status_id).id == STAGGERED_ID
+
+
+def test_every_catalog_row_carries_a_description():
+    """The inspect overlay reads every row (q7): a description-less
+    row renders bare — the Build B ledger settled all seven."""
+    from src.spacehack.data.statuses import list_status
+
+    assert all(spec.description for spec in list_status())

@@ -57,6 +57,12 @@ class GroundWeaponSpec:
             authored as weapon DATA; the Warden's slam carries 2, the
             game's first involuntary displacement). 0 = no pushback
             (every human weapon today).
+        status_id / status_chance: the on-hit LINGERING rider (doc
+            103 Build B — the instant-rider family's first timed
+            member): on a connecting hit that leaves the victim
+            alive, the fire site rolls once (``status_chance`` %,
+            adjusted by the victim's burnt-ego band) and applies the
+            named status. Empty id / 0 chance = no rider, no draw.
     """
     id: str
     name: str
@@ -82,6 +88,8 @@ class GroundWeaponSpec:
     loot_droppable: bool = True   # False = organic/unwieldable, never drops
     noise: int = 8                # hearing radius when fired (doc 48 SETTLED 17)
     knockback: int = 0            # hit pushback in cells (doc 48 SETTLED 42)
+    status_id: str = ""           # on-hit lingering rider (doc 103 Build B)
+    status_chance: int = 0        # application roll % (0 = never rolls)
 
 
 # ---------------------------------------------------------------------------

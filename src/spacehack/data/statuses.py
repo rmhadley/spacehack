@@ -21,6 +21,7 @@ STIM_ID = "stim"
 NEURAL_STIM_LOAN_ID = "neural_stim_loan"
 PIRATE_OPENER_ID = "pirate_opener"
 OPENER_WINDOW_ID = "opener_window"
+STAGGERED_ID = "staggered"
 
 # The loan's repay narration — the exact chrome bytes (doc 102 prose
 # ledger 6; doc 103 Build A moves the canonical home to the row it
@@ -63,7 +64,8 @@ class StatusSpec:
         tick_line / apply_line / expire_line: ruled prose templates —
             a row declares only the lines it has. ``{source}``
             interpolates the deliverer's display name, ``{healed}``
-            the adapter-clamped healed amount.
+            the adapter-clamped healed amount, ``{victim}`` the
+            recipient's pre-cased label ("You" / the enemy name).
         hud_label: the terse HUD-line label (q7); empty rows never
             render on the status line.
         description: the inspect overlay's text (q7) — prose-gated,
@@ -110,6 +112,7 @@ STATUSES: tuple[StatusSpec, ...] = (
         regen_per_round=2,
         tick_line=_REGEN_TICK_LINE,
         hud_label="REGEN",
+        description="+2 HP per round.",
     ),
     StatusSpec(
         id=STIM_ID,
@@ -119,6 +122,7 @@ STATUSES: tuple[StatusSpec, ...] = (
         duration_class="rounds",
         ap_per_round=1,
         hud_label="STIM",
+        description="+1 AP per round.",
     ),
     StatusSpec(
         id=NEURAL_STIM_LOAN_ID,
@@ -131,6 +135,7 @@ STATUSES: tuple[StatusSpec, ...] = (
         persists_past_fight=False,
         ap_per_round=-1,
         expire_line=NEURAL_STIM_REPAY_LINE,
+        description="-1 AP next round.",
     ),
     StatusSpec(
         # Doc 49 SETTLED 5 via doc 103 q4: the player's unspent
@@ -144,6 +149,7 @@ STATUSES: tuple[StatusSpec, ...] = (
         duration=0,
         duration_class="fight",
         hud_label="OPENER",
+        description="+10% hit and +25% damage on your first attack this fight.",
     ),
     StatusSpec(
         # The enemy side of the opener window — no enemy has fired
@@ -154,6 +160,23 @@ STATUSES: tuple[StatusSpec, ...] = (
         polarity=True,
         duration=0,
         duration_class="fight",
+        description="No enemy has fired yet.",
+    ),
+    StatusSpec(
+        # The debut debuff (doc 103 Build B): the Stun Baton's timed
+        # condition, replacing the retired instant-drain branch. Rolls
+        # at the fire sites (50 on the baton's spec, the seam's victim
+        # band on top); AP arrives at the VICTIM's round reset.
+        id=STAGGERED_ID,
+        name="Staggered",
+        polarity=False,
+        duration=2,
+        duration_class="rounds",
+        ap_per_round=-1,
+        apply_line="{victim} is staggered!",
+        expire_line="The stagger wears off.",
+        hud_label="STAGGERED",
+        description="-1 AP per round.",
     ),
 )
 

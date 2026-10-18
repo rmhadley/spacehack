@@ -52,6 +52,10 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         price=35,
         tech_level=2,
         noise=2,
+        # Doc 103 Build B's debut rider: a connecting, surviving hit
+        # rolls once to stagger the victim (50%, the seam on top).
+        status_id="staggered",
+        status_chance=50,
     ),
     GroundWeaponSpec(
         id="survival_axe",
