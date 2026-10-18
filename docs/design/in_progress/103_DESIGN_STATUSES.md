@@ -1151,6 +1151,7 @@ two fire sites, the seam, the HUD/overlay surfaces, the instruments.
 | 10 | guide: the Stun Baton entry rewrite | `The Stun Baton has a 50% chance to stagger on hit. A staggered victim gets -1 AP per round for 2 rounds.` | My edit (refresh clause dropped: "the status refresh will teach itself") |
 | 11 | guide: the statuses paragraph (new, closes the Combat section) | `Statuses are timed effects on a combatant, shown on the right-hand panel (REGEN 2, STAGGERED 2). Enemy statuses display beside their names. Press I in combat to open the status window; Tab inside switches between you and each enemy. Burnt Ego makes you more susceptible to status ailments.` | My edit (two sentences; "their" typo fix confirmed by the user same exchange) |
 | 12 | inspect keybind | `I` (free in combat + exploration; Tab inside cycles subjects) | ruled |
+| 12a | inspect keybind AMENDED mid-build (user, 2026-10-18: "i... feels more like inventory -- I could see maybe using it for inventory") | `V` = the status window ("view"); the floating target-card toggle MOVES to `E`; `I` reserved for a future inventory shortcut. Guide consequences: ledger #11's "Press I" becomes "Press V" (mechanical), and the two shipped card sentences ("Press V to hide it and V again to bring it back") rewrite to E — both called out on the playtest checklist | ruled |
 
 Direct register ruling (user, #5): descriptions are sign + number +
 unit + cadence, nothing else. Guide register (#10): lead with the
