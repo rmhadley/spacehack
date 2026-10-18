@@ -525,6 +525,151 @@ B's playtest checklist.
 - [ ] Close (SYSTEMS.md inventory amended same-commit; move to
       complete/)
 
+## Pre-implementation audit (Build A, 2026-10-18 — written before code)
+
+Every anchor below re-verified against the tree this session (commit
+`68bf1b71`). The advisor pass already census-verified the mechanism
+table; this audit covers the REUSE map, the duplication traps, and
+the build-session's own design decisions where the brief left "exact
+modeling" open.
+
+### 1. Existing classes / modules to extend or reuse
+
+- **The catalog idiom**: `data/ground_items/__init__.py` (frozen
+  spec + lazy `_BY_ID` + `find_*`/`list_*` raising `KeyError`) is the
+  template for `data/statuses.py`; `GroundConsumableSpec.effect_id`
+  gains the docstring pointing at `find_status` (tinker exempt,
+  beside the `KIT_EFFECT_ID` constant precedent in
+  `ground_consumables.py` for id constants).
+- **The engine home**: `combat/_statuses.py` follows the pure-module
+  pattern of `combat/_stats.py` (deterministic, no ctx). The
+  `ActiveStatus` runtime type follows `ActiveConsumableEffect`
+  (`ground_consumables.py:58`, retiring) — same field shape idea,
+  plus stacks/potency/source/theater.
+- **Container declarations** (cohesion law): `GroundEnemyInstance`
+  (`_ground_types.py`), `EnemyInstance` (`_types.py`), `GameContext`
+  (`game_context.py`, TYPE_CHECKING annotation only — combat imports
+  game_context, so the import must stay type-only to avoid a cycle).
+- **Save wiring**: `_core_fields`/`_restore_core_fields`
+  (`saveload.py:222/:679`) + the chrome empty-backfill precedent at
+  `:703`; `_d()` already serializes nested dataclasses recursively —
+  the container serializes through entry-level helpers, restore-side
+  reconstructs `ActiveStatus` instances (never a bare `data.get`).
+- **Adapters**: `_ground_effects.py` keeps its module role —
+  `apply_player_effect` / `advance_player_effects` /
+  `advance_enemy_effects` / `use_carried_consumable` / `_triggered`
+  become engine adapters in place (same names, same homes — the
+  doc's "rules adapters apply events" layer).
+- **The opener plumbing** reuses `xp.pirate_opener_armed` /
+  `_opener_hit_bonus` / `_opener_damage_pct` UNCHANGED (pure, bool
+  params — brief item 12) and the `_loop.py:599`
+  `mark_opener_spent` hook seam UNCHANGED.
+- **HUD**: the ground panel's conditional stim row
+  (`_ground_render.py:287-290`) is the pattern for the status row;
+  shared formatting lives in `hud.py` per its docstring — but the
+  status-line SEGMENT builder cannot live there (`hud.py` cannot
+  import combat without a cycle through `combat/__init__`), so the
+  pure builder lives in `combat/_statuses.py` and the polarity color
+  pair lives in `ui.py` (the single-palette source).
+
+### 2. Duplication hotspots (predicted traps)
+
+1. **Ground vs space event walks** — both theaters walk
+   `advance()` events with different apply shapes (gain-fold vs
+   twin-field post-reset). The doc RULES the shapes stay distinct
+   (`_ground_effects` gain-fold; `_rules_space.reset_turn` inline
+   twin-field); homogenizing them into one generic walker is the
+   trap the advisor catch 9 exists to prevent — do NOT share.
+2. **The opener collective-window logic** — `_opener_flags` exists
+   TWICE today (ground `:271`, space `:296`) and the stamp/consume
+   sites are three; a per-theater reimplementation of the
+   collective all/apply/consume window would be a third copy of one
+   concept.
+3. **Expire/tick line formatting** — the ruled-line composition
+   (source interpolation + the sourceless fallback) is needed by the
+   ground adapter now and the space walk for the loan's expire;
+   string duplication of ruled prose is the drift trap the
+   ruled-strings law exists for.
+
+### 3. DRY strategy per hotspot
+
+1. Event walks stay separate BY RULING (the doc's "never
+   homogenized"); the shared part — event tuples + row lookup — is
+   the engine's, already single-sourced.
+2. **Build decision: NEW `combat/_opener.py`** — the whole opener
+   status plumbing in one shared module (`flags(enemies,
+   player_container)`, `arm(...)`, `consume_player_window(...)`,
+   `consume_enemy_windows(enemies)`, `inherit(joined, enemies)`),
+   with thin wrappers in both rules modules. This is also the
+   in-commit ratchet split the budget note forecasts for
+   `_rules_ground.py` (974 lines, ~+30 of opener/assembly edits
+   would cross 1000): the opener window is one cohesive concept,
+   currently smeared across `_rules_ground`/`_rules_space`/`_ai`/
+   `_ai_ground`/`_ground_blast` — cohesion, not counter-dodging,
+   picks this home.
+3. **Build decision: the loan's repay line moves canonically to its
+   status row** (`data/statuses.py`, constant
+   `NEURAL_STIM_REPAY_LINE` — the exact chrome bytes); `chrome.py`
+   re-exports it as `STIM_REPAY_LINE` so the ruled-prose home name
+   keeps working for every existing importer. One definition,
+   bit-identical bytes, no data→runtime import (the catalog stays a
+   leaf; chrome reading the catalog is the healthy direction — and
+   doc 103's own template law puts expire lines on rows).
+
+### Build-session design decisions (brief's "exact modeling" leaves-overs, recorded before code)
+
+- **Two opener rows, two containers** (brief: "one per container"):
+  `pirate_opener` (fight class, PLAYER container — applied at fight
+  init iff `pirate_opener_armed(ctx, enemy_fired=False,
+  opener_spent=False)`, consumed by `mark_opener_spent`) and
+  `opener_window` (fight class, EVERY enemy container — collective
+  semantics: init applies to all, any enemy volley/attack/burst
+  consumes ALL copies, the read is `enemy_fired = not
+  all(enemies hold one)`). The `all()` read makes an empty enemy
+  list read window-open (today's fresh-fight default) and dead
+  instances staying in the state lists is load-bearing (a death
+  never closed today's window).
+- **Mid-fight joiners inherit** `opener_window` while the window is
+  open: ground `refresh_engaged` and space
+  `_space_reinforce._join_reinforcements` both append joiners
+  mid-fight — without inheritance a joiner's missing copy would
+  read as an enemy volley that never happened (a bit-identity
+  break, not a cosmetic one).
+- **`ctx.active_statuses` is cleared at BOTH fight inits** (not
+  just sync_state): today a new fight means a fresh fight-state
+  object (empty ledger by construction); the ctx container
+  outlives fights, so init-clear is the faithful mirror, and it
+  also covers the abnormally-ended-previous-fight recovery path
+  (`_rules_ground.init`'s stale-session branch).
+- **`advance` silently skips unknown ids** (like `sum_effects`):
+  the KeyError law is authoring-side (`apply`) only; a container is
+  saved data and reads of retired ids must skip, not raise.
+- **The `dot` vocabulary ships structurally** (`dot_per_round` field
+  + `("damage", id, n)` events, synthetic-row unit test) but NO
+  adapter damage branch ships in Build A — no row can fire one, and
+  the tick-death kill-path clause needs async plumbing that only
+  becomes real with the first live damage row (Build B+). Recording
+  this as the deliberate line between "vocabulary ships" and "dead
+  adapter branch" (the self-audit's own dead-code rule).
+- **StatusSpec ships the discretionary-tier fields structurally in
+  Build A** (`hit_bonus`/`dodge_bonus`/`melee_bonus` wired at the
+  brief's named assemblies; `dot_per_round` event-side) — the brief's
+  read-site table wires the terms; no v1 ROW authors them (same
+  structural-only status as potency, q8).
+- **The med pack's `effect_id` renames `"restore_hp"` → `"regen"`**
+  (consumables data edit): hook 13's "`effect_id` resolves against
+  `find_status`" + the catalog-resolution pin require the id to BE
+  a status id; the string appears nowhere else in src (grep
+  verified). The spec's numeric fields (`combat_regen_amount`,
+  `duration_turns`…) become descriptive (character-screen detail
+  text); the STATUS ROW owns the applied numbers — the catalog law.
+- **The HUD line renders only rounds-class rows carrying
+  `hud_label`** (declare-only-what-you-have): `regen` → `REGEN n`,
+  `stim` → `STIM n` (both approved by the q7 ruling's example +
+  this brief's checkpoint 5); the loan row declines a label (the
+  debt-line decline, doc 102 prose ledger) and the opener rows ship
+  unlabelled (no ruling; Build B's prose gate owns any label).
+
 ## Implementation brief — Build A: the engine + catalog + the migrations
 
 ### Scope (files + hook points)
