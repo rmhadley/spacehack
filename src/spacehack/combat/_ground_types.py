@@ -122,12 +122,6 @@ class GroundCombatState:
     # world exit; get_combat_result copies it onto the CombatResult.
     # Session-scoped, never serialized.
     flee_exit: "FleeExit | None" = None
-    # Pirate opener (doc 49 SETTLED 5): ``enemy_fired`` stamps True at
-    # every enemy shot (hit or miss) and closes the window; the shared
-    # fire loop spends ``opener_spent`` on the player's first attack.
-    # Per-fight session state, never serialized.
-    enemy_fired: bool = False
-    opener_spent: bool = False
     # The Shredder's mend line fires once per engagement (doc 48
     # SETTLED 42) — fight-scoped entity ids, never serialized.
     mend_told: set = field(default_factory=set)

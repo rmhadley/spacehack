@@ -49,6 +49,11 @@ def _join_reinforcements(
     existing_entity_ids: set[int],
 ) -> None:
     """Build and attach newly-detected reinforcement enemy instances."""
+    from . import _opener
+
+    # The window read covers the ENGAGED set BEFORE the joins (an
+    # open window inherits onto joiners — see combat._opener).
+    _window_open = _opener.window_open(state.enemy_insts)
     for _ns, _np in zip(new_specs, new_positions):
         _found_entity = _find_reinforcement_entity(game_map, _np)
         if _found_entity is not None and id(_found_entity) in existing_entity_ids:
@@ -59,6 +64,8 @@ def _join_reinforcements(
         ):
             continue
         _new_ei = _build_reinforcement_enemy(_ns, _np)
+        if _window_open:
+            _opener.grant_window((_new_ei,), theater="space")
         state.enemy_insts.append(_new_ei)
         state.enemy_specs.append(_ns)
         if _found_entity is not None:

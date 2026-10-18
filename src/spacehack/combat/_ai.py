@@ -41,6 +41,7 @@ from ._animations import (
 )
 from ._shot_animations import _animate_weapon_shot
 from . import _missile_flight as _mf
+from . import _opener
 
 
 def _e_log(msg: str, log) -> None:
@@ -788,7 +789,7 @@ async def _enemy_volley(
     )
     if not _members:
         return None
-    state.enemy_fired = True
+    _opener.consume_enemy_windows(state.enemy_insts)
     _outcome, _max_ap = await _run_volley_members(
         state, _ei, _members, target,
         hit_chances=hit_chances, evade_bonus=evade_bonus,
@@ -840,7 +841,7 @@ async def _enemy_attack(
     decision fires the volley mirror instead; doc 54's flee reaction
     is this consumer and keeps its shape — one top-scoring reach
     weapon, stamped and paid per attack."""
-    state.enemy_fired = True
+    _opener.consume_enemy_windows(state.enemy_insts)
     _e_ws = find_weapon(_ei.weapons[_slot].item_id)
     _pay_fire_costs(_ei, _slot, _e_ws)
     return await _enemy_shot_tail(

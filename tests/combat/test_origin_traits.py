@@ -152,8 +152,31 @@ def test_maybe_refund_dispatches_only_on_a_killing_volley():
     assert rules.refunded == 3  # a kill from a free volley refunds nothing
 
 
+def _scout(hull, arm_window=False):
+    """The fixture's single Pirate Scout — carrying the enemy-side
+    opener window when the fixture armed one (doc 103 Build A)."""
+    from src.spacehack.combat import _statuses
+    from src.spacehack.data.statuses import OPENER_WINDOW_ID
+
+    _ei = EnemyInstance(
+        spec_id="pirate_scout", name="Pirate Scout", char="P",
+        fg=(255, 100, 100), pos=world.Position(6, 0),
+        hull=hull, max_hull=hull, shields=0, max_shields=0,
+        pilot_piloting=0, cells_moved_this_turn=0,
+    )
+    if arm_window:
+        _statuses.apply(_ei.statuses, OPENER_WINDOW_ID, theater="space")
+    return _ei
+
+
 def _fire_fixture(traits, hull):
-    """A minimal live space session that can run the REAL _handle_fire."""
+    """A minimal live space session that can run the REAL _handle_fire.
+    A pirate trait arms the opener statuses exactly as fight init
+    would (doc 103 Build A) so the volley fires through a live
+    window."""
+    from src.spacehack.combat import _statuses
+    from src.spacehack.data.statuses import PIRATE_OPENER_ID
+
     _ctx = SimpleNamespace(
         player_traits=list(traits),
         installed_chrome=[],
@@ -166,7 +189,10 @@ def _fire_fixture(traits, hull):
             add=lambda *_a, **_k: None,
             add_colored=lambda *_a, **_k: None,
         ),
+        active_statuses={},
     )
+    if "pirate" in traits:
+        _statuses.apply(_ctx.active_statuses, PIRATE_OPENER_ID, theater="space")
     _tiles = [[world.DUNGEON_FLOOR for _ in range(11)] for _ in range(11)]
     _state = _rules_space.SpaceCombatState(
         ctx=_ctx, console=None,
@@ -178,12 +204,7 @@ def _fire_fixture(traits, hull):
             "power_pool": 20, "max_power": 20, "plasma_ap_discount": 0,
             "weapons": ("light_laser",), "weapon_ammo": {0: 4},
         },
-        enemy_insts=[EnemyInstance(
-            spec_id="pirate_scout", name="Pirate Scout", char="P",
-            fg=(255, 100, 100), pos=world.Position(6, 0),
-            hull=hull, max_hull=hull, shields=0, max_shields=0,
-            pilot_piloting=0, cells_moved_this_turn=0,
-        )],
+        enemy_insts=[_scout(hull, arm_window="pirate" in traits)],
         enemy_ents={},
         weapons_list=["light_laser"], active_weapons=[True],
         cr=CombatResult(),

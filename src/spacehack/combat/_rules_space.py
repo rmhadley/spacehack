@@ -31,6 +31,7 @@ from ._space_init import (
 )
 from ._types import EnemyInstance, CombatResult, SpaceCombatState
 from . import _missile_flight
+from . import _opener
 from ._space_kills import on_kill as _kill_chain
 from ._space_reinforce import check_reinforcements as _reinforce_check
 from ._stats import (
@@ -129,6 +130,16 @@ def _activate_combat_state(
     )
     # Freeze the engaged set immediately.
     _set_combat_locks(True, enemy_ents)
+    # A fresh fight starts from an empty player container (doc 103
+    # Build A — today's fresh player_state meant the loan key died
+    # with the old fight by construction), then the Pirate opener
+    # arms where the trait holds.
+    from . import _statuses
+    _statuses.dispel(
+        getattr(ctx, "active_statuses", None) or {},
+        lambda _active: True,
+    )
+    _opener.arm(ctx, enemy_insts, theater="space")
 
 def init(
     ctx,
@@ -294,13 +305,19 @@ def enemy_alive(enemy: EnemyInstance) -> bool:
 # ---------------------------------------------------------------------------
 
 def _opener_flags() -> tuple[bool, bool]:
-    """``(enemy_fired, opener_spent)`` on the installed session; both
-    False when no session is live, so formula-only callers read the
-    flags of whatever fight is (or was last) installed — None reads
-    as a fresh fight."""
+    """``(enemy_fired, opener_spent)`` derived from the opener
+    statuses (doc 103 Build A — the fight-state latch pair retired):
+    the player-side window rides ctx.active_statuses, the enemy-side
+    one every enemy container (see ``combat._opener`` for the
+    collective law). Both False when no session is live, so
+    formula-only callers read the flags of whatever fight is (or was
+    last) installed — None reads as a fresh fight."""
     if _state is None:
         return False, False
-    return _state.enemy_fired, _state.opener_spent
+    return _opener.flags(
+        _state.enemy_insts,
+        getattr(_state.ctx, "active_statuses", None) or {},
+    )
 
 
 def _player_hit_bonus(ctx, weapon_id: str) -> int:
@@ -465,8 +482,12 @@ def weapon_ap_cost(weapon_id: str, ctx) -> int:
 def mark_opener_spent() -> None:
     """Spend the Pirate opener (doc 49 SETTLED 5): the shared fire
     loop calls this once the player's first attack action resolved,
-    hit or miss — the bonus never returns this fight."""
-    _state.opener_spent = True
+    hit or miss — the bonus never returns this fight. (Doc 103 Build
+    A: the window is the fight-class pirate_opener status on the
+    player's container.)"""
+    _opener.consume_player_window(
+        getattr(_state.ctx, "active_statuses", None) or {},
+    )
 
 def weapon_name(weapon_id: str, ctx, quality: int = 0) -> str:
     # ``quality``: the ground-instance tier seam (ignored in space).
@@ -876,6 +897,15 @@ def sync_state(ctx) -> None:
     # player missiles never gate the end — enemy ones now do, the
     # 2026-10-02 amendment) and never serializes — sweep first.
     _missile_flight.sweep_flights(_state, _state.game_map)
+    # Fight end DEFUSES the player container (doc 103 Build A) —
+    # behavior-identical to today's fight-scoped keys dying with the
+    # state; without it a popped loan or an unspent opener would
+    # bleed into the player's next space fight. Removal is silent.
+    from . import _statuses
+    _statuses.dispel(
+        getattr(ctx, "active_statuses", None) or {},
+        lambda _active: True,
+    )
     # Release the combatants: with the fight over they resume normal
     # patrol movement on the next space tick.
     _set_combat_locks(False)

@@ -155,14 +155,17 @@ def explosive_blast(
     half damage alongside neighboring cells. The player also takes
     half damage nearby. Field tiles in the area carve (doc 48 p9).
     """
+    from . import _opener
+    _ef, _os = _opener.flags(
+        state.enemies, getattr(state.ctx, "active_statuses", None) or {},
+    )
     _center = center if center is not None else primary.pos
     _enemy_hits = tuple(
         _hit for _enemy in state.enemies
         if (_hit := apply_explosive_enemy_hit(
             weapon_id, _enemy, primary, ctx, primary_hit=primary_hit,
             quality=quality, opener_pct=_opener_damage_pct(
-                ctx, enemy_fired=state.enemy_fired,
-                opener_spent=state.opener_spent,
+                ctx, enemy_fired=_ef, opener_spent=_os,
             ), center=center,
         )) is not None
     )

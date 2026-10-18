@@ -416,23 +416,26 @@ def test_volley_stops_on_player_death_and_still_pays_full_ap(monkeypatch):
 
 
 def test_volley_stamps_enemy_fired_once_never_on_an_empty_one(monkeypatch):
-    """``enemy_fired`` closes the Pirate opener window on the VOLLEY,
-    hit or miss - stamped once however many members fired (mirror of
-    ``_spend_opener``); a volley with no affordable member never burns
-    it."""
+    """The volley consumes the collective opener window (doc 103 Build
+    A: every copy goes at once — one window, however many members
+    fired, mirror of ``_spend_opener``); a volley with no affordable
+    member never burns it."""
+    from src.spacehack.combat import _opener, _statuses
+    from src.spacehack.data.statuses import OPENER_WINDOW_ID
+
     shots = _record_shots(monkeypatch)
     enemy = _enemy(("light_laser", "light_laser", "light_laser"), ap=4, power=10)
     state = _turn_state(enemy, los=True)
-    state.enemy_fired = False
+    _statuses.apply(enemy.statuses, OPENER_WINDOW_ID)
     _run_volley(state, enemy)
     assert shots == ["light_laser"] * 3
-    assert state.enemy_fired is True
+    assert not _opener.window_open(state.enemy_insts)
 
     dry = _enemy(("heavy_laser",), ap=4, power=0)
     dry_state = _turn_state(dry, los=True)
-    dry_state.enemy_fired = False
+    _statuses.apply(dry.statuses, OPENER_WINDOW_ID)
     assert _run_volley(dry_state, dry) is None
-    assert dry_state.enemy_fired is False
+    assert _opener.window_open(dry_state.enemy_insts)
 
 
 def test_single_affordable_weapon_ship_volleys_exactly_as_single_fire(monkeypatch):

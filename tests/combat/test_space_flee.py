@@ -72,6 +72,7 @@ def _space_state(game_map, player_pos, enemies, *, hull=100, ap=3):
         player=world.Entity("@", (255, 255, 255), player_pos, "Player"),
         player_owned_ship=OwnedShip(ship_id="scout", fuel=50),
         context=harness._fake_pygame_context(),
+        active_statuses={},
     )
     state = SpaceCombatState(
         ctx=ctx, console=harness._AbsorbingConsole(), game_map=game_map,
@@ -205,17 +206,21 @@ def test_volley_every_in_range_hostile_fires_once(monkeypatch):
 def test_reaction_still_stamps_the_opener_window(monkeypatch):
     """Doc 54 shape preserved under volley parity (doc 56 phase 5,
     ADVISE minor 4): the flee reaction keeps its single-shot consumer
-    ``_enemy_attack`` and stamps ``enemy_fired`` itself — the Pirate
-    opener window closes on a flee reaction, hit or miss."""
+    ``_enemy_attack`` and consumes the collective opener window — it
+    closes on a flee reaction, hit or miss (doc 103 Build A)."""
+    from src.spacehack.combat import _opener, _statuses
+    from src.spacehack.data.statuses import OPENER_WINDOW_ID
+
     shots = _record_shots(monkeypatch)
     game_map = _open_map()
     reactor = _enemy("Reactor", world.Position(3, 4))
     state, ctx = _space_state(game_map, world.Position(2, 4), [reactor])
+    _statuses.apply(reactor.statuses, OPENER_WINDOW_ID)
     try:
-        assert state.enemy_fired is False
+        assert _opener.window_open(state.enemy_insts)
         assert run(_rules_space.reaction_volley(ctx, game_map)) is False
         assert shots == ["Reactor"]
-        assert state.enemy_fired is True
+        assert not _opener.window_open(state.enemy_insts)
     finally:
         _release_space_state()
 

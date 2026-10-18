@@ -605,10 +605,10 @@ async def _fire_enemy_burst(
     Every burst stamps the ground fight's ``enemy_fired`` (doc 49
     SETTLED 5): an enemy shot closes the Pirate opener window, hit
     or miss."""
-    from . import _rules_ground
+    from . import _opener, _rules_ground
 
     if _rules_ground._state is not None:
-        _rules_ground._state.enemy_fired = True
+        _opener.consume_enemy_windows(_rules_ground._state.enemies)
     _worn = ground_loadout.worn_bonuses(stamp) if stamp is not None else (0, 0)
     _total = 0
     for _ in range(max(1, _ews.shots_per_action) if _ews else 1):

@@ -794,14 +794,15 @@ def test_player_hit_chance_threads_flown_tier(monkeypatch):
     from src.spacehack import world
     from src.spacehack.combat import _rules_space
 
-    _ctx = SimpleNamespace(player_traits=[])
+    _ctx = SimpleNamespace(player_traits=[], active_statuses={})
     _enemy = SimpleNamespace(
         # piloting 60 stacks 30 dodge: both sides clear of the 95 clamp
         pos=world.Position(3, 0), cells_moved_this_turn=0, pilot_piloting=60,
+        statuses={},
     )
     monkeypatch.setattr(_rules_space, "_state", SimpleNamespace(
         player_state={"pos": world.Position(0, 0), "gunnery": 10},
-        ctx=_ctx, enemy_fired=False, opener_spent=False,
+        ctx=_ctx, enemy_insts=[_enemy],
     ))
     _base = _rules_space.hit_chance("medium_laser", _enemy, _ctx)
     _tier = _rules_space.hit_chance("medium_laser", _enemy, _ctx, quality=2)
@@ -852,9 +853,9 @@ def test_build_hit_chances_threads_flown_tier(monkeypatch):
     )
     monkeypatch.setattr(_rules_space, "_state", SimpleNamespace(
         player_state={"pos": world.Position(0, 0), "gunnery": 10},
-        ctx=SimpleNamespace(player_traits=[]),
+        ctx=SimpleNamespace(player_traits=[], active_statuses={}),
         weapons_list=["medium_laser"], weapon_qualities=[2],
-        enemy_fired=False, opener_spent=False,
+        enemy_insts=[],
     ))
     _result = _rules_space._build_hit_chances(SimpleNamespace(
         pos=world.Position(3, 0), cells_moved_this_turn=0, pilot_piloting=0,

@@ -13,6 +13,9 @@ from typing import TYPE_CHECKING, Any
 from .. import world
 
 if TYPE_CHECKING:
+    from ._statuses import ActiveStatus
+
+if TYPE_CHECKING:
     from ..ship import StoredEquipment
 
 
@@ -83,6 +86,11 @@ class EnemyInstance:
     # Dodge per-tile coefficient (doc 102 SETTLED 7): base 5; chrome
     # grants raise it additively — read wherever this ship DEFENDS.
     dodge_tile_coefficient: int = 5
+    # Enemy-side status container (doc 103 Build A): the same
+    # dict[str, ActiveStatus] the player and ground enemies read —
+    # fight-scoped, never serialized. Space enemies gain their first
+    # timed container (the opener window today).
+    statuses: dict[str, "ActiveStatus"] = field(default_factory=dict)
     alive: bool = True
 
 
@@ -180,12 +188,6 @@ class SpaceCombatState:
     last_attacker: str | None = None
     # Presentation-only: target card shown by default, toggled with ``v``.
     show_target_card: bool = True
-    # Pirate opener (doc 49 SETTLED 5): ``enemy_fired`` stamps True at
-    # every enemy shot (hit or miss) and closes the window; the shared
-    # fire loop spends ``opener_spent`` on the player's first attack.
-    # Per-fight session state, never serialized.
-    enemy_fired: bool = False
-    opener_spent: bool = False
     # Flight outcome telemetry (doc 57.3's probe rows): per-side
     # counts bumped at the semantic finish sites in _missile_flight —
     # launched, arrived (a warhead detonating on ANY hull, guidance

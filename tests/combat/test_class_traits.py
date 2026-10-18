@@ -110,8 +110,25 @@ def _ground_ctx(traits):
 
 
 def _install_ground_state(**flags):
+    """Install a ground session with the opener window in its ruled
+    shape (doc 103 Build A): the ``enemy_fired`` / ``opener_spent``
+    kwargs seed the STATUS containers — the derived flags read them
+    back through ``_rules_ground._opener_flags``."""
+    from src.spacehack.combat import _statuses
+    from src.spacehack.data.statuses import OPENER_WINDOW_ID, PIRATE_OPENER_ID
+
+    _window_enemy = SimpleNamespace(statuses={})
+    _player_statuses: dict = {}
+    if not flags.pop("enemy_fired", False):
+        _statuses.apply(_window_enemy.statuses, OPENER_WINDOW_ID)
+    if not flags.pop("opener_spent", False):
+        _statuses.apply(_player_statuses, PIRATE_OPENER_ID)
     _old = _rules_ground._state
-    _rules_ground._state = SimpleNamespace(**flags)
+    _rules_ground._state = SimpleNamespace(
+        enemies=[_window_enemy],
+        ctx=SimpleNamespace(active_statuses=_player_statuses),
+        **flags,
+    )
     return _old
 
 
@@ -202,13 +219,22 @@ def test_explosive_opener_never_reaches_the_self_splash():
 # ---------------------------------------------------------------------------
 
 def _install_space_state(traits, *, enemy_fired, opener_spent):
+    from src.spacehack.combat import _statuses
+    from src.spacehack.data.statuses import OPENER_WINDOW_ID, PIRATE_OPENER_ID
+
+    _player_statuses: dict = {}
+    if not opener_spent:
+        _statuses.apply(_player_statuses, PIRATE_OPENER_ID)
+    _window_enemy = SimpleNamespace(statuses={})
+    if not enemy_fired:
+        _statuses.apply(_window_enemy.statuses, OPENER_WINDOW_ID)
     _old = _rules_space._state
     _rules_space._state = _rules_space.SpaceCombatState(
-        ctx=_ctx(traits), console=None,
+        ctx=_ctx(traits, active_statuses=_player_statuses), console=None,
         game_map=world.GameMap(3, 3, [[world.DUNGEON_FLOOR] * 3 for _ in range(3)], []),
         log=None,
         player_state={"pos": world.Position(0, 0)},
-        enemy_fired=enemy_fired, opener_spent=opener_spent,
+        enemy_insts=[_window_enemy],
     )
     return _old
 
@@ -255,26 +281,32 @@ def test_space_opener_damage_mult_first_attack_only():
 # ---------------------------------------------------------------------------
 
 def test_space_enemy_attack_stamps_enemy_fired_before_resolution():
-    """Every _enemy_attack call closes the window FIRST — the stamp
-    lands before the weapon is even read, so misses count too."""
-    _state = SimpleNamespace(enemy_fired=False)
-    _ei = SimpleNamespace(weapons=())  # slot access raises post-stamp
+    """Every _enemy_attack call closes the window FIRST — the consume
+    runs before the weapon is even read, so misses count too."""
+    from src.spacehack.combat import _opener, _statuses
+    from src.spacehack.data.statuses import OPENER_WINDOW_ID
+
+    _window_enemy = SimpleNamespace(statuses={})
+    _statuses.apply(_window_enemy.statuses, OPENER_WINDOW_ID)
+    _state = SimpleNamespace(enemy_insts=[_window_enemy])
+    _ei = SimpleNamespace(weapons=(), statuses={})  # slot access raises post-consume
     with pytest.raises(IndexError):
         run(_ai._enemy_attack(
             _state, _ei, 0, hit_chances={}, evade_bonus=0,
             calc_cam=lambda: (0, 0), ctx=None,
         ))
-    assert _state.enemy_fired is True
+    assert not _opener.window_open(_state.enemy_insts)
 
 
 def test_ground_enemy_burst_stamps_enemy_fired():
-    """The funnel stamp runs even when the burst resolves nothing: a
+    """The funnel consume runs even when the burst resolves nothing: a
     dry magazine (loaded 0, pool 0) breaks before any shot, yet the
     opener window still closes (doc 49 SETTLED 5)."""
     from src.spacehack.data.ground_weapons import find_ground_weapon
 
     _old = _install_ground_state(enemy_fired=False, opener_spent=False)
     try:
+        from src.spacehack.combat import _opener
         _ws = find_ground_weapon("kinetic_pistol")
         _stamp = {
             "ranged": ["kinetic_pistol", 0], "melee": None,
@@ -285,7 +317,7 @@ def test_ground_enemy_burst_stamps_enemy_fired():
             None, 0, 0, 0, 0, _stamp,
         ))
         assert _total == 0
-        assert _rules_ground._state.enemy_fired is True
+        assert not _opener.window_open(_rules_ground._state.enemies)
     finally:
         _rules_ground._state = _old
 
@@ -302,11 +334,14 @@ def test_mark_opener_spent_hook_resolves_for_both_rules_modules():
 def test_the_first_volley_spends_the_opener(monkeypatch):
     """The real fire loop consumes the opener on the player's first
     attack action — hit or miss (the fixture stubs the roll to hit)."""
+    from src.spacehack.combat import _opener, _statuses
+    from src.spacehack.data.statuses import PIRATE_OPENER_ID
     from tests.combat.test_origin_traits import _drive_fire
 
     _ctx_fired, _state = _drive_fire(monkeypatch, ["pirate"], hull=100)
-    assert _state.opener_spent is True
-    assert _state.enemy_fired is False  # the enemy never fired — spent anyway
+    # Spent (never returns this fight); the enemy never fired.
+    assert not _statuses.has(_ctx_fired.active_statuses, PIRATE_OPENER_ID)
+    assert _opener.window_open(_state.enemy_insts)
 
 
 # ---------------------------------------------------------------------------
@@ -511,3 +546,66 @@ def test_fresh_ship_purchase_tops_off_the_hunter_racks():
     for i in _missile_slots:
         assert hunter.weapon_ammo[i] == plain.weapon_ammo[i] * 2
     assert hunter.cargo_ammo > plain.cargo_ammo  # doubled reserve booked
+
+
+# ---------------------------------------------------------------------------
+# The opener module's collective laws (doc 103 Build A)
+# ---------------------------------------------------------------------------
+
+def _window_enemy(open_=True):
+    from src.spacehack.combat import _statuses
+    from src.spacehack.data.statuses import OPENER_WINDOW_ID
+
+    _e = SimpleNamespace(statuses={})
+    if open_:
+        _statuses.apply(_e.statuses, OPENER_WINDOW_ID)
+    return _e
+
+
+def test_opener_flags_laws():
+    from src.spacehack.combat import _opener, _statuses
+    from src.spacehack.data.statuses import PIRATE_OPENER_ID
+
+    # Fresh fight: window open on every enemy, player status live.
+    _player: dict = {}
+    _statuses.apply(_player, PIRATE_OPENER_ID)
+    assert _opener.flags([_window_enemy()], _player) == (False, False)
+    # Empty enemy list reads window-OPEN (today's fresh-fight default).
+    assert _opener.flags([], _player) == (False, False)
+    # Never-applied statuses read fired/spent (the trait gate dominates).
+    assert _opener.flags([_window_enemy()], {}) == (False, True)
+    # One consume closes the collective window for everyone.
+    _enemies = [_window_enemy(), _window_enemy()]
+    _opener.consume_enemy_windows(_enemies)
+    assert _opener.flags(_enemies, _player) == (True, False)
+
+
+def test_opener_joiners_inherit_only_while_open():
+    from src.spacehack.combat import _opener
+
+    _engaged = [_window_enemy()]
+    _joiner = _window_enemy(open_=False)
+    _opener.inherit([_joiner], _engaged, theater="space")
+    assert _opener.window_open(_engaged + [_joiner])  # inherited
+
+    _opener.consume_enemy_windows(_engaged)  # any volley closes all
+    _late = _window_enemy(open_=False)
+    _opener.inherit([_late], _engaged + [_joiner], theater="space")
+    assert not _opener.window_open(_engaged + [_joiner, _late])
+
+
+def test_arm_gates_on_the_trait():
+    from src.spacehack.combat import _opener, _statuses
+    from src.spacehack.data.statuses import PIRATE_OPENER_ID
+
+    _pirate = _ctx(["pirate"], active_statuses={})
+    _enemies = [_window_enemy(open_=False)]
+    _opener.arm(_pirate, _enemies, theater="ground")
+    assert _statuses.has(_pirate.active_statuses, PIRATE_OPENER_ID)
+    assert _opener.window_open(_enemies)
+
+    _plain = _ctx([], active_statuses={})
+    _others = [_window_enemy(open_=False)]
+    _opener.arm(_plain, _others, theater="ground")
+    assert not _statuses.has(_plain.active_statuses, PIRATE_OPENER_ID)
+    assert not _opener.window_open(_others)

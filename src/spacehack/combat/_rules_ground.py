@@ -47,6 +47,7 @@ from ._ground_build import (  # noqa: F401  # re-exported seam (tests + joins)
     _build_enemies,
 )
 from . import _statuses
+from . import _opener
 from ._ground_effects import player_status_effects as _player_status_effects
 from ._stats import _crit_multiplier, _distance, _roll_ap, _roll_crit
 from . import _ground_actions, _ground_blast
@@ -152,6 +153,9 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
     # via check_reinforcements) must never move combat participants —
     # the combat AI is their only mover.
     _set_combat_locks(True, _enemies)
+    # The Pirate opener arms at fight construction where the trait
+    # holds (doc 103 Build A's positive modeling).
+    _opener.arm(ctx, _enemies, theater="ground")
 
     ctx.log.add_colored(
         f"Combat starts! {', '.join(_e.name for _e in _enemies)} engage!",
@@ -207,13 +211,19 @@ def combat_active(ctx) -> bool:
 
 
 def _opener_flags() -> tuple[bool, bool]:
-    """``(enemy_fired, opener_spent)`` on the installed session; both
-    False when no session is live, so formula-only callers read the
-    flags of whatever fight is (or was last) installed — None reads
-    as a fresh fight."""
+    """``(enemy_fired, opener_spent)`` derived from the opener
+    statuses (doc 103 Build A — the fight-state latch pair retired):
+    the player-side window rides ctx.active_statuses, the enemy-side
+    one every enemy container (see ``combat._opener`` for the
+    collective law). Both False when no session is live, so
+    formula-only callers read the flags of whatever fight is (or was
+    last) installed — None reads as a fresh fight."""
     if _state is None:
         return False, False
-    return _state.enemy_fired, _state.opener_spent
+    return _opener.flags(
+        _state.enemies,
+        getattr(_state.ctx, "active_statuses", None) or {},
+    )
 
 
 def player_max_hp(ctx) -> int:
@@ -400,8 +410,12 @@ def is_explosive(weapon_id: str) -> bool:
 def mark_opener_spent() -> None:
     """Spend the Pirate opener (doc 49 SETTLED 5): the shared fire
     loop calls this once the player's first attack action resolved,
-    hit or miss — the bonus never returns this fight."""
-    _state.opener_spent = True
+    hit or miss — the bonus never returns this fight. (Doc 103 Build
+    A: the window is the fight-class pirate_opener status on the
+    player's container.)"""
+    _opener.consume_player_window(
+        getattr(_state.ctx, "active_statuses", None) or {},
+    )
 
 
 def explosive_blast(
@@ -752,6 +766,9 @@ def refresh_engaged(ctx, game_map: world.GameMap) -> None:
         if _inst is not None:
             _joined.append(_inst)
     if _joined:
+        # The window read covers the ENGAGED set before the joins
+        # (an open window inherits onto the joiners — see _opener).
+        _opener.inherit(_joined, _state.enemies, theater="ground")
         _state.enemies.extend(_joined)
         _announce_joins(ctx, _joined)
 
