@@ -1135,6 +1135,27 @@ two fire sites, the seam, the HUD/overlay surfaces, the instruments.
   (`STAGGERED 2`), polarity-colored — one row walk, three
   presentations.
 
+## Build B prose ledger (2026-10-18 — every string settled through the loop; silence never read as acceptance)
+
+| # | Surface | Ruled text | Verdict |
+|---|---|---|---|
+| 1 | staggered apply_line (combat log, every landed roll, fresh or refresh; `{victim}` pre-cased by the site) | `{victim} is staggered!` | Ship it |
+| 2 | staggered expire_line (combat log, PLAYER-side only — the enemy adapter stays silent, the suffix's disappearance is the signal) | `The stagger wears off.` | Ship it |
+| 3 | staggered hud_label (player status line renders `STAGGERED 2`; same label rides the enemy panel name-row suffix + target card) | `STAGGERED` | Ship it |
+| 4 | inspect overlay title (scrollable frame header; TAB cycles subjects) | `STATUSES - YOU` / `STATUSES - {NAME}` | Ship it |
+| 5 | staggered description (overlay) | `-1 AP per round.` | My edit |
+| 6 | regen description (overlay) | `+2 HP per round.` | Ship it |
+| 7 | stim description (overlay) | `+1 AP per round.` | Ship it |
+| 8 | neural_stim_loan description (overlay) | `-1 AP next round.` | Ship it |
+| 9 | opener descriptions (overlay; added beyond the brief's list — bare rows read broken) | pirate_opener: `+10% hit and +25% damage on your first attack this fight.` / opener_window: `No enemy has fired yet.` | Rewrite w/ direction (direct detail, ruled numbers from xp.py) |
+| 10 | guide: the Stun Baton entry rewrite | `The Stun Baton has a 50% chance to stagger on hit. A staggered victim gets -1 AP per round for 2 rounds.` | My edit (refresh clause dropped: "the status refresh will teach itself") |
+| 11 | guide: the statuses paragraph (new, closes the Combat section) | `Statuses are timed effects on a combatant, shown on the right-hand panel (REGEN 2, STAGGERED 2). Enemy statuses display beside their names. Press I in combat to open the status window; Tab inside switches between you and each enemy. Burnt Ego makes you more susceptible to status ailments.` | My edit (two sentences; "their" typo fix confirmed by the user same exchange) |
+| 12 | inspect keybind | `I` (free in combat + exploration; Tab inside cycles subjects) | ruled |
+
+Direct register ruling (user, #5): descriptions are sign + number +
+unit + cadence, nothing else. Guide register (#10): lead with the
+direct fact (the chance), then the flat numbers.
+
 ## Acceptance criteria
 
 1. **One mechanism**: no new ad-hoc timed-effect field, key, or
