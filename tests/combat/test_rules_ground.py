@@ -1148,7 +1148,7 @@ class TestBuildTargetCard:
         _segs = [seg for row in card.rows for seg in row]
         assert [t for t, _c in _segs] == [
             "LVL 3 Assault Drone", "HP 12/30", "  HIT 62%", "Armor 3  AP 4",
-            "Drone Laser", "DMG 4  RNG 1-6", "[V] hide",
+            "Drone Laser", "DMG 4  RNG 1-6", "[E] hide",
         ]
         assert _segs[0][1] == pygame_target_card.TARGET_CARD_TITLE
         assert _segs[4][1] == pygame_target_card.TARGET_CARD_DIM
@@ -1171,7 +1171,7 @@ class TestBuildTargetCard:
         _segs = [seg for row in card.rows for seg in row]
         assert [t for t, _c in _segs] == [
             "LVL 3 Assault Drone", "HP 12/30", "  HIT --", "Armor 3  AP 4",
-            "Unarmed", "[V] hide",
+            "Unarmed", "[E] hide",
         ]
 
     def test_hit_chance_colored_by_range_band(self):
@@ -2187,3 +2187,48 @@ def test_ground_status_row_reads_and_never_shifts_weapons():
         FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT), _ctx,
     )
     assert _y_with == _y_without
+
+
+def test_enemy_panel_rows_wear_the_status_suffix():
+    """The enemy surface (doc 103 q7): a staggered enemy's name row
+    carries the same segments the player line renders, debuff-red,
+    bounded by the panel edge."""
+    from src.spacehack.combat import _statuses
+    from src.spacehack.data.statuses import STAGGERED_ID
+
+    _ctx, _game_map, _console, _enemy = _ground_fixture()
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    _statuses.apply(_rules_ground._state.enemies[0].statuses, STAGGERED_ID)
+
+    _frame = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, SCREEN_HEIGHT)
+    _alive = _rules_ground.get_enemies(_ctx)
+    _ground_render._render_enemies_panel(
+        _frame, _ctx, _alive, 0,
+    )
+    _hud_x = SCREEN_WIDTH - HUD_WIDTH
+    _name_row = "".join(
+        _frame.cell(x, 1).char
+        for x in range(_hud_x, _hud_x + HUD_WIDTH * 2)
+    ).rstrip()
+    assert _name_row.endswith("STAGGERED 2")
+    assert _name_row.startswith(">Assault Drone")
+    _suffix_x = _hud_x + len(_name_row) - len("STAGGERED 2")
+    assert _frame.cell(_suffix_x, 1).fg == (255, 80, 80)  # debuff red
+
+
+def test_target_card_gains_the_status_row():
+    """The card twin: the same segments render as one card row before
+    the hint, only when the enemy carries labelled statuses."""
+    from src.spacehack.combat import _statuses
+    from src.spacehack.data.statuses import STAGGERED_ID
+
+    _ctx, _game_map, _console, _enemy = _ground_fixture()
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    _gei = _rules_ground._state.enemies[0]
+
+    _bare = _ground_presentation._ground_card_rows(_gei, None, None)
+    _statuses.apply(_gei.statuses, STAGGERED_ID)
+    _with = _ground_presentation._ground_card_rows(_gei, None, None)
+
+    assert len(_with) == len(_bare) + 1
+    assert _with[-2][0] == ("STAGGERED 2", (255, 80, 80))

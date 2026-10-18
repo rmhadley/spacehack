@@ -431,6 +431,9 @@ def _render_combat_actions(console, hud_x, y, weapon_list) -> int:
     # players who never think to press it. Doc 40 6a's conditional
     # display is superseded.
     actions.insert(-1, ("[d]", "Board"))
+    # The status window (doc 103 Build B) works in both theaters —
+    # the player's own container is inspectable in space (the loan).
+    actions.append(("[v]", "Status"))
     return _render_action_pairs(console, hud_x, y, actions, COLOR_COMBAT_ACTION)
 
 

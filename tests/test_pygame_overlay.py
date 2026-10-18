@@ -349,7 +349,7 @@ def test_overlay_payload_round_trips_target_card():
             (("Armor 3  AP 4", pygame_target_card.TARGET_CARD_TEXT),),
             (("Monster Claws", pygame_target_card.TARGET_CARD_DIM),),
             (("DMG 3  RNG 1-1", pygame_target_card.TARGET_CARD_TEXT),),
-            (("[V] hide", pygame_target_card.TARGET_CARD_DIM),),
+            (("[E] hide", pygame_target_card.TARGET_CARD_DIM),),
         ),
         quick_rows=(
             (("HP 8/26   AP 4/4   POW 10/10   FIRE 2 AP 2 POW", pygame_target_card.TARGET_CARD_TEXT),),
@@ -1103,7 +1103,7 @@ def test_draw_target_card_paints_clamped_panel_and_rows(monkeypatch):
             (("Armor 1  AP 4", pygame_target_card.TARGET_CARD_TEXT),),
             (("W", pygame_target_card.TARGET_CARD_DIM),),
             (("DMG 3  RNG 1-6", pygame_target_card.TARGET_CARD_TEXT),),
-            (("[V] hide", pygame_target_card.TARGET_CARD_DIM),),
+            (("[E] hide", pygame_target_card.TARGET_CARD_DIM),),
         ),
         x=5, y=7,
     )
@@ -1122,7 +1122,7 @@ def test_draw_target_card_paints_clamped_panel_and_rows(monkeypatch):
     texts = [text for text, _x, _y, _c in drawn]
     assert texts == [
         "A", "HP 9/20", "  HIT 62%", "Armor 1  AP 4", "W",
-        "DMG 3  RNG 1-6", "[V] hide",
+        "DMG 3  RNG 1-6", "[E] hide",
     ]
     assert drawn[1][3] == pygame_target_card.TARGET_CARD_TEXT
     assert drawn[2][3] == pygame_target_card.TARGET_CARD_TEXT

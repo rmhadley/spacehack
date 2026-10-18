@@ -75,6 +75,9 @@ def _key_action(sym_name: str, rules=None) -> str:
     # The action table wins over movement. "d" docks alongside to
     # board only where the rules support it (space, doc 40 6a); the
     # original "b" collided with the VIM south-west diagonal.
+    # "v"/"e" (doc 103 Build B's ruling): v opens the status window
+    # ("view"); the floating target-card toggle moved to e — "i" stays
+    # reserved for a future inventory shortcut.
     _action = {
         "s": "DEFENSE",
         "w": "WAIT",
@@ -82,7 +85,8 @@ def _key_action(sym_name: str, rules=None) -> str:
         "r": "RELOAD",
         "a": "CORE",
         "c": "CHARACTER",
-        "v": "TOGGLE_CARD",
+        "e": "TOGGLE_CARD",
+        "v": "STATUS",
         "x": "SWAP_SETS",
     }.get(sym_name)
     if _action is not None:
@@ -775,6 +779,15 @@ async def _handle_move_action(ctx, game_map, rules, action: str) -> str | None:
     return _exit if _exit in ("DISENGAGED", "DEFEAT") else None
 
 
+async def _open_status_window(ctx, rules) -> None:
+    """The status inspect window (doc 103 q7, Build B): costs no turn
+    — the console-log modal shape, both theaters. A window-close QUIT
+    propagates like the history modal's."""
+    from .. import status_inspect
+    if await status_inspect.open_status_inspect(ctx, rules) == "QUIT":
+        raise SystemExit
+
+
 async def _dispatch_combat_action(console, ctx, game_map, rules, action: str, target_idx: int):
     """Handle one in-combat action. Returns ``(new_target_idx,
     end_result)`` — ``end_result`` is "DISENGAGED" or "DEFEAT" when a
@@ -788,6 +801,8 @@ async def _dispatch_combat_action(console, ctx, game_map, rules, action: str, ta
         _toggle_card = getattr(rules, "toggle_target_card", None)
         if _toggle_card is not None:
             _toggle_card(ctx)
+    elif action == "STATUS":
+        await _open_status_window(ctx, rules)
     elif action.startswith("MOVE:"):
         _exit = await _handle_move_action(ctx, game_map, rules, action)
         if _exit is not None:
@@ -801,9 +816,7 @@ async def _dispatch_combat_action(console, ctx, game_map, rules, action: str, ta
     elif action == "RELOAD":
         await _run_rules_hook(ctx, rules, "reload_weapon", "Reload is unavailable here.")
     elif action == "CORE":
-        # The chrome core button (doc 102 SETTLED 8): both rules
-        # modules own an activate_core; the line only fires for a
-        # rules adapter without one.
+        # Doc 102 SETTLED 8: both rules modules own an activate_core.
         await _run_rules_hook(ctx, rules, "activate_core", "No neural core installed.")
     elif action == "SWAP_SETS":
         await _run_rules_hook(ctx, rules, "swap_weapon_sets", "Weapon swap is unavailable here.")

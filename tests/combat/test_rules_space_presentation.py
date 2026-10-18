@@ -169,7 +169,7 @@ def test_space_card_rows_show_hull_shield_ap_and_weapons():
     _segs = [seg for row in rows for seg in row]
     assert [t for t, _c in _segs] == [
         "LVL 3 Pirate Scout", "HULL 20/30", "  HIT 62%", "SHD 8/10", "AP 3",
-        "Light Laser", "DMG 4  RNG 1-5", "[V] hide",
+        "Light Laser", "DMG 4  RNG 1-5", "[E] hide",
     ]
 
 
@@ -216,7 +216,7 @@ def test_space_card_rows_omit_shield_when_unshielded():
     _segs = [seg for row in rows for seg in row]
     assert [t for t, _c in _segs] == [
         "LVL 3 Pirate Scout", "HULL 20/30", "  HIT --", "AP 3",
-        "Light Laser", "DMG 4  RNG 1-5", "[V] hide",
+        "Light Laser", "DMG 4  RNG 1-5", "[E] hide",
     ]
 
 

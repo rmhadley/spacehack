@@ -60,11 +60,28 @@ def enemy_effective_weapon(enemy: Any, weapon: Any = None):
     )
 
 
+def _card_status_row(enemy: Any):
+    """The status suffix's card twin (doc 103 q7): the same segments
+    the panels render, one card row — ``None`` when the enemy carries
+    nothing labelled."""
+    from ._statuses import hud_segments
+
+    segments = hud_segments(getattr(enemy, "statuses", None) or {})
+    if not segments:
+        return None
+    return tuple(
+        (f"  {text}" if i else text,
+         ui.COLOR_STATUS_BUFF if is_buff else ui.COLOR_STATUS_DEBUFF)
+        for i, (text, is_buff) in enumerate(segments)
+    )
+
+
 def _ground_card_rows(
     enemy: Any, weapon: Any, hit_chance: int | None,
     hit_color: tuple[int, int, int] | None = None,
 ) -> tuple[tuple[tuple[str, tuple[int, int, int]], ...], ...]:
-    """Format the ground card body: name, HP+hit, armor+AP, weapon."""
+    """Format the ground card body: name, HP+hit, armor+AP, weapon,
+    statuses."""
     hit_text = f"HIT {hit_chance}%" if hit_chance is not None else "HIT --"
     _hit_fg = hit_color if (hit_chance is not None and hit_color is not None) else TARGET_CARD_TEXT
     hp_row = (
@@ -87,6 +104,9 @@ def _ground_card_rows(
         ))
     else:
         rows.append(dim_row("Unarmed"))
+    _status_row = _card_status_row(enemy)
+    if _status_row is not None:
+        rows.append(_status_row)
     rows.append(hint_row())
     return tuple(rows)
 

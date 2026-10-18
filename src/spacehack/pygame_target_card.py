@@ -63,8 +63,9 @@ def dim_row(text: str) -> tuple[tuple[str, Color], ...]:
 
 
 def hint_row() -> tuple[tuple[str, Color], ...]:
-    """The final ``[V] hide`` toggle hint row."""
-    return (("[V] hide", TARGET_CARD_DIM),)
+    """The final ``[E] hide`` toggle hint row (doc 103 Build B's
+    key move: the toggle left v for the status window)."""
+    return (("[E] hide", TARGET_CARD_DIM),)
 
 
 def quick_row(text: str) -> tuple[tuple[str, Color], ...]:

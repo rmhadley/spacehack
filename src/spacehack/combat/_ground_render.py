@@ -425,7 +425,7 @@ def _print_weapon_block(console, ctx, hud_x: int, y: int, i: int, wid: str, aliv
 
 
 def toggle_target_card(ctx) -> None:
-    """Show/hide the floating target card (``v`` key)."""
+    """Show/hide the floating target card (``e`` key, doc 103 Build B's move)."""
     _rules()._state.show_target_card = not _rules()._state.show_target_card
 
 
@@ -484,7 +484,17 @@ def _render_enemies_panel(console, ctx, alive, y: int) -> int:
             is_target = i == _state.target_idx
             name_fg = _COLOR_GROUND_ENEMY_TARGET if is_target else _COLOR_GROUND_ENEMY
             marker = ">" if is_target else " "
-            console.print(x=hud_x, y=y, string=f"{marker}{gei.name}"[:HUD_TEXT_MAX], fg=name_fg)
+            _name = f"{marker}{gei.name}"[:HUD_TEXT_MAX]
+            console.print(x=hud_x, y=y, string=_name, fg=name_fg)
+            # The status suffix (doc 103 q7): the same hud_segments
+            # the player line renders, appended after the name and
+            # bounded by the panel edge (read-side or-{}: the shared
+            # painter only reads the container).
+            _statuses_paint(
+                console, hud_x + len(_name) + 1, y,
+                hud_segments(getattr(gei, "statuses", None) or {}),
+                hud_x + HUD_TEXT_MAX,
+            )
             y += 1
             e_bar = _bar_str(gei.hp, gei.max_hp, width=8)
             e_pct = gei.hp * 100 // max(gei.max_hp, 1)
@@ -530,7 +540,7 @@ def _render_actions_panel(console, weapons: list[str], y: int) -> None:
     y += 1
     actions = [
         ("[Tab]", "Target"), ("[m]", "Move"), ("[f]", "Fire"), ("[r]", "Reload"),
-        ("[x]", "Swap"), ("[w]", "Wait"), ("[v]", "Info"),
+        ("[x]", "Swap"), ("[w]", "Wait"), ("[e]", "Info"), ("[v]", "Status"),
     ]
     if len(weapons) > 1:
         actions.insert(5, (f"[1-{len(weapons)}]", "Toggle Wpn"))

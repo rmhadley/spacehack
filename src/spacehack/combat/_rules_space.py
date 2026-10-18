@@ -572,7 +572,7 @@ def _calc_camera():
     return _cx, _cy
 
 def toggle_target_card(ctx) -> None:
-    """Show/hide the floating target card (``v`` key)."""
+    """Show/hide the floating target card (``e`` key, doc 103 Build B's move)."""
     _state.show_target_card = not _state.show_target_card
 
 def _quick_resource_row(ctx):

@@ -256,7 +256,7 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "fight in the first place. Jumps burn fuel as usual."
             "\n\n"
             "A floating card beside your target shows its hull, shields, and "
-            "weapons along with your chance to hit. Press V to hide it and V "
+            "weapons along with your chance to hit. Press E to hide it and E "
             "again to bring it back."
             "\n\n"
             "Ground fights use the same turn-by-turn rhythm with personal weapons "
@@ -275,11 +275,21 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "\n\n"
             "Your current target's armour and weapon are shown in the right-hand "
             "panel. A floating card beside the enemy shows your chance to hit and "
-            "their armour and action points; press V to hide it and V again to "
+            "their armour and action points; press E to hide it and E again to "
             "bring it back. Check them before you act: heavy armour means "
             "armour-piercing or plasma will serve you better, and a long-range "
             "enemy weapon is your cue to stay behind cover instead of trading "
             "shots."
+        ),
+    ),
+    GuideSection(
+        title="Statuses",
+        body=(
+            "Statuses are timed effects on a combatant, shown on the right-hand "
+            "panel (REGEN 2, STAGGERED 2). Enemy statuses display beside their "
+            "names. Press V in combat to open the status window; Tab inside "
+            "switches between you and each enemy. Burnt Ego makes you more "
+            "susceptible to status ailments."
         ),
     ),
     GuideSection(
@@ -305,8 +315,9 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "scarce and their heavy launcher takes longer to reload."
             "\n"
             "- Melee weapons never need ammunition, but you must close the "
-            "distance. The Stun Baton reduces an enemy's AP by 1 on its next "
-            "turn whenever it hits. A few blades are sharp enough to ignore "
+            "distance. The Stun Baton has a 50% chance to stagger on hit. "
+            "A staggered victim gets -1 AP per round for 2 rounds. A few "
+            "blades are sharp enough to ignore "
             "armour entirely."
             "\n"
             "Reloadable weapons draw from your ammo storage - the rounds "
