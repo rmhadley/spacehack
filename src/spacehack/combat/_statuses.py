@@ -118,7 +118,31 @@ def apply(
     return "stacked" if stacked else "refreshed"
 
 
-def advance(container: dict[str, ActiveStatus]) -> tuple[TickEvent, ...]:
+def _payload_events(
+    status_id: str, spec: StatusSpec, active: ActiveStatus,
+) -> tuple[TickEvent, ...]:
+    """One rounds-class row's payload events for this boundary (S1:
+    they fire BEFORE the decrement); a row carrying several terms
+    fires each."""
+    events: list[TickEvent] = []
+    if spec.regen_per_round:
+        events.append(
+            ("heal", status_id, _payload_mag(spec, active, "regen_per_round")),
+        )
+    if spec.dot_per_round:
+        events.append(
+            ("damage", status_id, _payload_mag(spec, active, "dot_per_round")),
+        )
+    if spec.ap_per_round:
+        events.append(
+            ("ap", status_id, _payload_mag(spec, active, "ap_per_round")),
+        )
+    return tuple(events)
+
+
+def advance(
+    container: dict[str, ActiveStatus], theater: str | None = None,
+) -> tuple[TickEvent, ...]:
     """Advance one round boundary: fire payload events, THEN
     decrement; remaining 0 expires and drops (S1 — a 3-round regen
     heals exactly 3 times, a 1-round loan fires exactly once).
@@ -126,27 +150,25 @@ def advance(container: dict[str, ActiveStatus]) -> tuple[TickEvent, ...]:
     resets the duration, so a refresh landing between ticks can
     never double-tick. Unknown ids are skipped silently (containers
     are read-side save data).
+
+    ``theater`` is the HOME-THEATER filter (doc 103 Build C, the
+    pause law made mechanical): a row tagged for another theater is
+    skipped — a carried ground row never ticks, and never touches
+    space AP, while you fly. A row tagged ``None`` matches every
+    theater (legacy-proof — today's applies always stamp); a walk
+    passing ``None`` filters nothing.
     """
     events: list[TickEvent] = []
     for status_id, active in list(container.items()):
+        if theater is not None and active.theater not in (None, theater):
+            continue
         try:
             spec = find_status(status_id)
         except KeyError:
             continue
         if spec.duration_class != "rounds":
             continue
-        if spec.regen_per_round:
-            events.append(
-                ("heal", status_id, _payload_mag(spec, active, "regen_per_round")),
-            )
-        if spec.dot_per_round:
-            events.append(
-                ("damage", status_id, _payload_mag(spec, active, "dot_per_round")),
-            )
-        if spec.ap_per_round:
-            events.append(
-                ("ap", status_id, _payload_mag(spec, active, "ap_per_round")),
-            )
+        events.extend(_payload_events(status_id, spec, active))
         active.remaining_turns -= 1
         if active.remaining_turns <= 0:
             del container[status_id]
@@ -194,8 +216,8 @@ def dispel(
     predicate: Callable[[ActiveStatus], bool],
 ) -> tuple[str, ...]:
     """Remove every entry matching the predicate; returns the
-    removed ids. The fight-end defuse is ``dispel(c, lambda a:
-    True)`` — removal is silent, never an expire event."""
+    removed ids. The fight-end defuse is a :func:`defuse_at_fight_end`
+    call — removal is silent, never an expire event."""
     removed = tuple(
         status_id for status_id, active in container.items()
         if predicate(active)
@@ -203,6 +225,31 @@ def dispel(
     for status_id in removed:
         del container[status_id]
     return removed
+
+
+def _dies_at_fight_end(active: ActiveStatus) -> bool:
+    """Whether one entry dies at fight end (doc 103 q13, the
+    field-keyed law): the ``fight`` class, every
+    ``persists_past_fight=False`` row (the loans — combat tempo,
+    never a carried condition), and UNKNOWN ids — a retired row can
+    never resolve a spec, so it defuses; immortal save-carried
+    garbage is the one behavior the silent-skip read contract must
+    NOT extend to the defuse."""
+    try:
+        spec = find_status(active.status_id)
+    except KeyError:
+        return True
+    return spec.duration_class == "fight" or not spec.persists_past_fight
+
+
+def defuse_at_fight_end(container: dict[str, ActiveStatus]) -> tuple[str, ...]:
+    """Fight-end defuse (doc 103 Build C, the carry flip): drop the
+    fight class and the loans, KEEP every carried row — staggered
+    walks out, regen keeps healing, and the defuse's own shape at
+    fight INIT means carried rows survive the abnormal-end recovery
+    path too (q13: you keep your burns). Silent (dispel semantics —
+    no expire events, so an unconsumed loan never pays its line)."""
+    return dispel(container, _dies_at_fight_end)
 
 
 def hud_segments(

@@ -22,6 +22,7 @@ from src.spacehack.data.statuses import (
     OPENER_WINDOW_ID,
     PIRATE_OPENER_ID,
     REGEN_ID,
+    STAGGERED_ID,
     STIM_ID,
     StatusSpec,
     find_status,
@@ -198,6 +199,64 @@ def test_dispel_removes_matches_silently():
     _statuses.apply(player, NEURAL_STIM_LOAN_ID)
     assert _statuses.dispel(player, lambda a: False) == ()
     assert NEURAL_STIM_LOAN_ID in player
+
+
+# --- the theater filter (doc 103 Build C) ----------------------------------------
+
+
+def test_advance_skips_rows_tagged_for_another_theater():
+    """The pause law, engine-side: a carried ground row never ticks
+    at a space walk (and never touches space AP through it)."""
+    player: dict[str, ActiveStatus] = {}
+    _statuses.apply(player, STAGGERED_ID, theater="ground")
+    assert _statuses.advance(player, theater="space") == ()
+    assert player[STAGGERED_ID].remaining_turns == 2  # frozen, not spent
+    # Back on the ground (or the exploration adapter): it resumes.
+    events = _statuses.advance(player, theater="ground")
+    assert ("ap", STAGGERED_ID, -1) in events
+
+
+def test_advance_none_tag_matches_every_theater():
+    """Legacy-proof: a row applied without a theater tag ticks under
+    every walk; a walk passing no theater filters nothing."""
+    player: dict[str, ActiveStatus] = {}
+    _statuses.apply(player, REGEN_ID)  # tag None
+    assert ("heal", REGEN_ID, 2) in _statuses.advance(player, theater="space")
+    _statuses.apply(player, STIM_ID, theater="space")
+    assert ("ap", STIM_ID, 1) in _statuses.advance(player)  # unfiltered walk
+
+
+# --- the fight-end defuse flip (doc 103 Build C) ---------------------------------
+
+
+def test_defuse_at_fight_end_keeps_carried_rows_drops_fight_class_and_loans():
+    """The carry flip: staggered walks out of the fight, regen and
+    the stim keep ticking; the opener's fight class and the Neural
+    Stim loan defuse (combat tempo, never a carried condition)."""
+    player: dict[str, ActiveStatus] = {}
+    _statuses.apply(player, REGEN_ID, theater="ground")
+    _statuses.apply(player, STIM_ID, theater="ground")
+    _statuses.apply(player, STAGGERED_ID, theater="ground")
+    _statuses.apply(player, PIRATE_OPENER_ID)
+    _statuses.apply(player, NEURAL_STIM_LOAN_ID)
+    assert _statuses.defuse_at_fight_end(player) == (
+        PIRATE_OPENER_ID, NEURAL_STIM_LOAN_ID,
+    )
+    assert set(player) == {REGEN_ID, STIM_ID, STAGGERED_ID}
+
+
+def test_defuse_at_fight_end_drops_unknown_retired_ids():
+    """A retired row can never resolve a spec, so it defuses — the
+    read contract's silent skip must not extend to the defuse
+    (immortal save-carried garbage)."""
+    player: dict[str, ActiveStatus] = {
+        "retired_row": ActiveStatus("retired_row", 3),
+        "also_retired": ActiveStatus("also_retired", 1),
+    }
+    assert _statuses.defuse_at_fight_end(player) == (
+        "retired_row", "also_retired",
+    )
+    assert player == {}
 
 
 # --- actor symmetry (acceptance criterion 5) -------------------------------------
