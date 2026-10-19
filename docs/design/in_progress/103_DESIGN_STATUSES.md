@@ -2,9 +2,11 @@
 
 **Status: BUILD B LANDED + PLAYTEST PASSED (2026-10-19 — user
 confirmed; the checklist read clean, no mid-playtest rulings or
-fixes this round). Two phases remain: `/implement-phase 103.6`
-(Build C, the durable boundaries — its brief is already written)
-and the Close.**
+fixes this round). Two phases remain: Build C (the durable
+boundaries — NO Implementation brief yet; `/implement-phase 103.6`
+will stop and propose one, its open rows: the exploration tick's
+turn definition, the smother authoring for fire-type rows) and the
+Close.**
 
 Companions: `complete/102_DESIGN_CYBERNETICS.md` (the Parked sketch
 this doc inherits — "a general statuses container (`id → rounds
