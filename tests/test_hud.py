@@ -631,3 +631,77 @@ def test_combat_status_row_paints_labelled_rows_and_consumes_one_row():
     assert hud_combat._render_status_row(
         FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, 12), hud_x, 5, ctx,
     ) is False
+
+
+def test_exploration_status_row_paints_segments_in_city_and_dungeon():
+    """The exploration status line (doc 103 Build C): the same
+    one-row segments the combat panels carry, on the city/dungeon
+    panel — labelled rows paint with their remaining, an empty
+    container consumes no row (frozen city rows still display)."""
+    from src.spacehack.combat import _statuses
+    from src.spacehack.engine import HUD_WIDTH, SCREEN_WIDTH
+    from src.spacehack import hud as _hud
+
+    ctx = SimpleNamespace(active_statuses={})
+    _statuses.apply(ctx.active_statuses, "staggered", theater="ground")
+    _statuses.apply(ctx.active_statuses, "regen", theater="ground")
+    frame = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, 12)
+    hud_x = SCREEN_WIDTH - HUD_WIDTH
+
+    _y = _hud._render_status_segments_row(frame, hud_x, 5, ctx)
+    _row = "".join(
+        frame.cell(x, 5).char for x in range(hud_x, hud_x + HUD_WIDTH * 2)
+    ).rstrip()
+    assert _row == "STAGGERED 2  REGEN 3"
+    assert _y == 6  # one row consumed
+
+    _statuses.dispel(ctx.active_statuses, lambda _a: True)
+    assert _hud._render_status_segments_row(
+        FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, 12), hud_x, 5, ctx,
+    ) == 5  # no row consumed
+
+
+def test_v_opens_the_you_only_window_exploring(monkeypatch):
+    """The exploring v wiring (doc 103 Build C): city and dungeon
+    dispatch to the you-only entry; space never does (its combat
+    loop owns v in fights)."""
+    from tests.support.asyncutil import run as _run
+    from src.spacehack import game_loop, status_inspect
+    from types import SimpleNamespace as _NS
+
+    _opened: list = []
+
+    async def _fake_window(ctx):
+        _opened.append(ctx)
+        return "ESC"
+
+    monkeypatch.setattr(
+        status_inspect, "open_status_inspect_exploring", _fake_window,
+    )
+
+    def _state(mode: str):
+        return _NS(
+            ctx=_NS(active_statuses={}, log=_NS(add=lambda *_a, **_k: None)),
+            current_mode=mode, current_city_id="", space_player=None,
+        )
+
+    _v = _NS(kind="keydown", key_name="v")
+    assert _run(game_loop._handle_common_modal_event(_state("city"), _v)) == "HANDLED"
+    assert _run(game_loop._handle_common_modal_event(_state("dungeon"), _v)) == "HANDLED"
+    assert len(_opened) == 2
+    # Space exploration never routes v here (None = unhandled by this
+    # layer; the combat loop's own table owns it in fights).
+    _opened.clear()
+    assert _run(game_loop._handle_common_modal_event(_state("space"), _v)) is None
+    assert _opened == []
+
+
+def test_the_exploring_frame_has_no_tab_hint():
+    """One subject — the TAB footer hint would mislead (advisor
+    note): the exploring footer carries only ESC + guide hints."""
+    from src.spacehack.status_inspect import _SOLO_FOOTER, _frame
+
+    _footer = _frame("YOU", {}, _SOLO_FOOTER).footer
+    assert len(_footer) == 1
+    assert "TAB" not in _footer[0]
+    assert "ESC close" in _footer[0]

@@ -13,7 +13,9 @@ from types import SimpleNamespace
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.spacehack.combat import _loop, _statuses
-from src.spacehack.status_inspect import _DIM, _frame, _subject_lines, _subjects
+from src.spacehack.status_inspect import (
+    _CYCLE_FOOTER, _DIM, _frame, _subject_lines, _subjects,
+)
 from src.spacehack.ui import COLOR_STATUS_BUFF, COLOR_STATUS_DEBUFF
 
 
@@ -60,10 +62,10 @@ def test_subject_lines_skip_retired_row_ids():
 
 
 def test_frame_carries_the_ruled_title_and_scroll():
-    frame = _frame("YOU", {})
+    frame = _frame("YOU", {}, _CYCLE_FOOTER)
     assert frame.title == "STATUSES - YOU"
     assert frame.scrollable is True
-    assert _frame("ROCK SCAVENGER", {}).title == "STATUSES - ROCK SCAVENGER"
+    assert _frame("ROCK SCAVENGER", {}, _CYCLE_FOOTER).title == "STATUSES - ROCK SCAVENGER"
 
 
 def test_subjects_you_first_then_live_enemies():

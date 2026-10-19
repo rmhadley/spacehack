@@ -532,11 +532,11 @@ def _render_city_help_lines(console, hud_x, y, mode) -> int:
     if mode == "dungeon":
         _help_lines[0:0] = [
             ("P", "Pickup"), ("O", "Explore"),
-            ("G", "Go To"), ("R", "Reload"),
+            ("G", "Go To"), ("R", "Reload"), ("V", "Status"),
         ]
     elif mode == "city":
         # Streets are hostile-capable since doc 53 — reload is live here too.
-        _help_lines[0:0] = [("R", "Reload")]
+        _help_lines[0:0] = [("R", "Reload"), ("V", "Status")]
     return _render_help_lines(console, hud_x, y, _help_lines)
 
 
@@ -592,9 +592,28 @@ def _render_ground_weapons_block(console, hud_x: int, y: int, ctx) -> int:
     return y
 
 
+def _render_status_segments_row(console: FrameBuffer, hud_x: int, y: int, ctx) -> int:
+    """The exploration status line (doc 103 Build C): the same
+    one-row segments the combat panels carry (q7's law extended to
+    the surface where the carry lives) — REGEN 2, STAGGERED 1,
+    polarity-colored, label-only rows alone. Renders on city screens
+    too: a carried row reads FROZEN there (city streets are outside
+    status time), honestly. Lazy import: hud cannot import combat at
+    module level (the cycle through combat's package init — the
+    bandolier precedent)."""
+    from .combat._statuses import hud_segments, paint_hud_segments
+
+    _segments = hud_segments(getattr(ctx, "active_statuses", None) or {})
+    if _segments:
+        paint_hud_segments(console, hud_x, y, _segments, hud_x + HUD_TEXT_MAX)
+        return y + 1
+    return y
+
+
 def _render_city_ground_sections(console, hud_x, y, ctx, mode, *, has_trade_terminal, has_mech_terminal, has_armory_terminal, has_kiosk=False) -> int:
-    """Paint the terminal hints and the ground weapons block — the two
-    sections between the stats divider and the help divider.
+    """Paint the terminal hints, the exploration status line, and the
+    ground weapons block — the sections between the stats divider and
+    the help divider.
 
     When terminal hints render, the weapons block is its own section and
     gets the panel's blank-row + divider rhythm; without hints it attaches
@@ -612,6 +631,7 @@ def _render_city_ground_sections(console, hud_x, y, ctx, mode, *, has_trade_term
             y += 1
             _render_divider(console, hud_x, y)
             y += 1
+        y = _render_status_segments_row(console, hud_x, y, ctx)
         y = _render_ground_weapons_block(console, hud_x, y, ctx)
     return y
 

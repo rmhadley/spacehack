@@ -19,7 +19,7 @@ from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make
 from .time import tick_move
 from .hud import ground_player_fg as _ground_player_fg
 from .npc_ships import render_npc_flash_events
-from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_x_press, _is_shift_o_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f7_press, _is_f8_press, _is_f9_press, _try_open_guide
+from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_v_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_x_press, _is_shift_o_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f7_press, _is_f8_press, _is_f9_press, _try_open_guide
 from .city_render import render_city_view, render_city_debug_overlay
 from .city_interiors import enter_city_interior, exit_city_interior
 from .menus import QuestLogOutcome, _run_quest_log
@@ -348,11 +348,20 @@ async def _handle_map_navigation_event(state, event):
 
 
 async def _handle_common_modal_event(state, event):
-    """Handle dungeon/space pickup, reload, cargo, and log modals."""
+    """Handle dungeon/space pickup, reload, cargo, log, and status modals."""
     ctx = state.ctx
     if state.current_mode in ('city', 'dungeon') and _is_r_press(event):
         from .ground_reload_ui import reload_exploration
         await reload_exploration(ctx)
+        return 'HANDLED'
+    if state.current_mode in ('city', 'dungeon') and _is_v_press(event):
+        # The status window while exploring (doc 103 Build C): a
+        # you-only entry — no enemies exist to cycle; no turn cost
+        # (the combat window's law).
+        from .status_inspect import open_status_inspect_exploring
+        if await open_status_inspect_exploring(ctx) == 'QUIT':
+            _save_and_exit(ctx, state.current_mode, state.current_city_id, state.space_player)
+            return 'QUIT'
         return 'HANDLED'
     if state.current_mode in ('dungeon', 'space') and _is_p_press(event):
         if await _pickup_loot_near(ctx) and state.current_mode == 'space':

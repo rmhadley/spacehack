@@ -1,11 +1,13 @@
-"""The status inspect window (doc 103 q7, Build B).
+"""The status inspect window (doc 103 q7, Build B; Build C adds the
+exploring entry).
 
 A scrollable frame of one subject's current statuses with their
 descriptions — the player's own container directly, every live enemy
-beside it. Opens on ``v`` in combat (the ruled "view" key); TAB
-inside cycles the subject (you, then each live enemy — the
-target-cycle muscle memory); ESC closes. Costs no turn (the
-console-log modal shape).
+beside it. Opens on ``v`` in combat (the ruled "view" key; TAB inside
+cycles the subject — you, then each live enemy — the target-cycle
+muscle memory) AND while exploring (doc 103 Build C: a you-only
+entry, no TAB hint). ESC closes. Costs no turn (the console-log
+modal shape).
 """
 
 from __future__ import annotations
@@ -19,6 +21,16 @@ from .ui import COLOR_STATUS_BUFF, COLOR_STATUS_DEBUFF
 _DIM = pygame_ui.DEFAULT_PALETTE.description
 
 _YOU = "YOU"
+
+# The two footer shapes (doc 103 Build C): the combat window cycles
+# subjects (TAB next); the exploring window has ONE subject — the
+# hint would mislead (advisor note).
+_CYCLE_FOOTER = (pygame_ui.modal_hint(
+    "TAB next", "ESC close", pygame_ui.GUIDE_HINT,
+),)
+_SOLO_FOOTER = (pygame_ui.modal_hint(
+    "ESC close", pygame_ui.GUIDE_HINT,
+),)
 
 
 def _subjects(ctx: GameContext, rules) -> list[tuple[str, dict]]:
@@ -58,19 +70,34 @@ def _subject_lines(container: dict) -> tuple[tuple[str, ...], tuple]:
     return tuple(lines), tuple(colors)
 
 
-def _frame(subject: str, container: dict) -> pygame_screen.ScreenFrame:
-    """The scrollable frame for one subject (the ruled title shape)."""
+def _frame(subject: str, container: dict, footer: tuple) -> pygame_screen.ScreenFrame:
+    """The scrollable frame for one subject (the ruled title shape);
+    the footer is the caller's — cycling or you-only."""
     body, colors = _subject_lines(container)
     return pygame_screen.ScreenFrame(
         title=f"STATUSES - {subject}",
         body=body,
         rows=(),
-        footer=(pygame_ui.modal_hint(
-            "TAB next", "ESC close", pygame_ui.GUIDE_HINT,
-        ),),
+        footer=footer,
         scrollable=True,
         body_colors=colors,
     )
+
+
+async def _present(ctx: GameContext, frame) -> str | None:
+    """One frame pass: returns the raw outcome, ``None`` when the
+    guide consumed it (both windows re-present after the guide
+    closes — the subject re-reads live)."""
+    outcome, _action, _selected = await pygame_screen.run_for_context(
+        ctx.context, frame, caption="spacehack - statuses",
+    )
+    if outcome == "QUIT":
+        return "QUIT"
+    if outcome == "GUIDE":
+        from .help import _run_help_guide
+        await _run_help_guide(ctx)
+        return None
+    return outcome
 
 
 async def open_status_inspect(ctx: GameContext, rules) -> str:
@@ -84,22 +111,36 @@ async def open_status_inspect(ctx: GameContext, rules) -> str:
     index = 0
     while True:
         label, container = subjects[index]
-        outcome, _action, _selected = await pygame_screen.run_for_context(
-            ctx.context,
-            _frame(label, container),
-            caption="spacehack - statuses",
+        outcome = await _present(
+            ctx, _frame(label, container, _CYCLE_FOOTER),
         )
         if outcome == "QUIT":
             return "QUIT"
-        if outcome == "GUIDE":
-            from .help import _run_help_guide
-            await _run_help_guide(ctx)
-        elif outcome == "TAB":
+        if outcome == "TAB":
             index += 1
-        # ESC and anything else: closed.
-        else:
+        elif outcome is not None:
+            # ESC and anything else: closed.
             return outcome
-        # The fight moved underneath the modal either way — rebuild
-        # and clamp (a cycled-onto enemy may have died mid-window).
+        # The guide (None) or a TAB: the fight moved underneath the
+        # modal either way — rebuild and clamp (a cycled-onto enemy
+        # may have died mid-window).
         subjects = _subjects(ctx, rules)
         index %= len(subjects)
+
+
+async def open_status_inspect_exploring(ctx: GameContext) -> str:
+    """The exploring entry (doc 103 Build C): you-only — no enemies
+    exist to cycle out of combat. Returns the closing outcome ("QUIT"
+    propagates like every modal's). Costs nothing (the combat
+    window's law)."""
+    while True:
+        outcome = await _present(
+            ctx,
+            _frame(
+                _YOU,
+                getattr(ctx, "active_statuses", None) or {},
+                _SOLO_FOOTER,
+            ),
+        )
+        if outcome is not None:
+            return outcome

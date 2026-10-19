@@ -283,6 +283,17 @@ def _is_r_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a plain ``R`` key press."""
     return pygame_engine.is_keydown(event) and event.key_name == 'r'
 
+
+def _is_v_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a plain ``V`` key press.
+
+    Routes V (the status window, doc 103 Build B's ruled "view" key)
+    in combat and — Build C — while exploring. Shift+V is consumed
+    earlier by the dev-mode dispatcher (``_is_shift_v_press`` spawns
+    the doc-48 faces), mirroring ``_is_x_press``'s plain-key shape.
+    """
+    return pygame_engine.is_keydown(event) and event.key_name == 'v'
+
 def _is_p_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``P`` key (or its
     lowercase alias).
