@@ -1,10 +1,13 @@
 # DESIGN: Statuses — the durable buff/debuff system
 
-**Status: BUILD C BRIEF APPROVED (2026-10-19 — the four boundary
-rulings settled and the Implementation brief drafted,
-advisor-folded, and user-approved this session). Two phases
-remain: Build C (ready for `/implement-phase 103.6`) and the
-Close.**
+**Status: BUILD C BUILT (2026-10-19 — playtest pending). Twelve
+commits since the brief approval: the prose-gate pair, seven code
+commits each through the reviewer (every round APPROVE, all minors
+folded), the C3 doc fold, the guide data commit, and the final
+pin+annotation commit; the zero-new-draws harness proof ran
+identical; the brief's playtest checkpoint below awaits the user's
+read. After the playtest verdict: the Close (SYSTEMS.md inventory
++ move to complete/).**
 
 Companions: `complete/102_DESIGN_CYBERNETICS.md` (the Parked sketch
 this doc inherits — "a general statuses container (`id → rounds
@@ -604,6 +607,40 @@ B's playtest checklist.
       feel it carry; land and watch the debuff die at the rest
       line; the med pack out of combat regens over steps; the loan
       never bleeds).
+      BUILT 2026-10-19 (twelve commits since the brief approval,
+      playtest pending): the prose
+      gate first (ledger above — four Ship-it items + THE MID-GATE
+      RULING: 5 everywhere, every doc site amended in-pass so the
+      doc never contradicted itself); engine helpers (advance's
+      theater filter + defuse_at_fight_end, the payload-event
+      extraction paying a 40-line ratchet in-commit); the catalog
+      swap (crossing retired, removed_on + the debuff stamp +
+      remove_at_transition); the carry flip (all four sites +
+      theater params at the three walks) paying the EXPECTED
+      _rules_space ratchet with the _space_flee sibling split (the
+      _ground_flee pattern); the exploration tick (the shared
+      _walk_round_events fold — the apply laws stay distinct — +
+      the seam hook at the top, with the fight-starting-step order
+      pin the reviewer's minor bought); the three transition
+      wirings (one engine call each, constants only — the
+      reviewer's full mode-flip sweep confirmed the inventory:
+      flee adoptions + capture boarding deliberately unwired); the
+      consumables rewrite (5-everywhere, the exploration_legal
+      rename sweep, the screen branch re-key on combat_ap_bonus —
+      advisor catch 2); the carry surface (the HUD row + the V
+      hint reusing the combat label + the you-only v window with
+      the frame/footer DRY fold); the three ruled guide strings;
+      the mid-tick round-trip pin. Every code commit reviewer-
+      APPROVEd with all minors folded (the named limits added:
+      sum_effects' theater-blind sums, the ruled use-line composed
+      twice; checkpoint watch row 8: a frozen ground row renders
+      on the space panel). ZERO NEW DRAWS proven: the worktree
+      pre/post balance-report diff is IDENTICAL on every
+      deterministic number — the only moving lines are the
+      flight-telemetry means, proven PRE-EXISTING by a pre-vs-pre
+      re-run of the unmodified tree (the same lines move). Suite
+      green at 3983. The checklist below awaits the user's read;
+      then the Close.
 - [ ] Close (SYSTEMS.md inventory amended same-commit; move to
       complete/)
 

@@ -2637,6 +2637,29 @@ class TestActiveStatusesContainer:
         assert restored[REGEN_ID].source == "Med Pack"
         assert restored[NEURAL_STIM_LOAN_ID].theater == "space"
 
+    def test_mid_tick_entries_round_trip_exactly(self):
+        """Doc 103 Build C: save/quit/continue while a carried row is
+        partially spent — the exploration carry's pin. Remaining,
+        theater tag, and source all restore (a resumed stagger keeps
+        walking off; the filter's input survives the cycle)."""
+        from src.spacehack import saveload
+        from src.spacehack.combat import _statuses
+        from src.spacehack.data.statuses import STAGGERED_ID
+
+        ctx = _build_test_ctx()
+        _statuses.apply(
+            ctx.active_statuses, STAGGERED_ID,
+            source="Rock Scavenger", theater="ground",
+        )
+        _statuses.advance(ctx.active_statuses, theater="ground")  # 2 -> 1
+
+        restored = saveload._restore_active_statuses(
+            saveload._active_statuses_payload(ctx),
+        )
+        assert restored[STAGGERED_ID].remaining_turns == 1
+        assert restored[STAGGERED_ID].theater == "ground"
+        assert restored[STAGGERED_ID].source == "Rock Scavenger"
+
     def test_legacy_save_without_the_container_backfills_empty(self):
         from src.spacehack import saveload
 
