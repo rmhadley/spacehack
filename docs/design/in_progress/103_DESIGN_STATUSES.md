@@ -1,12 +1,11 @@
 # DESIGN: Statuses — the durable buff/debuff system
 
-**Status: BUILD B LANDED + PLAYTEST PASSED (2026-10-19 — user
-confirmed; the checklist read clean, no mid-playtest rulings or
-fixes this round). Two phases remain: Build C (the durable
-boundaries — NO Implementation brief yet; `/implement-phase 103.6`
-will stop and propose one, its open rows: the exploration tick's
-turn definition, the smother authoring for fire-type rows) and the
-Close.**
+**Status: BUILD C RULED + BRIEF DRAFTED (2026-10-19 — the four
+boundary rulings settled, see the Build C rulings SETTLED section:
+the dungeon-turn tick law, the TRANSITION-REMOVAL SYSTEM
+superseding the smother shape, the v+HUD carry surface, the med
+pack's kept instant 5; the Implementation brief below is drafted
+and awaiting approval). Two phases remain: Build C and the Close.**
 
 Companions: `complete/102_DESIGN_CYBERNETICS.md` (the Parked sketch
 this doc inherits — "a general statuses container (`id → rounds
@@ -201,8 +200,12 @@ shouldn't immediately remove your current buff/debuff."**
   damage tick following the player into space combat "might be the
   wrong choice" (user instinct, agreed) — RULED 2026-10-18 (q11):
   statuses tick only in their home theater; crossing PAUSES by
-  catalog default, a fire-type status AUTHORS smother (dies at
-  the airlock). No damage tick ever follows you into the cockpit.
+  default. AMENDED 2026-10-19: q11's smother enum value is
+  SUPERSEDED by the transition-removal system (statuses declare
+  WHICH transitions remove them; landing removes all debuffs by
+  default; the future fire debuff adds board-removal — see the
+  Build C rulings SETTLED section). No damage tick ever follows
+  you into the cockpit.
 - **Sequencing ruling (the efficiency question, answered by
   split-by-layer):** the Build A migration stays BEHAVIOR-identical
   (fight end still defuses the player container, exactly as
@@ -231,12 +234,16 @@ shouldn't immediately remove your current buff/debuff."**
 - `stacking: str = "refresh"`, `stacks_max: int = 1` — re-apply
   resets the duration (today's behavior) vs independent stacks to a
   cap.
-- Boundary fields (RULED q11/q13, both defaulting kind; working
-  names — exact naming is brief material): `crossing: str =
-  "pause"` (theater-crossing behavior; a fire-type status authors
-  `"smother"` — statuses tick only in their home theater) and
-  `persists_past_fight: bool = True` (the ground and space stim
-  loans author `False` — combat tempo).
+- Boundary fields (RULED q11/q13; AMENDED 2026-10-19): the q11
+  `crossing: str = "pause"` field was REPLACED pre-first-live-read
+  by `removed_on: tuple[str, ...] = ()` — the transition-removal
+  system: the named transitions that drop this status ("land",
+  "board"; landing's remove-all-debuffs default is stamped
+  CATALOG-side, every polarity=False row carries "land").
+  Non-removed statuses PAUSE through a transition (statuses tick
+  only in their home theater). `persists_past_fight: bool = True`
+  stands (RULED q13; the ground and space stim loans author
+  `False` — combat tempo).
 - Flat defaulted additive payload — a status declares only what it
   carries (the ChromeSpec law; the fold stays table-driven). The
   migrations need exactly TWO terms (`regen_per_round` for the med
@@ -554,32 +561,33 @@ B's playtest checklist.
       two-sided stagger, the refresh, the survivors-only guard,
       the seam's full-ego/deep-burn spread, and the `v` window
       with Tab cycling; no mid-playtest rulings, no fixes.
-- [ ] Build C: the durable boundaries — the fight-end defuse rule
-      flips to carry-over (leftover regen keeps healing while you
-      explore), the exploration tick hook (what counts as a turn
-      out of combat), theater-crossing rules (RULED q.11: pause
-      default + per-status smother field), what persists vs
-      defuses per status (RULED q.13: persist default, the loans
-      author defuse, staggered carries and walks off on steps),
-      and the out-of-combat
-      consumable behaviors (RULED q.12: the stim is
-      exploration-legal and ticks on steps; EVERY med pack use is
-      the regen — the instant full heal RETIRES, economy watch
-      row). Save round-trip
-      of a mid-tick container pinned (the ctx home + wiring
-      already landed in Build A). WATCH ROW (reviewer round-2
-      minor, 2026-10-18): the space reset_turn event walk still
-      logs expire lines mid-walk — unreachable-divergent today
-      (only the loan can share a space boundary) but the moment a
-      space-delivered timed status shares a boundary with the
-      loan, it reproduces the ground's round-1 order inversion;
-      buffer post-walk (or share the ground adapter) when Build C
-      lands the first such status. PLAYTEST: disengage mid-regen and
+- [ ] Build C: the durable boundaries — ALL RULED 2026-10-19 (the
+      Build C rulings SETTLED section + the Implementation brief
+      below, drafted this session and awaiting approval): the
+      fight-end defuse flips to field-keyed carry-over (leftover
+      regen keeps healing while you explore); the exploration tick
+      = DUNGEON TURNS (steps, waits, goto, auto-explore — cities
+      outside status time); the transition-removal system replaces
+      the smother shape (`removed_on` over {land, board}; landing
+      keeps its full heal and removes ALL DEBUFFS by the
+      catalog-side default, buffs survive landing, the future fire
+      row adds board); the carry surface = the exploration HUD row
+      + `v` wired in exploration; the med pack keeps its in-combat
+      instant 5 (out-of-combat = the regen only, the full heal
+      RETIRES, the full-HP refusal stands; economy watch row).
+      Save round-trip of a mid-tick container pinned (the ctx home
+      + wiring already landed in Build A). WATCH ROW (reviewer
+      round-2 minor, 2026-10-18): the space reset_turn event walk
+      still logs expire lines mid-walk — unreachable-divergent
+      today, and Build C lands NO space persisting rounds row, so
+      the row stays open for the first space content that shares a
+      boundary with the loan (not triggered this build). PLAYTEST:
+      the brief's seven-item checkpoint (disengage mid-regen and
       keep healing while walking; save/quit/continue mid-tick;
-      board with a ground status active (it pauses); end a fight
-      burning or staggered and feel it carry; use a med pack out
-      of combat and watch it regen
-      over steps (no more full heal).
+      board with a ground status active; end a fight staggered and
+      feel it carry; land and watch the debuff die at the rest
+      line; the med pack out of combat regens over steps; the loan
+      never bleeds).
 - [ ] Close (SYSTEMS.md inventory amended same-commit; move to
       complete/)
 
@@ -1195,6 +1203,400 @@ Direct register ruling (user, #5): descriptions are sign + number +
 unit + cadence, nothing else. Guide register (#10): lead with the
 direct fact (the chance), then the flat numbers.
 
+## SETTLED — the Build C boundary rulings (2026-10-19)
+
+Four rulings through the question loop; all fold into the brief
+below. Every code anchor verified against the tree this session
+(commit `6fd2b374`, post-Build-B).
+
+### The exploration tick: DUNGEON TURNS (cities outside status time)
+
+One completed dungeon/interior turn = one status tick — movement
+steps, waits, goto, and auto-explore all tick (the one shared seam
+`game_flow._dungeon_post_move_tick:383` already equates them for
+NPC movement; a wait is not free pre-buffing time). CITIES are
+outside status time: the hub's STREETS freeze your statuses —
+nothing threatens you there, and the freeze is what lets a
+staggered survive the walk to the landing pad, making the
+board/land playtest reachable. City INTERIORS tick (bars,
+showrooms — they are dungeon-mode maps dispatching through the
+same seam; the ruling's own "dungeon/interior turn" wording). The
+hook fires at the TOP of the seam, before the combat check — the
+step happened; a fight the step starts then continues the ticking
+at its own round boundaries. ADVISOR CATCH (2026-10-19, folded):
+tick-site placement alone does NOT enforce the pause — the space
+round walk (`_rules_space.reset_turn:865-872`) advances the same
+container with no filter, so a carried ground row would tick (and
+staggered's −1 AP would bleed onto the SPACE AP fields) on the
+first space round after the defuse flip. The home-theater law is
+therefore ENGINE-enforced: `advance` takes the theater and skips
+mismatched rows (advisor-endorsed shape — one live read,
+centralized; `theater` is serialized today, `saveload.py:247`, so
+a mid-flight save/quit/continue preserves the filter's input).
+
+### The transition-removal system (user ruling, verbatim)
+
+"Currently when you land on a planet you are fully healed. I think
+landing on a planet should remove all debuffs. But also, some
+debuffs should be removed in other cases, like transitioning to
+space. I feel like we could make a generic system that lets us
+define which buffs/debuffs are removed during which transitions?
+Then we use that system in the future to add on fire debuff being
+removed when entering ship in addition to the default land on a
+planet to heal/remove debuff"
+
+- Statuses declare WHICH transitions remove them:
+  `removed_on: tuple[str, ...]` — replacing q11's `crossing` enum
+  pre-first-live-read (nothing ever read it; the field is
+  catalog-side, so no save carries it — a free swap). The v1
+  vocabulary: `"land"` (the landing rest seam —
+  `_enter_city_landing`'s heal block at `:402-405`, the
+  production path via `_resolve_planet_land` —
+  the landing full heal STAYS, the user named it approvingly) and
+  `"board"` (the launch-to-space seam, `_launch_owned_ship`'s
+  success path at `:487`). No v1 row authors "board" — the future
+  fire debuff is the first, and it lands with land-removal free
+  via the default.
+- **Landing removes ALL DEBUFFS by default; buffs survive
+  landing.** The default is stamped CATALOG-side — every
+  polarity=False row carries "land" — so the engine never forks on
+  polarity AND a forgotten debuff row still reads removed (regen
+  and stim pause through the flight and resume on the ground;
+  staggered dies at the rest line). An explicit opt-out (a future
+  curse that survives land) joins when content wants it — a named
+  limit, not authored now.
+- Removal is SILENT (dispel semantics — no expire events, no
+  lines; the HUD row's disappearance is the signal, the enemy-side
+  law's twin). Non-removed statuses PAUSE through the crossing
+  (q11's standing half): ground statuses simply stop ticking while
+  you fly, resuming in the next ground theater.
+- The seam inventory (advisor-corrected 2026-10-19): land =
+  `_enter_city_landing`'s heal block
+  (`game_interactions.py:402-405` — the production path via
+  `_resolve_planet_land`; the dev teleport `land_at_city` delegates
+  into it, so one wiring covers both); board = the launch success
+  path (`_launch_owned_ship`, `:487`) AND the dungeon-exit-to-space
+  flip (`game_flow._handle_dungeon_exit:874-906`, adopted at
+  `game_loop.py:650-657` — exiting a derelict/salvage interior is
+  the most common way the player re-enters the ship, and a future
+  fire row surviving THAT exit is the exact scenario the
+  vocabulary exists to prevent — advisor catch 3, blocking). The
+  flee adoptions (`space_flee.py:53-68`) and the capture-boarding
+  path (`_adopt_capture_boarding`) are NOT land (no rest, no heal
+  today) — new transitions are future rulings, never silent
+  additions. The capture edge is recorded: a capture interior IS
+  ground theater, so paused ground statuses resume ticking inside
+  a capture fight (consistent with home-theater ticking; no
+  special handling).
+
+### The carry surface: v + the exploration HUD row
+
+The exploration ground panel gains the same one-row status line
+the combat panels carry (REGEN 2, STAGGERED 1 — polarity-colored),
+and `v` opens the inspect overlay while exploring (a you-only
+subject; no enemies exist to cycle out of combat). The q7 one-row
+law extended to the surface where the carry lives.
+
+### The med pack: the in-combat instant 5 KEPT
+
+q12b's retirement names the instant FULL heal (the out-of-combat
+one); the in-combat shape (5 now + regen 2×3, Build A's
+bit-identical migration) stands untouched. The out-of-combat use
+becomes the regen status only (+6 over steps). The out-of-combat
+full-HP refusal ("Ground HP is already full.") STAYS — waste
+protection; q12b's "regen at max HP is a no-op" describes the tick
+clamp, not the use gate.
+
+## Pre-implementation audit (Build C, 2026-10-19 — written before code)
+
+### 1. Existing classes / modules to extend or reuse
+
+- **The engine needs `advance`'s theater filter plus two small
+  helpers**, all pure and unit-pinned: `advance(container,
+  theater=...)` (skip mismatched rows — the home-theater law made
+  mechanical; advisor catch 1), `defuse_at_fight_end(container)`
+  — the field-keyed predicate (fight-class rows +
+  `persists_past_fight=False` rows, AND unknown ids DROP: a
+  retired row can never resolve a spec, so it defuses — immortal
+  save-carried garbage is the one behavior the silent-skip read
+  contract must NOT extend to the defuse; advisor catch 7) — and
+  `remove_at_transition(container, transition)` — the
+  `removed_on` read. No engine polarity read anywhere: the debuff
+  default is catalog-side.
+- **The exploration adapter's home**:
+  `combat/_ground_effects.py` (the adapter family home, 251 lines
+  — headroom): `advance_exploration_statuses(ctx)` applies heal
+  events to `ctx.ground_hp` clamped at the REFRESHED max (the
+  ground-max-HP staleness law — `xp.refresh_ground_max_hp` before
+  clamping), DROPS ap events (no AP pool exists out of combat),
+  and logs tick/expire lines per the adapter contract (tick lines
+  only on healed > 0; the staggered expire line reads while
+  exploring; the stim/regen expire silently — they decline
+  expire lines).
+- **The tick seam**: `game_flow._dungeon_post_move_tick (:383)` —
+  shared by the dungeon move, wait, goto, and auto-explore paths
+  via the `post_step_tick` threading. Hook at the top, before
+  `_run_ground_combat_tick`.
+- **The transition seams**: land = `_enter_city_landing`'s heal
+  block (`game_interactions.py:402-405`, the production path via
+  `_resolve_planet_land`; the dev teleport's `land_at_city`
+  delegates into it — advisor catch 4's anchor fix) and board =
+  the launch success path (`:487`) PLUS the dungeon-exit-to-space
+  flip (`game_flow._handle_dungeon_exit:874-906`, adopted at
+  `game_loop.py:650-657` — advisor catch 3).
+- **The four defuse sites to flip**: `_rules_ground.sync_state`
+  (`:932`) + `_defuse_stale_session` (`:116-129`); `_rules_space`
+  init (`:130`) + sync (`:911`). All four call the shared engine
+  helper — carried statuses then survive fight init AND the
+  abnormal-end recovery path (the q13 law: you keep your burns).
+- **The consumable seam**: `ground_consumables._use_outside_combat`
+  (`:69-78`) + the spec field rename sweeping
+  `character_screen.py:352` and the spec docstring (the
+  every-consumer law — but NOT a mechanical rename at the screen:
+  the detail-text branch uses the field to choose its FORMAT
+  (`if outside_full_heal:` HP text `elif combat_ap_bonus:` AP
+  text), and both items carrying True post-re-scope would render
+  the stim as "+0 HP" — the branch re-keys on `combat_ap_bonus`
+  first or on `effect_id`, and the changed detail text is
+  player-facing, prose-gated; advisor catch 2, blocking). The med
+  pack's in-combat path (`apply_player_effect`) is UNTOUCHED.
+- **HUD**: `hud.py`'s ground exploration panel — the lazy-import
+  precedent (`bandolier_hud_lines`, `:279-286`) solves the
+  combat-cycle law for `hud_segments` / `paint_hud_segments`
+  (function-body import; the Build A audit's cycle finding stands
+  for module level).
+- **`v` in exploration**: the exploration handler
+  (`game_loop._handle_non_movement_event:517`) dispatches;
+  `status_inspect` needs a you-only entry (its current signature
+  takes a live `rules` for enemy subjects — none exist out of
+  combat).
+- **Guide**: the two falsified sentences at
+  `data/guide/__init__.py:337-343` (med pack "fully heal outside
+  combat… In combat they restore 5 HP immediately…"; stim "cannot
+  be used while exploring").
+
+### 2. Duplication hotspots (predicted traps)
+
+1. **Four defuse sites hand-rolling four predicates** — the
+   field-keyed law must not fork per theater (the exact drift the
+   shared-helper law exists for).
+2. **The exploration adapter vs `advance_player_effects`** — both
+   walk events and compose ruled lines; copy-pasting the line
+   composition is the ruled-prose drift trap (hotspot 3 from
+   Build A's audit, back for the third time).
+3. **Two transition seams growing bespoke removal loops** — each
+   seam must be ONE call to the engine helper, never its own
+   iteration.
+
+### 3. DRY strategy per hotspot
+
+1. ONE engine helper (`defuse_at_fight_end`); the four sites each
+   become a one-line call (also the line-neutral shape the
+   999-line `_rules_space.py` budget needs).
+2. The tick/expire line composition extracts to a shared
+   `_ground_effects` helper both adapters call — the APPLY shapes
+   stay three DISTINCT laws (gain-fold in combat, twin-field
+   post-reset in space, direct clamp at the refreshed max while
+   exploring; the never-homogenize ruling).
+3. `remove_at_transition` is the single iteration; the vocabulary
+   is one constant beside the rows (`data/statuses.py`).
+
+### Build-session design decisions (recorded before code)
+
+- **The catalog-side debuff stamp**: `removed_on` defaults to
+  `("land",)` for polarity=False rows via a construction-time
+  stamping pass beside `STATUSES` — the engine stays
+  polarity-blind and a forgotten debuff row still reads removed
+  at land (fail-open; an explicit-authoring shape was considered
+  and declined — its forgotten-row failure mode is the WRONG
+  default). Recorded semantics (advisor catch 6): the stamp UNIONS
+  with explicit authoring (the fire row's future
+  `("land", "board")` never duplicates); the survive-land opt-out
+  joins as an explicit named field the day content wants it (a
+  documented sentinel, not accidental); and the stamp is the
+  tree's FIRST polarity-keyed behavioral default — it lives at
+  the catalog construction site, and every READ site stays
+  polarity-blind (the presentation-only doctrine holds where it
+  always applied).
+- **`theater` goes LIVE in Build C** (advisor catch 1, blocking —
+  the structural-only plan was falsified by the tree): the space
+  round walk advances the shared container with no filter, so
+  placement-only pause fails the moment the defuse flip lets a
+  carried ground row reach it. `advance(container, theater=...)`
+  skips mismatched rows; every advance site passes its theater
+  (the ground walk, the exploration adapter, the space walk). A
+  None tag matches every theater (legacy-proof; today's applies
+  always stamp). This also settles `saveload.py:229-234`'s
+  deferred boundary comment.
+- **Board fires with zero removals in v1**: one live call through
+  the live handler at the launch seam — symmetric and generic,
+  not dead code (the handler is live at land; the call site makes
+  the system real for the fire row's future authoring).
+- **The full-HP refusal stays** (flagged default at the ruling
+  batch; the brief approval is its gate).
+- **No new draws anywhere**: the exploration tick applies
+  deterministic events (the engine is RNG-free), transitions are
+  drawless dispels, the consumable rewrite applies statuses
+  without rolls (consumables ship 100%, q6). The worktree pre/post
+  harness diff should read IDENTICAL — run it as insurance,
+  expect zero moved rows, and investigate any that move.
+
+## Implementation brief — Build C: the durable boundaries (DRAFTED 2026-10-19; advisor ADVISE-folded — verdict ADVICE, 9 issues, 3 blocking, all folded; awaiting user approval)
+
+### Pre-build gate (prose)
+
+The two falsified guide sentences (med pack, stim) rewrite through
+the prose loop BEFORE any land; the Statuses section's "Press V in
+combat" amends (v becomes usable while exploring). The stim's
+character-screen DETAIL TEXT changes with the branch re-key
+(player-facing, prose-gated — advisor catch 2). Retiring strings
+are called out on the checklist; verify the "can only be used in
+ground combat" line's remaining gated items (the tinker kit
+stays) before retiring it.
+
+### Scope (files + hook points)
+
+1. `data/statuses.py` — `crossing` RETIRED; `removed_on:
+   tuple[str, ...] = ()` + the catalog-side debuff stamp (every
+   polarity=False row carries "land") + the transition vocabulary
+   constant.
+2. `combat/_statuses.py` — `advance` gains the THEATER filter
+   (`advance(container, theater=...)` skips mismatched rows; None
+   matches every theater); `defuse_at_fight_end(container)`
+   (fight-class + loans + UNKNOWN IDS drop) and
+   `remove_at_transition(container, transition)`: dispel-based,
+   silent, pure, unit-pinned.
+3. `combat/_rules_ground.py` — `sync_state` (`:932`) and
+   `_defuse_stale_session` (`:126-129`) call the shared helper
+   (the inline dispel-all goes); the ground round walk passes
+   `theater="ground"`.
+4. `combat/_rules_space.py` — the init (`:130`) and sync (`:911`)
+   sites, same; the space round walk (`:865-872`) passes
+   `theater="space"` (a carried ground row FREEZES there — the
+   pause made mechanical; advisor catch 1, blocking). BUDGET
+   NOTE: 999 lines — the theater filter ADDS lines here, so the
+   build REALISTICALLY trips the 1000 ratchet and pays the
+   in-commit split as the EXPECTED path (advisor catch 8), not a
+   fallback.
+5. `combat/_ground_effects.py` — `advance_exploration_statuses
+   (ctx)` (passes `theater="ground"`) + the shared tick/expire
+   line-composer extraction.
+6. `game_flow.py` — the hook call at the TOP of
+   `_dungeon_post_move_tick` (988 lines — thin headroom; a 1-2
+   line call fits, nothing else joins this module).
+7. The transition wirings — land: `remove_at_transition` beside
+   the `_enter_city_landing` heal block (`:402-405`; the dev
+   teleport delegates in); board: the call at the launch success
+   path (`game_interactions.py:487`) AND at the
+   dungeon-exit-to-space flip (`_handle_dungeon_exit` /
+   `game_loop.py:650-657` — advisor catch 3, blocking).
+8. `ground_consumables.py` — `_use_outside_combat` rewritten: the
+   gate re-scopes from `outside_full_heal` to exploration-legality
+   (working rename `exploration_legal`); the med pack applies the
+   regen status and the stim applies the stim status (source =
+   spec.name, theater="ground"); the full heal RETIRES; the
+   full-HP refusal STAYS.
+9. `data/ground_items/__init__.py` + `consumables.py` +
+   `character_screen.py` — the field rename sweep (docstring +
+   both reads), with the screen's detail-text branch RE-KEYED
+   (combat_ap_bonus first, or effect_id — never the renamed
+   legality flag, which both items now carry True; advisor catch
+   2, blocking).
+10. `hud.py` — the exploration one-row status line (lazy import,
+    the bandolier precedent; renders only rows carrying
+    `hud_label`).
+11. `game_loop.py` + `status_inspect.py` — `v` wired in
+    exploration (`_handle_non_movement_event`), the you-only
+    overlay entry WITHOUT the "TAB next" footer hint (one subject
+    — TAB would mislead; advisor note); no turn cost.
+12. `data/guide/__init__.py` — the prose-gated rewrites above.
+
+### Build order
+
+prose gate first → engine helpers + unit pins → catalog swap +
+the debuff-stamp pin → the four defuse flips + carry pins → the
+exploration adapter + the seam hook + tick pins → the two
+transition wirings + their pins → the consumables rewrite + pins
+→ HUD row + `v` → guide → the save round-trip live-entries pin +
+the worktree pre/post FULL-suite harness diff (expect IDENTICAL).
+
+### Binding rulings
+
+The tick law (dungeon turns; city STREETS outside status time,
+city interiors tick — they are dungeon-mode maps; the hook at the
+seam top — the step happened before any fight it starts). The
+transition system (`removed_on`; vocabulary exactly {land, board}
+with board firing at BOTH the launch seam and the
+dungeon-exit-to-space flip — new transitions are future rulings,
+never silent additions; landing keeps its heal and removes all
+debuffs by the catalog-side default; buffs survive land; removal
+silent). The home-theater law is ENGINE-enforced (`advance`'s
+theater filter at every walk — a carried ground row never ticks,
+and never touches space AP, while you fly). The defuse flip
+(field-keyed at all four sites; fight-class rows, the loans, AND
+unknown retired ids defuse; carried rows survive fight init AND
+the abnormal-end recovery — q13's "you keep your burns"). The med
+pack edges (in-combat instant 5 KEPT; out-of-combat = regen only;
+full-HP refusal stands). The loan never bleeds (silent defuse,
+no repay line on an unconsumed loan). Enemy containers unchanged
+(fight-scoped). The capture edge (a capture interior is ground
+theater — paused ground statuses resume inside a capture fight).
+ZERO new draws — the harness diff must read identical (advisor
+verified: every named site is drawless, and each harness run is a
+single fight); the space expire-line watch row stays UNTRIGGERED
+and open for the first space content.
+
+### Required tests
+
+Engine pins for both helpers (defuse predicate: fight-class +
+loans drop, carried rows survive, UNKNOWN retired ids drop;
+transition removal: land drops staggered, keeps regen/stim, board
+drops nothing in v1 — at BOTH board seams). The catalog stamp pin
+(every polarity=False row carries "land"; the stamp unions with
+explicit authoring). The theater-filter pins (a ground-tagged row
+does not tick — and never touches space AP — at the space walk;
+None matches every theater). The exploration tick pins (regen
+heals 2/step clamped at the refreshed max, tick line only on
+healed > 0; waits tick; city STREETS do not tick; city INTERIORS
+do; auto-explore ticks; staggered decrements and its expire line
+logs; the stim decrements with NO ap effect). The carry pins
+(staggered with rounds left applies at the next fight's resets;
+the container survives the abnormal-end recovery path). The
+consumable rewrite pins (med pack out-of-combat = regen apply, no
+full heal, refused at full HP; stim legal + applied; the screen's
+detail text renders the stim's AP format, never "+0 HP"). The
+save round-trip pin (live mid-tick entries: remaining, theater
+tag, source). The worktree pre/post harness diff + the full gate
++ reviewer REVIEW.
+
+### Stop point
+
+No fire-type row ("board" ships removed-by-nothing). No space
+exploration tick. No new transitions (station docking, flee,
+capture are future rulings). No new statuses. No potency keying.
+No cooldown work. No AoE.
+
+### Playtest checkpoint
+
+1. Disengage mid-regen: the tick lines fire on dungeon steps
+   (clamped at max); a dungeon WAIT also ticks; city steps freeze
+   it.
+2. Save/quit/continue mid-tick: resumes exactly (the HUD row and
+   remaining both survive).
+3. End a fight staggered: the HUD row carries out, walks off on
+   steps (the expire line reads); re-engage with rounds left and
+   it applies (your resets dip).
+4. Carry a status to the pad (city steps freeze it), board: it
+   pauses in space; land: the debuff is gone at the rest line,
+   buffs survive and resume.
+5. Med pack out of combat: no full heal — REGEN ticks on steps;
+   refused at full HP. Stim out of combat: legal, and the walk
+   spends it.
+6. The core-button loan never bleeds: end a fight right after
+   pressing core — no −1 AP in the next fight's first round.
+7. Both rewritten guide sentences read correct; the exploration
+   HUD row and `v` work while exploring.
+
 ## Acceptance criteria
 
 1. **One mechanism**: no new ad-hoc timed-effect field, key, or
@@ -1411,6 +1813,24 @@ rides application (the delivery vehicle knows its theater). The
 user's instinct is honored by construction: a damage tick never
 follows you into the cockpit.
 
+**AMENDED (user, 2026-10-19 — the Build C ruling):** the smother
+enum value is SUPERSEDED by the generic transition-removal system
+(user, verbatim: "I feel like we could make a generic system that
+lets us define which buffs/debuffs are removed during which
+transitions? Then we use that system in the future to add on fire
+debuff being removed when entering ship in addition to the default
+land on a planet to heal/remove debuff"). The PAUSE half of the
+ruling STANDS unchanged (non-removed statuses freeze through a
+crossing; home-theater ticking). Removal becomes per-status
+`removed_on` data over a named transition vocabulary ("land" =
+the landing rest seam, which today full-heals — landing now ALSO
+removes all debuffs by default; "board" = the launch-to-space
+seam, removed-by-nothing in v1 until the fire row). The debuff
+default is stamped CATALOG-side (every polarity=False row carries
+"land"), so the engine never forks on polarity — the
+presentation-only doctrine holds at every read site. Full shape
+in the Build C rulings SETTLED section.
+
 ### q12 — Out-of-combat consumables: stim LEGAL; med pack = REGEN EVERYWHERE
 
 - **q12a (user: legal, ticks):** the Combat Stim becomes
@@ -1507,9 +1927,10 @@ pointed at the player: you keep your burns). Regen persists
    in v1 (SETTLED section above).
 10. **The killing-hit guard** — SETTLED 2026-10-18: survivors
     only (SETTLED section above).
-11. **Theater crossing** — SETTLED 2026-10-18: pause default +
-    per-status smother field, home-theater ticking (SETTLED
-    section above).
+11. **Theater crossing** — SETTLED 2026-10-18 (pause default +
+    per-status field, home-theater ticking), AMENDED 2026-10-19:
+    the smother enum value superseded by the transition-removal
+    system (SETTLED sections above).
 12. **Out-of-combat consumable use** — SETTLED 2026-10-18: stim
     exploration-legal (ticks on steps); med pack = regen
     everywhere, the instant full heal RETIRES (SETTLED section
