@@ -24,8 +24,12 @@ from src.spacehack.data.statuses import (
     REGEN_ID,
     STAGGERED_ID,
     STIM_ID,
+    TRANSITION_BOARD,
+    TRANSITION_LAND,
     StatusSpec,
+    _stamped,
     find_status,
+    list_status,
 )
 
 
@@ -257,6 +261,62 @@ def test_defuse_at_fight_end_drops_unknown_retired_ids():
         "retired_row", "also_retired",
     )
     assert player == {}
+
+
+# --- the transition-removal system (doc 103 Build C) -----------------------------
+
+
+def test_every_debuff_row_carries_land_by_the_catalog_stamp():
+    """The catalog-side default: every polarity=False row reads
+    removed at land (a forgotten debuff row still dies); buffs carry
+    nothing unless authored — landing keeps them."""
+    for spec in list_status():
+        if spec.polarity:
+            assert TRANSITION_LAND not in spec.removed_on, spec.id
+        else:
+            assert TRANSITION_LAND in spec.removed_on, spec.id
+
+
+def test_the_stamp_unions_with_explicit_authoring():
+    """A debuff row authoring its own removals never duplicates the
+    stamp (the future fire row's ("land", "board") stays a pair)."""
+    _row = StatusSpec(
+        id="synth_fire", name="On Fire", polarity=False,
+        duration=3, duration_class="rounds",
+        removed_on=(TRANSITION_LAND, TRANSITION_BOARD),
+    )
+    assert _stamped((_row,))[0].removed_on == (TRANSITION_LAND, TRANSITION_BOARD)
+    # A debuff with no explicit authoring gets the stamp alone.
+    stamped_default = _stamped((StatusSpec(
+        id="synth_debuff", name="Synth", polarity=False,
+        duration=1, duration_class="rounds",
+    ),))
+    assert stamped_default[0].removed_on == (TRANSITION_LAND,)
+
+
+def test_land_removal_drops_debuffs_keeps_buffs():
+    """Landing's ruled shape: staggered and the loan die at the rest
+    line; regen and the stim pause through the flight and resume."""
+    player: dict[str, ActiveStatus] = {}
+    for _sid in (REGEN_ID, STIM_ID, STAGGERED_ID, NEURAL_STIM_LOAN_ID):
+        _statuses.apply(player, _sid, theater="ground")
+    assert _statuses.remove_at_transition(player, TRANSITION_LAND) == (
+        STAGGERED_ID, NEURAL_STIM_LOAN_ID,
+    )
+    assert set(player) == {REGEN_ID, STIM_ID}
+    # Board drops nothing in v1 — no row authors it until fire.
+    assert _statuses.remove_at_transition(player, TRANSITION_BOARD) == ()
+    assert set(player) == {REGEN_ID, STIM_ID}
+
+
+def test_transition_removal_keeps_unknown_ids():
+    """Unknown ids declare nothing and stay (inert at every read;
+    the next fight-end defuse owns their death — never immortal)."""
+    player: dict[str, ActiveStatus] = {
+        "retired_row": ActiveStatus("retired_row", 3),
+    }
+    assert _statuses.remove_at_transition(player, "land") == ()
+    assert "retired_row" in player
 
 
 # --- actor symmetry (acceptance criterion 5) -------------------------------------

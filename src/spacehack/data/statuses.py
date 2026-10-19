@@ -11,7 +11,7 @@ Design doc: ``docs/design/in_progress/103_DESIGN_STATUSES.md``.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 
 # Shared row ids (the ground_consumables KIT_*_ID precedent: one
@@ -22,6 +22,12 @@ NEURAL_STIM_LOAN_ID = "neural_stim_loan"
 PIRATE_OPENER_ID = "pirate_opener"
 OPENER_WINDOW_ID = "opener_window"
 STAGGERED_ID = "staggered"
+
+# The transition vocabulary (doc 103 Build C): the named crossings a
+# row may declare removal on. New transitions are future rulings,
+# never silent additions — this pair is the whole vocabulary.
+TRANSITION_LAND = "land"
+TRANSITION_BOARD = "board"
 
 # The loan's repay narration — the exact chrome bytes (doc 102 prose
 # ledger 6; doc 103 Build A moves the canonical home to the row it
@@ -48,8 +54,13 @@ class StatusSpec:
         stacking: ``"refresh"`` (re-apply resets the duration, the
             default — doc 103 S2/S3) or ``"stacks"`` (independent
             stacks to ``stacks_max``).
-        crossing: theater-crossing behavior (doc 103 q11 — pause
-            default; STRUCTURAL in Build A, first read by Build C).
+        removed_on: the named transitions that drop this status
+            (doc 103 Build C's transition-removal system, over the
+            ``land``/``board`` vocabulary); non-removed statuses PAUSE
+            through a crossing (home-theater ticking). Every
+            polarity=False row carries ``land`` via the catalog-side
+            debuff stamp — a forgotten debuff row still reads removed
+            at the landing rest, so the engine never reads polarity.
         persists_past_fight: whether fight end keeps the status
             (doc 103 q13 — persist default; STRUCTURAL in Build A,
             first read by Build C).
@@ -81,7 +92,7 @@ class StatusSpec:
     duration_class: str
     stacking: str = "refresh"
     stacks_max: int = 1
-    crossing: str = "pause"
+    removed_on: tuple[str, ...] = ()
     persists_past_fight: bool = True
     regen_per_round: int = 0
     ap_per_round: int = 0
@@ -104,7 +115,26 @@ class StatusSpec:
 _REGEN_TICK_LINE = "{source} regeneration: +{healed} HP."
 
 
-STATUSES: tuple[StatusSpec, ...] = (
+def _stamped(rows: tuple[StatusSpec, ...]) -> tuple[StatusSpec, ...]:
+    """The catalog-side debuff stamp (doc 103 Build C): every
+    polarity=False row carries LAND removal, so landing removes all
+    debuffs by default while the engine never forks on polarity — a
+    forgotten debuff row still reads removed (fail-open; the
+    explicit-authoring alternative's forgotten-row failure mode is
+    the WRONG default). The stamp UNIONS with explicit authoring
+    (a future fire row's ("land", "board") never duplicates). The
+    survive-land opt-out joins as an explicit named field the day
+    content wants it. This is the tree's FIRST polarity-keyed
+    behavioral default — it lives HERE, at catalog construction,
+    and every read site stays polarity-blind."""
+    return tuple(
+        spec if (spec.polarity or TRANSITION_LAND in spec.removed_on)
+        else replace(spec, removed_on=spec.removed_on + (TRANSITION_LAND,))
+        for spec in rows
+    )
+
+
+STATUSES: tuple[StatusSpec, ...] = _stamped((
     StatusSpec(
         id=REGEN_ID,
         name="Regeneration",
@@ -180,7 +210,7 @@ STATUSES: tuple[StatusSpec, ...] = (
         hud_label="STAGGERED",
         description="-1 AP per round.",
     ),
-)
+))
 
 
 _BY_ID: dict[str, StatusSpec] | None = None

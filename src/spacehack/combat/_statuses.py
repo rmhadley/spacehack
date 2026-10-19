@@ -252,6 +252,32 @@ def defuse_at_fight_end(container: dict[str, ActiveStatus]) -> tuple[str, ...]:
     return dispel(container, _dies_at_fight_end)
 
 
+def _removed_at(
+    active: ActiveStatus, transition: str,
+) -> bool:
+    """Whether one row DECLARES this transition in ``removed_on``
+    (unknown ids declare nothing — they stay; inert at every read,
+    they die at the next fight-end defuse, never immortal)."""
+    try:
+        spec = find_status(active.status_id)
+    except KeyError:
+        return False
+    return transition in spec.removed_on
+
+
+def remove_at_transition(
+    container: dict[str, ActiveStatus], transition: str,
+) -> tuple[str, ...]:
+    """The transition-removal system's one iteration (doc 103 Build
+    C): drop every row declaring this transition — silent (dispel
+    semantics; the HUD row's disappearance is the signal, the
+    enemy-side law's twin). Non-removed statuses PAUSE through the
+    crossing (the home-theater law). ``board`` fires with zero
+    removals in v1: no row authors it until the future fire debuff,
+    and the live board seams make the system real for that row."""
+    return dispel(container, lambda active: _removed_at(active, transition))
+
+
 def hud_segments(
     container: dict[str, ActiveStatus],
 ) -> tuple[tuple[str, bool], ...]:
