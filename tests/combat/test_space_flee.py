@@ -20,7 +20,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from src.spacehack import game_interactions, solar_system, world
 from src.spacehack import space_flee
-from src.spacehack.combat import _ai, _loop, _rules_ground, _rules_space
+from src.spacehack.combat import (
+    _ai, _loop, _rules_ground, _rules_space, _space_flee,
+)
 from src.spacehack.combat._types import (
     CombatResult, EnemyInstance, FleeExit, SpaceCombatState,
 )
@@ -299,11 +301,11 @@ def _patch_exit(monkeypatch, target, commit, refused):
 def _patch_volley_recorder(monkeypatch):
     fired: list = []
 
-    async def _fake_volley(_ctx, game_map):
+    async def _fake_volley(_state, _ctx, game_map):
         fired.append(game_map)
         return False
 
-    monkeypatch.setattr(_rules_space, "reaction_volley", _fake_volley)
+    monkeypatch.setattr(_space_flee, "reaction_volley", _fake_volley)
     return fired
 
 
@@ -370,10 +372,10 @@ def test_attempt_flee_death_wins(monkeypatch):
         FleeExit(verb="land", planet_id="earth"), False,
     )
 
-    async def _killer_volley(_ctx, _game_map):
+    async def _killer_volley(_state, _ctx, _game_map):
         return True
 
-    monkeypatch.setattr(_rules_space, "reaction_volley", _killer_volley)
+    monkeypatch.setattr(_space_flee, "reaction_volley", _killer_volley)
     game_map = _open_map()
     state, ctx = _space_state(game_map, world.Position(2, 4), [])
     try:

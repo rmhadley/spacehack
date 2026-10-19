@@ -124,10 +124,10 @@ def _activate_combat_state(
     )
     # Freeze the engaged set immediately.
     _set_combat_locks(True, enemy_ents)
-    # A fresh fight starts from an empty player container (doc 103
-    # Build A — today the loan key died with the old player_state),
-    # then the Pirate opener arms where the trait holds.
-    _statuses.dispel(_player_statuses(), lambda _active: True)
+    # A fresh fight runs the field-keyed defuse (doc 103 Build C):
+    # carried rows SURVIVE fight init (q13); the loans drop, then
+    # the Pirate opener arms where the trait holds.
+    _statuses.defuse_at_fight_end(_player_statuses())
     _opener.arm(ctx, enemy_insts, theater="space")
 
 def init(
@@ -859,10 +859,12 @@ def reset_turn(ctx) -> None:
     # Build A): the -1 lands on the round AFTER the pop, twin-field
     # POST-RESET (both fields max(0)-guarded, fired exactly once,
     # then the expire logs the ruled line); the cooldown ticks every
-    # round start (pop N, blocked N+1/N+2, ready N+3).
+    # round start (pop N, blocked N+1/N+2, ready N+3). Build C's
+    # home-theater filter: a carried GROUND row never ticks (and
+    # never touches space AP) at this walk.
     from ..data.statuses import find_status
     _ps = _state.player_state
-    for _ev in _statuses.advance(_player_statuses()):
+    for _ev in _statuses.advance(_player_statuses(), theater="space"):
         if _ev[0] == "ap":
             _ps["ap_total"] = max(0, _ps["ap_total"] + _ev[2])
             _ps["ap_remaining"] = max(0, _ps["ap_remaining"] + _ev[2])
@@ -905,10 +907,10 @@ def sync_state(ctx) -> None:
     # player missiles never gate the end — enemy ones now do, the
     # 2026-10-02 amendment) and never serializes — sweep first.
     _missile_flight.sweep_flights(_state, _state.game_map)
-    # Fight end DEFUSES the player container (doc 103 Build A) —
-    # today's fight-scoped keys died with the state; without this a
-    # popped loan would bleed into the next space fight. Silent.
-    _statuses.dispel(_player_statuses(), lambda _active: True)
+    # Fight end runs the FIELD-KEYED defuse (doc 103 Build C): the
+    # loans drop — a popped loan never bleeds into the next space
+    # fight — and carried rows survive. Silent.
+    _statuses.defuse_at_fight_end(_player_statuses())
     # Release the combatants: with the fight over they resume normal
     # patrol movement on the next space tick.
     _set_combat_locks(False)
@@ -936,64 +938,20 @@ def try_board(ctx, game_map: world.GameMap, target_idx: int) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Flee (doc 54 phase 1)
+# Flee (doc 54 phase 1) — one-line hooks over the _space_flee sibling
+# (the _ground_flee pattern; the size-ratchet split, doc 103 Build C)
 # ---------------------------------------------------------------------------
 
 async def reaction_volley(ctx, game_map: world.GameMap) -> bool:
-    """The flee reaction volley (doc 54): every live hostile that can
-    hit the player RIGHT NOW — LOS plus a weapon in range — fires one
-    shot from where it stands; no movement, no repositioning. Shots
-    pay their real costs and can kill. Returns True when the player
-    was destroyed (death wins: the transition never runs)."""
-    from ._ai import _enemy_attack, _reaction_pick
-
-    _p_pos = _state.player_state["pos"]
-    _hit_chances = _build_hit_chances(_current_target())
-    _evade = _player_evade()
-    for _ei in get_enemies(ctx):
-        if not _has_los(game_map, _ei.pos.x, _ei.pos.y, _p_pos.x, _p_pos.y):
-            continue
-        _pick = _reaction_pick(_ei, _distance(_p_pos, _ei.pos), _state.player_state)
-        if _pick is None:
-            continue
-        if await _enemy_attack(
-            _state, _ei, _pick[0],
-            hit_chances=_hit_chances, evade_bonus=_evade,
-            calc_cam=_calc_camera, ctx=ctx,
-        ) == "DEFEAT":
-            return True
-    return False
+    """The flee reaction volley (doc 54) — the implementation lives
+    in :mod:`._space_flee` (the ground hook's mirror, same name)."""
+    from . import _space_flee
+    return await _space_flee.reaction_volley(_state, ctx, game_map)
 
 
 async def attempt_flee(ctx, game_map: world.GameMap, action: str) -> str | None:
-    """The in-combat exit attempt (doc 54 phase 1), space's hook.
-
-    A move whose target is a world exit (planet / station / jump
-    gate) runs the SAME exit prompt the main loop runs — cancels and
-    refusals fire nothing (SETTLED 1/3); a committing choice eats the
-    reaction volley, then the fight ends WITHOUT running the
-    transition (the caller executes it from ``cr.flee_exit``, the
-    BOARD seam). Returns ``None`` when the target is no exit (the
-    move dispatches normally, blocked bumps logging "Blocked."),
-    ``"HELD"`` for a canceled or refused exit (full no-op, same
-    turn), ``"FLED"`` when the volley was survived, ``"DEFEAT"``
-    when it killed the player."""
-    if player_ap(ctx) <= 0:
-        return None
-    _dx, _dy = world.MOVE_KEYS.get(action.partition(":")[2], (0, 0))
-    if (_dx, _dy) == (0, 0):
-        return None
-    from ..game_interactions import (
-        _ctx_state_shim, _space_exit_commit, _space_exit_target,
-    )
-    _shim = _ctx_state_shim(_state.ctx, _state.console)
-    _target = _space_exit_target(_shim, _dx, _dy)
-    if _target is None:
-        return None
-    _commit, _refused = await _space_exit_commit(_shim, _target)
-    if _commit is None:
-        return "HELD"
-    if await reaction_volley(ctx, game_map):
-        return "DEFEAT"
-    _state.cr.flee_exit = _commit
-    return "FLED"
+    """The in-combat exit attempt (doc 54 phase 1), space's hook —
+    the implementation lives in :mod:`._space_flee` (the ground
+    hook's mirror; takes the action string at the meta seam)."""
+    from . import _space_flee
+    return await _space_flee.attempt_flee(_state, ctx, game_map, action)

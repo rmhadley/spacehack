@@ -116,16 +116,15 @@ def _starting_ap_gain_twentieths(ctx) -> int:
 def _defuse_stale_session(ctx) -> None:
     """Fight-start hygiene: release an abnormally-ended previous
     fight's locks (an exception that skipped sync_state) so those
-    NPCs patrol again, retire the stale session, and empty the
-    player's status container — today's fresh fight-state object
-    meant an empty ledger by construction; the ctx home outlives
-    fights (doc 103 Build A)."""
+    NPCs patrol again, retire the stale session, and run the
+    field-keyed fight-end defuse (doc 103 Build C) — carried rows
+    SURVIVE the recovery path into the new fight (q13: you keep
+    your burns); the fight class and the loans drop."""
     if _state is not None:
         _set_combat_locks(False)
         _state.active = False
-    _statuses.dispel(
+    _statuses.defuse_at_fight_end(
         getattr(ctx, "active_statuses", None) or {},
-        lambda _active: True,
     )
 
 
@@ -924,14 +923,13 @@ def sync_state(ctx) -> None:
     _state.active = False
     ctx.ground_hp = max(0, _state.player_hp)
     ctx.ground_max_hp = _state.player_max_hp
-    # Fight end DEFUSES the player container (doc 103 Build A) —
-    # behavior-identical to today's ledger evaporation; Build C
-    # flips the boundary rules on this same home. Removal is silent:
-    # no expire events, so an unconsumed loan never pays its line.
+    # Fight end runs the FIELD-KEYED defuse (doc 103 Build C — the
+    # carry flip): the fight class and the loans drop, carried rows
+    # WALK OUT (staggered carries, regen keeps healing). Silent: no
+    # expire events, so an unconsumed loan never pays its line.
     # getattr: minimal test ctxs may not carry the container.
-    _statuses.dispel(
+    _statuses.defuse_at_fight_end(
         getattr(ctx, "active_statuses", None) or {},
-        lambda _active: True,
     )
     # Combat-scoped stare (doc 48 p9): every end path defuses pending
     # zones — disengage never leaves a live trap on the floor.

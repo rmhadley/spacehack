@@ -302,3 +302,115 @@ class TestHudRows:
             assert _stim_hud_row(_ctx)[0] == "STIM (a): 2 ROUNDS"
         finally:
             _rules_ground._state = _old
+
+
+class TestFightEndCarry:
+    """Doc 103 Build C: every fight-end site flips to the
+    field-keyed defuse — carried rows WALK OUT (q13: you keep your
+    burns), the loans still never bleed, and the abnormal-end
+    recovery path keeps carried rows too."""
+
+    def _carry_ctx(self):
+        from src.spacehack.combat import _statuses
+        from src.spacehack.data.statuses import (
+            NEURAL_STIM_LOAN_ID, REGEN_ID, STAGGERED_ID,
+        )
+
+        _log, _lines = _log_spy()
+        _ctx = SimpleNamespace(
+            installed_chrome=[], log=_log, active_statuses={},
+            ground_hp=10, ground_max_hp=10,
+        )
+        _statuses.apply(_ctx.active_statuses, REGEN_ID, theater="ground")
+        _statuses.apply(_ctx.active_statuses, STAGGERED_ID, theater="ground")
+        _statuses.apply(_ctx.active_statuses, NEURAL_STIM_LOAN_ID, theater="ground")
+        return _ctx, _lines, (REGEN_ID, STAGGERED_ID, NEURAL_STIM_LOAN_ID)
+
+    def test_ground_sync_carries_rows_drops_the_loan(self):
+        _ctx, _lines, (_regen, _stag, _loan) = self._carry_ctx()
+        _tiles = [[world.DUNGEON_FLOOR for _ in range(11)] for _ in range(11)]
+        _state = _rules_ground.GroundCombatState(
+            ctx=_ctx, game_map=world.GameMap(11, 11, _tiles, []),
+            player_hp=8, player_max_hp=10,
+        )
+        _old = _rules_ground._state
+        _rules_ground._state = _state
+        try:
+            _rules_ground.sync_state(_ctx)
+            assert set(_ctx.active_statuses) == {_regen, _stag}
+            assert _lines == []  # silent — no expire lines on defuse
+        finally:
+            _rules_ground._state = _old
+
+    def test_carried_staggered_applies_at_the_next_fight_resets(self):
+        from src.spacehack.data.statuses import STAGGERED_ID
+
+        _ctx, _lines, _ids = self._carry_ctx()
+        _old = _rules_ground._state
+        _rules_ground._state = _ground_state(_ctx)
+        try:
+            _rules_ground.reset_turn(_ctx)
+            # Base gain 4 AP; the carried staggered AND the loan both
+            # fold their -1 this boundary (4 - 1 - 1 = 2).
+            assert _rules_ground._state.player_ap == 2
+            assert _ctx.active_statuses[STAGGERED_ID].remaining_turns == 1
+            # The loan fired exactly once and is gone.
+            assert "neural_stim_loan" not in _ctx.active_statuses
+        finally:
+            _rules_ground._state = _old
+
+    def test_stale_session_recovery_keeps_carried_rows(self):
+        from src.spacehack.data.statuses import NEURAL_STIM_LOAN_ID
+
+        _ctx, _lines, (_regen, _stag, _loan) = self._carry_ctx()
+        _old = _rules_ground._state
+        _rules_ground._state = None
+        try:
+            _rules_ground._defuse_stale_session(_ctx)
+            # Carried rows survive the abnormal-end recovery path
+            # (q13); the fight class and the loans drop.
+            assert set(_ctx.active_statuses) == {_regen, _stag}
+            assert NEURAL_STIM_LOAN_ID not in _ctx.active_statuses
+        finally:
+            _rules_ground._state = _old
+
+    def test_space_sync_carries_rows_drops_the_loan(self):
+        _ctx, _lines, (_regen, _stag, _loan) = self._carry_ctx()
+        _old = _rules_space._state
+        _rules_space._state = _space_state(
+            SimpleNamespace(active_statuses=_ctx.active_statuses),
+        )
+        _ctx.player_owned_ship = None
+        try:
+            _rules_space.sync_state(_ctx)
+            assert set(_ctx.active_statuses) == {_regen, _stag}
+        finally:
+            _rules_space._state = _old
+
+    def test_space_fight_init_carries_rows(self):
+        from src.spacehack.combat import _statuses
+        from src.spacehack.data.statuses import (
+            NEURAL_STIM_LOAN_ID, REGEN_ID, STIM_ID,
+        )
+
+        _log, _lines = _log_spy()
+        _ctx = SimpleNamespace(
+            installed_chrome=[], log=_log, active_statuses={},
+        )
+        _statuses.apply(_ctx.active_statuses, REGEN_ID, theater="ground")
+        _statuses.apply(_ctx.active_statuses, STIM_ID, theater="ground")
+        _statuses.apply(_ctx.active_statuses, NEURAL_STIM_LOAN_ID, theater="ground")
+        _tiles = [[world.DUNGEON_FLOOR for _ in range(11)] for _ in range(11)]
+        _old = _rules_space._state
+        _rules_space._state = None
+        try:
+            _rules_space._activate_combat_state(
+                _ctx, None, world.GameMap(11, 11, _tiles, []), None,
+                _space_state(_ctx).player_state, [], [], [], None,
+                ["light_laser"], [True],
+            )
+            # Fight init keeps the carried rows; the loan dies young.
+            assert set(_ctx.active_statuses) == {REGEN_ID, STIM_ID}
+            assert NEURAL_STIM_LOAN_ID not in _ctx.active_statuses
+        finally:
+            _rules_space._state = _old

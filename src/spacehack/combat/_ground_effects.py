@@ -150,12 +150,14 @@ def advance_player_effects(state) -> int:
     clamp-and-log via :func:`_apply_heal_event`; ap events fold into
     the returned bonus; expire events log the row's ruled line AFTER
     the walk (today the repay line landed after the whole advance, so
-    a regen sharing the boundary keeps its tick line first)."""
+    a regen sharing the boundary keeps its tick line first). The
+    walk passes the ground theater (doc 103 Build C): a row tagged
+    for another theater is frozen here."""
     _container = getattr(state.ctx, "active_statuses", None) or {}
     _sources = {_sid: _a.source for _sid, _a in _container.items()}
     _ap_bonus = 0
     _expire_lines: list[str] = []
-    for _ev in _statuses.advance(_container):
+    for _ev in _statuses.advance(_container, theater="ground"):
         _kind, _sid = _ev[0], _ev[1]
         _spec = find_status(_sid)
         if _kind == "heal":
@@ -188,7 +190,7 @@ def advance_enemy_effects(enemy) -> int:
     if enemy.hp <= 0:
         return 0
     _bonus = 0
-    for _ev in _statuses.advance(enemy.statuses):
+    for _ev in _statuses.advance(enemy.statuses, theater="ground"):
         if _ev[0] == "heal":
             enemy.hp = min(enemy.max_hp, enemy.hp + _ev[2])
         elif _ev[0] == "ap":
