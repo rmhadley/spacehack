@@ -891,21 +891,24 @@ async def _handle_dungeon_exit(
         if not await _confirm_abandon_derelict(ctx):
             return None
     _space_transition = await _leave_dungeon_to_space(
-        ctx,
-        game_map,
-        space_game_map,
-        space_player,
-        player_owned_ship,
-        player_active_missions,
-        log,
-        build_space_return=build_space_return,
-        show_orbit=show_orbit,
+        ctx, game_map, space_game_map, space_player,
+        player_owned_ship, player_active_missions, log,
+        build_space_return=build_space_return, show_orbit=show_orbit,
     )
     if _space_transition is None:
         return None
     _space_map, _space_player = _space_transition
     ctx.game_map = _space_map
     ctx.player = _space_player
+    # The board seam's second site (doc 103 Build C): exiting a
+    # derelict/salvage interior re-enters the ship — the exact
+    # scenario the fire vocabulary exists to cover. One engine call;
+    # nothing in v1 declares board.
+    from .combat._statuses import remove_at_transition
+    from .data.statuses import TRANSITION_BOARD
+    remove_at_transition(
+        getattr(ctx, "active_statuses", None) or {}, TRANSITION_BOARD,
+    )
     return _space_map, _space_player, "space"
 
 

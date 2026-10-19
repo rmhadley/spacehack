@@ -403,6 +403,16 @@ async def _enter_city_landing(state, ctx, console, log, pid, planet_obj):
     if ctx.ground_hp < ctx.ground_max_hp:
         ctx.ground_hp = ctx.ground_max_hp
         log.add('You rest at the city and fully recover.')
+    # Landing is a transition (doc 103 Build C): the rest keeps its
+    # full heal AND removes every debuff — the catalog-side default
+    # (every polarity=False row declares land), so a forgotten debuff
+    # row still dies at the rest line. Buffs pause through the flight
+    # and resume. Silent: the HUD row's disappearance is the signal.
+    from .combat._statuses import remove_at_transition
+    from .data.statuses import TRANSITION_LAND
+    remove_at_transition(
+        getattr(ctx, 'active_statuses', None) or {}, TRANSITION_LAND,
+    )
     return 'CONTINUE'
 
 
@@ -485,6 +495,16 @@ async def _resolve_ship_blocker(state, blocker):
             ctx.game_map = state.game_map
             ctx.player = state.player
             state.current_mode = 'space'
+            # Boarding is a transition (doc 103 Build C): rows
+            # declaring board drop (none in v1 — the future fire
+            # debuff is the first); everything else pauses through
+            # the flight. The launch seam's ONE engine call.
+            from .combat._statuses import remove_at_transition
+            from .data.statuses import TRANSITION_BOARD
+            remove_at_transition(
+                getattr(ctx, 'active_statuses', None) or {},
+                TRANSITION_BOARD,
+            )
         return 'CONTINUE'
     return await _resolve_ship_buy(state, blocker, ship)
 
