@@ -377,6 +377,14 @@ discoveries:
   staggered needs no read (it lands at the enemy's reset). The one
   LIVE AI-side status read is the stim trigger — see the migration
   table.
+- **`sum_effects` is theater-BLIND (named limit, reviewer catch,
+  C3 2026-10-19)**: the home-theater law is enforced at `advance`
+  only; the additive standing-modifier sums (hit/dodge/melee) fold
+  over ALL rows, including carried foreign-theater rows inside a
+  fight. Harmless in v1 (no row authors those fields), but the
+  first row authoring a standing modifier must either add the
+  theater filter to `sum_effects` or accept the bleed — a named
+  seam, decided when that row lands.
 
 ## Migration (behavior-identical, bit-pinned)
 
@@ -1610,6 +1618,10 @@ No cooldown work. No AoE.
    pressing core — no −1 AP in the next fight's first round.
 7. Both rewritten guide sentences read correct; the exploration
    HUD row and `v` work while exploring.
+8. WATCH ROW (reviewer C3 minor): a carried GROUND row (e.g.
+   STAGGERED) renders on the SPACE combat panel while frozen —
+   honest (it is live and resumes on landing) but rule whether a
+   paused row should render in the off-theater panel.
 
 ## Build C prose ledger (2026-10-19 — every string settled through the loop; silence never read as acceptance)
 
