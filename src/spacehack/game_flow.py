@@ -394,8 +394,7 @@ async def _dungeon_post_move_tick(
     activations when no combat ran.
 
     Shared by the dungeon move, wait, and auto-explore paths so every
-    player step (or wait) keeps NPC movement, LOS, and activation
-    state identical.
+    player step keeps NPC movement, LOS, and activation state identical.
 
     Returns ``"DEFEAT"`` (death screen shown — exit the game loop),
     ``"COMBAT"`` (a fight ran and was resolved — re-render and
@@ -404,6 +403,10 @@ async def _dungeon_post_move_tick(
     transition), or ``None`` (no combat — caller continues normal
     post-step handling like stairs checks).
     """
+    # Statuses tick one DUNGEON TURN here, before the combat check
+    # (doc 103 Build C — the step happened).
+    from .combat._ground_effects import advance_exploration_statuses as _tick_statuses
+    _tick_statuses(ctx)
     _ground_result = await _run_ground_combat_tick(
         ctx,
         console,

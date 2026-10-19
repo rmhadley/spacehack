@@ -12,6 +12,8 @@ carried-consumable use.
 
 from __future__ import annotations
 
+from functools import partial
+
 from .. import message_log as _ml
 from ..data.ground_items import find_ground_consumable
 from ..data.statuses import find_status
@@ -123,52 +125,99 @@ def apply_player_effect(state, ctx, spec) -> bool:
     return spec.effect_id in {"regen", "stim"}
 
 
+def _log_heal_tick(ctx, spec, source, healed: int) -> None:
+    """The shared heal-tick line (doc 103 Build C's extraction — the
+    ruled-prose drift trap's one home): logged only when healed > 0,
+    the source interpolated with the row's name as the sourceless
+    fallback."""
+    if healed > 0 and spec.tick_line:
+        ctx.log.add_colored(
+            spec.tick_line.format(source=source or spec.name, healed=healed),
+            _ml.COLOR_PLAYER_ACTION,
+        )
+
+
 def _apply_heal_event(state, spec, source, amount: int) -> None:
-    """One heal event: clamp at max and log the row's tick line only
-    when healed > 0 (today's ledger shape, the source interpolated —
-    callers pass the PRE-ADVANCE snapshot's source, because the
-    engine drops the entry at the expiring boundary and that round's
-    tick still logs its attribution)."""
+    """One IN-COMBAT heal event: clamp at the fight state's max and
+    log through the shared composer (callers pass the PRE-ADVANCE
+    snapshot's source, because the engine drops the entry at the
+    expiring boundary and that round's tick still logs its
+    attribution)."""
     _before = state.player_hp
     state.player_hp = min(
         state.player_max_hp,
         state.player_hp + amount,
     )
-    _healed = state.player_hp - _before
-    if _healed > 0 and spec.tick_line:
-        state.ctx.log.add_colored(
-            spec.tick_line.format(
-                source=source or spec.name, healed=_healed,
-            ),
-            _ml.COLOR_PLAYER_ACTION,
-        )
+    _log_heal_tick(state.ctx, spec, source, state.player_hp - _before)
+
+
+def _walk_round_events(ctx, container, *, theater, apply_heal) -> list[int]:
+    """The player adapters' ONE event walk (doc 103 Build C): heal
+    events clamp-and-log through the caller's ``apply_heal`` (the
+    apply laws stay DISTINCT — the fight state's max in combat, the
+    refreshed ctx max while exploring; never homogenized); the
+    returned ap values are the CALLER's to fold (the combat gain
+    fold; dropped while exploring — no AP pool exists out of
+    combat); expire lines log AFTER the walk (today's ledger shape
+    — a regen sharing the boundary with a loan keeps its tick line
+    first)."""
+    _sources = {_sid: _a.source for _sid, _a in container.items()}
+    _ap_events: list[int] = []
+    _expire_lines: list[str] = []
+    for _ev in _statuses.advance(container, theater=theater):
+        _kind, _sid = _ev[0], _ev[1]
+        _spec = find_status(_sid)
+        if _kind == "heal":
+            apply_heal(_spec, _sources.get(_sid), _ev[2])
+        elif _kind == "ap":
+            _ap_events.append(_ev[2])
+        elif _kind == "expire" and _spec.expire_line:
+            _expire_lines.append(_spec.expire_line)
+    for _line in _expire_lines:
+        ctx.log.add_colored(_line, _ml.COLOR_PLAYER_ACTION)
+    return _ap_events
 
 
 def advance_player_effects(state) -> int:
     """Advance the player's status container one round boundary and
-    return the temporary AP bonus for the gain fold: heal events
-    clamp-and-log via :func:`_apply_heal_event`; ap events fold into
-    the returned bonus; expire events log the row's ruled line AFTER
-    the walk (today the repay line landed after the whole advance, so
-    a regen sharing the boundary keeps its tick line first). The
-    walk passes the ground theater (doc 103 Build C): a row tagged
-    for another theater is frozen here."""
-    _container = getattr(state.ctx, "active_statuses", None) or {}
-    _sources = {_sid: _a.source for _sid, _a in _container.items()}
-    _ap_bonus = 0
-    _expire_lines: list[str] = []
-    for _ev in _statuses.advance(_container, theater="ground"):
-        _kind, _sid = _ev[0], _ev[1]
-        _spec = find_status(_sid)
-        if _kind == "heal":
-            _apply_heal_event(state, _spec, _sources.get(_sid), _ev[2])
-        elif _kind == "ap":
-            _ap_bonus += _ev[2]
-        elif _kind == "expire" and _spec.expire_line:
-            _expire_lines.append(_spec.expire_line)
-    for _line in _expire_lines:
-        state.ctx.log.add_colored(_line, _ml.COLOR_PLAYER_ACTION)
-    return _ap_bonus
+    return the temporary AP bonus for the gain fold (the shared walk
+    passes the ground theater — a row tagged for another theater is
+    frozen here)."""
+    return sum(_walk_round_events(
+        state.ctx,
+        getattr(state.ctx, "active_statuses", None) or {},
+        theater="ground",
+        apply_heal=partial(_apply_heal_event, state),
+    ))
+
+
+def _apply_exploration_heal(ctx, spec, source, amount: int) -> None:
+    """One EXPLORATION heal event: clamp at the REFRESHED ctx max —
+    a distinct apply law from the fight state's max (live inputs may
+    have moved the ceiling since the last fight; the ground-max
+    staleness law)."""
+    _before = ctx.ground_hp
+    ctx.ground_hp = min(ctx.ground_max_hp, ctx.ground_hp + amount)
+    _log_heal_tick(ctx, spec, source, ctx.ground_hp - _before)
+
+
+def advance_exploration_statuses(ctx) -> None:
+    """Tick the player's statuses one DUNGEON TURN while exploring
+    (doc 103 Build C): heal events restore ``ctx.ground_hp`` clamped
+    at the refreshed max, ap events DROP (no AP pool exists out of
+    combat — a walking stim spends duration for nothing but its
+    timing), and the rows' tick/expire lines log exactly as the
+    combat adapter's do. The walk passes the ground theater; a
+    paused space row stays frozen."""
+    from .. import xp
+
+    xp.refresh_ground_max_hp(ctx)
+    _walk_round_events(
+        ctx,
+        getattr(ctx, "active_statuses", None) or {},
+        theater="ground",
+        apply_heal=partial(_apply_exploration_heal, ctx),
+    )
 
 
 def enemy_ap_total(spec, armor_entries=()) -> int:

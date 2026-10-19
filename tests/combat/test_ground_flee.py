@@ -405,7 +405,18 @@ def test_dungeon_tick_signals_exit_and_skips_activation(monkeypatch):
         dungeon_extensions, "tick_activation",
         lambda *_a, **_kw: activations.append(True),
     )
-    ctx = SimpleNamespace(player=SimpleNamespace(pos=world.Position(1, 1)))
+    # The seam's status tick (doc 103 Build C) refreshes the ground
+    # max before clamping, so the ctx carries the standard ground
+    # fields every production ctx has.
+    ctx = SimpleNamespace(
+        player=SimpleNamespace(pos=world.Position(1, 1)),
+        log=SimpleNamespace(add=lambda *_a, **_k: None,
+                            add_colored=lambda *_a, **_k: None),
+        ground_hp=20, ground_max_hp=20,
+        ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+        equipped_ground_armor={}, player_traits=[], active_statuses={},
+        character_info={},
+    )
     assert run(game_flow._dungeon_post_move_tick(
         ctx, None, object(),
     )) == "COMBAT_EXIT"
