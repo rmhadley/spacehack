@@ -349,10 +349,14 @@ def _item_stack_detail(stack) -> str:
 
     spec = find_ground_item(stack.item_type, stack.item_id)
     detail = f"Consumable  {stack.quantity}/{spec.quantity_per_stack}  {spec.effect_label or spec.name}"
-    if spec.outside_full_heal:
-        detail += f"  combat +{spec.combat_heal_amount} HP/+{spec.combat_regen_amount} HP x{spec.duration_turns}"
-    elif spec.combat_ap_bonus:
+    # AP format first (doc 103 Build C's re-key): both legal rows
+    # carry exploration_legal now, so the heal branch keyed on it
+    # would render the stim as "+0 HP". The med pack's suffix is the
+    # ruled 5-everywhere text (prose ledger #4).
+    if spec.combat_ap_bonus:
         detail += f"  +{spec.combat_ap_bonus} AP x{spec.duration_turns}"
+    elif spec.combat_heal_amount:
+        detail += f"  +{spec.combat_heal_amount} HP/+{spec.combat_regen_amount} HP x{spec.duration_turns}"
     return detail
 
 

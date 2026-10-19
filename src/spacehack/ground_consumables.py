@@ -67,14 +67,40 @@ def _decrement_stack(items, index: int) -> None:
 
 
 def _use_outside_combat(ctx, spec: GroundConsumableSpec) -> bool:
-    """Apply an exploration-legal consumable effect."""
-    if not spec.outside_full_heal:
-        ctx.log.add(f"{spec.name} can only be used in ground combat.")
+    """Apply an exploration-legal consumable (doc 103 Build C, the
+    prose-gate 5-everywhere ruling): the med pack restores its
+    instant 5 (clamped, logged like the combat use) AND applies the
+    regen status — the FULL heal is retired and the full-HP refusal
+    stands (waste protection); the stim applies the stim status,
+    spending its duration on exploration steps. The exploration gate
+    is catalog data — no v1 row besides the two legal ones reaches
+    the generic path (the tinker kit runs its own manage flow
+    upstream), so an illegal row's refusal line authors with the
+    first one."""
+    from . import message_log as _ml
+    from .combat import _statuses
+    from .data.statuses import REGEN_ID
+
+    if not spec.exploration_legal:
         return False
-    if ctx.ground_hp >= ctx.ground_max_hp:
+    if spec.effect_id == REGEN_ID and ctx.ground_hp >= ctx.ground_max_hp:
         ctx.log.add("Ground HP is already full.")
         return False
-    ctx.ground_hp = ctx.ground_max_hp
+    if spec.combat_heal_amount > 0:
+        _before = ctx.ground_hp
+        ctx.ground_hp = min(
+            ctx.ground_max_hp, ctx.ground_hp + spec.combat_heal_amount,
+        )
+        _healed = ctx.ground_hp - _before
+        if _healed > 0:
+            ctx.log.add_colored(
+                f"{spec.name}: +{_healed} HP.", _ml.COLOR_PLAYER_ACTION,
+            )
+    if spec.duration_turns > 0:
+        _statuses.apply(
+            ctx.active_statuses, spec.effect_id,
+            source=spec.name, theater="ground",
+        )
     return True
 
 

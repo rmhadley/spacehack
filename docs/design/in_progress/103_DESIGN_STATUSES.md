@@ -385,6 +385,13 @@ discoveries:
   first row authoring a standing modifier must either add the
   theater filter to `sum_effects` or accept the bleed — a named
   seam, decided when that row lands.
+- **The ruled use-line composes twice (named limit, reviewer C6
+  minor, 2026-10-19)**: `"{name}: +{healed} HP."` lives in the
+  combat adapter (`apply_player_effect`) and the exploration use
+  (`_use_outside_combat`) — same bytes, different state owners (the
+  never-homogenize ruling keeps the clamps distinct). Fold a shared
+  composer when the NEXT use-site lands (the `_log_heal_tick`
+  pattern's third occurrence rule).
 
 ## Migration (behavior-identical, bit-pinned)
 

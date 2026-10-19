@@ -59,8 +59,10 @@ class GroundConsumableSpec:
         quantity_per_stack: max charges carried in one pack slot.
         use_ap_cost: action points to use in combat.
         price: credits cost to buy.
-        outside_full_heal: whether exploration use restores full ground HP.
-        combat_heal_amount: immediate ground HP restored in combat.
+        exploration_legal: whether the generic use path applies this
+            row outside combat (doc 103 Build C; the tinker kit runs
+            its own manage flow and authors the default False).
+        combat_heal_amount: immediate ground HP restored on use.
         combat_regen_amount: ground HP restored at each effect turn.
         duration_turns: combat effect duration, starting at 3 for Phase 5.
         combat_ap_bonus: temporary AP added to later combat turns.
@@ -75,7 +77,7 @@ class GroundConsumableSpec:
     quantity_per_stack: int
     use_ap_cost: int
     price: int
-    outside_full_heal: bool = False
+    exploration_legal: bool = False
     combat_heal_amount: int = 0
     combat_regen_amount: int = 0
     duration_turns: int = 0

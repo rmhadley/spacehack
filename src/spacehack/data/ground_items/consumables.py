@@ -12,12 +12,14 @@ CONSUMABLES: tuple[GroundConsumableSpec, ...] = (
     GroundConsumableSpec(
         id="med_pack",
         name="Med Pack",
-        # Doc 103 Build A: the timed effect is the regen status row.
+        # Doc 103 Build A: the timed effect is the regen status row;
+        # Build C: the instant 5 applies at BOTH use sites (the
+        # prose-gate 5-everywhere ruling), the full heal is retired.
         effect_id="regen",
         quantity_per_stack=3,
         use_ap_cost=1,
         price=60,
-        outside_full_heal=True,
+        exploration_legal=True,
         combat_heal_amount=5,
         combat_regen_amount=2,
         duration_turns=3,
@@ -26,10 +28,13 @@ CONSUMABLES: tuple[GroundConsumableSpec, ...] = (
     GroundConsumableSpec(
         id="stim",
         name="Combat Stim",
+        # Doc 103 Build C (q12a): exploration-legal — the approach
+        # spends it (pre-buffing with a walking cost).
         effect_id="stim",
         quantity_per_stack=2,
         use_ap_cost=1,
         price=80,
+        exploration_legal=True,
         duration_turns=3,
         combat_ap_bonus=1,
         effect_label="Temporary AP boost",

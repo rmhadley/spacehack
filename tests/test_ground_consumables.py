@@ -55,7 +55,10 @@ def test_character_consumable_action_uses_a_charge(monkeypatch):
 
     assert run(_manage_pack_stack(ctx, "PACK_STACK:0", in_ground_combat=False)) == "USE"
     assert ctx.ground_expedition_items == []
-    assert ctx.ground_hp == 23
+    # Doc 103 Build C's 5-everywhere shape: the instant 5 (7 -> 12),
+    # the regen applied for the steps to spend — never a full heal.
+    assert ctx.ground_hp == 12
+    assert ctx.active_statuses["regen"].remaining_turns == 3
 
 
 def test_character_consumable_action_can_discard_a_stack(monkeypatch):
@@ -124,14 +127,20 @@ def _context(hp=10, items=None):
     )
 
 
-def test_med_pack_fully_heals_outside_combat_and_consumes_one_charge():
+def test_med_pack_outside_combat_is_instant_5_plus_regen():
+    """Doc 103 Build C's 5-everywhere ruling: the out-of-combat use
+    restores the instant 5 AND applies the regen status — the FULL
+    heal is retired."""
     ctx = _context(
         hp=7,
         items=[GroundItemStack("consumable", "med_pack", 2)],
     )
 
     assert use_consumable(ctx, 0, in_combat=False)
-    assert ctx.ground_hp == 23
+    assert ctx.ground_hp == 12  # 7 + 5, NOT the full heal
+    assert ctx.active_statuses["regen"].remaining_turns == 3
+    assert ctx.active_statuses["regen"].theater == "ground"
+    assert "Med Pack: +5 HP." in ctx.messages
     assert ctx.ground_expedition_items == [
         GroundItemStack("consumable", "med_pack", 1),
     ]
@@ -149,13 +158,15 @@ def test_med_pack_is_not_consumed_outside_combat_when_hp_is_full():
     ]
 
 
-def test_stim_is_combat_only():
+def test_stim_outside_combat_is_legal_and_applies():
+    """Doc 103 Build C (q12a): the stim is exploration-legal — one
+    charge spends, the status applies (its duration then walks down
+    on steps; no AP pool exists out of combat)."""
     ctx = _context(items=[GroundItemStack("consumable", "stim", 1)])
 
-    assert not use_consumable(ctx, 0, in_combat=False)
-    assert ctx.ground_expedition_items == [
-        GroundItemStack("consumable", "stim", 1),
-    ]
+    assert use_consumable(ctx, 0, in_combat=False)
+    assert ctx.active_statuses["stim"].remaining_turns == 3
+    assert ctx.ground_expedition_items == []
 
 
 def test_combat_med_pack_heals_and_refreshes_three_turn_regen():
@@ -261,3 +272,32 @@ def test_repay_line_lands_after_a_shared_boundary_regen_tick():
     _tick = ctx.messages.index("Med Pack regeneration: +2 HP.")
     _repay = ctx.messages.index("Reality slows as the Neural Stim's effect wears off.")
     assert _tick < _repay
+
+
+def test_item_stack_detail_keys_on_ap_first_never_renders_zero_hp():
+    """Doc 103 Build C's branch re-key (advisor catch 2): both legal
+    rows carry exploration_legal now, so the detail format keys on
+    combat_ap_bonus FIRST — the stim renders its AP format, the med
+    pack the ruled 5-everywhere text (prose ledger #4)."""
+    from src.spacehack.character_screen import _item_stack_detail
+
+    _stim = _item_stack_detail(GroundItemStack("consumable", "stim", 1))
+    assert _stim.endswith("+1 AP x3")
+    assert "HP" not in _stim  # never "+0 HP"
+
+    _med = _item_stack_detail(GroundItemStack("consumable", "med_pack", 1))
+    assert _med.endswith("+5 HP/+2 HP x3")
+    assert "combat" not in _med  # the 5-everywhere prefix drop
+
+
+def test_stim_at_full_hp_still_applies():
+    """The refusal is the REGEN row's waste protection, not a bare HP
+    gate: a stim at full HP is legal pre-buffing (doc 103 Build C)."""
+    ctx = _context(
+        hp=23,
+        items=[GroundItemStack("consumable", "stim", 1)],
+    )
+
+    assert use_consumable(ctx, 0, in_combat=False)
+    assert ctx.active_statuses["stim"].remaining_turns == 3
+    assert ctx.ground_expedition_items == []

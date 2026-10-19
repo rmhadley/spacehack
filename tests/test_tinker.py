@@ -334,7 +334,13 @@ class TestManageDispatch:
             ground_expedition_items=[Stack("consumable", "med_pack", 1)],
             ground_hp=7,
             ground_max_hp=23,
-            log=SimpleNamespace(add=lambda _m: None),
+            # Doc 103 Build C: the out-of-combat use applies the regen
+            # status to the player's container now.
+            active_statuses={},
+            log=SimpleNamespace(
+                add=lambda _m: None,
+                add_colored=lambda _m, *_a, **_k: None,
+            ),
         )
         monkeypatch.setattr(
             pygame_story, "choose",
@@ -344,7 +350,8 @@ class TestManageDispatch:
         assert run(
             _manage_pack_stack(ctx, "PACK_STACK:0", in_ground_combat=False),
         ) == "USE"
-        assert ctx.ground_hp == 23
+        assert ctx.ground_hp == 12  # 7 + 5 (the 5-everywhere shape)
+        assert ctx.active_statuses["regen"].remaining_turns == 3
         assert ctx.ground_expedition_items == []
 
 
