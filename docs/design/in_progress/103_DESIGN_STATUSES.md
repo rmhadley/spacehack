@@ -571,9 +571,11 @@ B's playtest checklist.
       keeps its full heal and removes ALL DEBUFFS by the
       catalog-side default, buffs survive landing, the future fire
       row adds board); the carry surface = the exploration HUD row
-      + `v` wired in exploration; the med pack keeps its in-combat
-      instant 5 (out-of-combat = the regen only, the full heal
-      RETIRES, the full-HP refusal stands; economy watch row).
+      + `v` wired in exploration; the med pack's instant 5 applies
+      at BOTH use sites (AMENDED at the Build C prose gate,
+      2026-10-19 — originally ruled in-combat-only; out-of-combat =
+      5 now + regen on steps, the full heal RETIRES, the full-HP
+      refusal stands; economy watch row).
       Save round-trip of a mid-tick container pinned (the ctx home
       + wiring already landed in Build A). WATCH ROW (reviewer
       round-2 minor, 2026-10-18): the space reset_turn event walk
@@ -1296,15 +1298,23 @@ and `v` opens the inspect overlay while exploring (a you-only
 subject; no enemies exist to cycle out of combat). The q7 one-row
 law extended to the surface where the carry lives.
 
-### The med pack: the in-combat instant 5 KEPT
+### The med pack: the instant 5 EVERYWHERE (AMENDED at the Build C
+### prose gate, user, 2026-10-19)
 
-q12b's retirement names the instant FULL heal (the out-of-combat
-one); the in-combat shape (5 now + regen 2×3, Build A's
-bit-identical migration) stands untouched. The out-of-combat use
-becomes the regen status only (+6 over steps). The out-of-combat
-full-HP refusal ("Ground HP is already full.") STAYS — waste
-protection; q12b's "regen at max HP is a no-op" describes the tick
-clamp, not the use gate.
+q12b's retirement names the instant FULL heal — that retirement
+stands. The original Build C shape (in-combat 5 now + regen;
+out-of-combat regen ONLY) was challenged at the prose gate (user:
+"Hold on. outside of combat it should behave the same way? Why
+would we get the initial 5 HP in combat but not outside of
+combat?") and re-ruled: **every Med Pack use restores the instant
+5 (clamped) AND applies the regen status** — in combat (5 now +
+2×3, Build A's bit-identical shape) and out of combat alike (5
+now + 2 per step × 3). The out-of-combat FULL heal still RETIRES
+(a pack is never a full top-up again; out-of-combat value = 5 +
+6 over steps — the economy watch row). The out-of-combat full-HP
+refusal ("Ground HP is already full.") STAYS — waste protection;
+q12b's "regen at max HP is a no-op" describes the tick clamp, not
+the use gate.
 
 ## Pre-implementation audit (Build C, 2026-10-19 — written before code)
 
@@ -1491,10 +1501,12 @@ stays) before retiring it.
    `game_loop.py:650-657` — advisor catch 3, blocking).
 8. `ground_consumables.py` — `_use_outside_combat` rewritten: the
    gate re-scopes from `outside_full_heal` to exploration-legality
-   (working rename `exploration_legal`); the med pack applies the
-   regen status and the stim applies the stim status (source =
-   spec.name, theater="ground"); the full heal RETIRES; the
-   full-HP refusal STAYS.
+   (working rename `exploration_legal`); the med pack restores the
+   instant 5 (clamped) AND applies the regen status and the stim
+   applies the stim status (source = spec.name, theater="ground");
+   the full heal RETIRES; the full-HP refusal STAYS (AMENDED at
+   the prose gate, 2026-10-19: the instant 5 applies at BOTH use
+   sites, not combat only).
 9. `data/ground_items/__init__.py` + `consumables.py` +
    `character_screen.py` — the field rename sweep (docstring +
    both reads), with the screen's detail-text branch RE-KEYED
@@ -1535,8 +1547,10 @@ and never touches space AP, while you fly). The defuse flip
 (field-keyed at all four sites; fight-class rows, the loans, AND
 unknown retired ids defuse; carried rows survive fight init AND
 the abnormal-end recovery — q13's "you keep your burns"). The med
-pack edges (in-combat instant 5 KEPT; out-of-combat = regen only;
-full-HP refusal stands). The loan never bleeds (silent defuse,
+pack edges (the instant 5 at BOTH use sites — amended at the
+Build C prose gate, 2026-10-19; out-of-combat = 5 now + regen on
+steps, the FULL heal retires; full-HP refusal stands). The loan
+never bleeds (silent defuse,
 no repay line on an unconsumed loan). Enemy containers unchanged
 (fight-scoped). The capture edge (a capture interior is ground
 theater — paused ground statuses resume inside a capture fight).
@@ -1561,8 +1575,9 @@ do; auto-explore ticks; staggered decrements and its expire line
 logs; the stim decrements with NO ap effect). The carry pins
 (staggered with rounds left applies at the next fight's resets;
 the container survives the abnormal-end recovery path). The
-consumable rewrite pins (med pack out-of-combat = regen apply, no
-full heal, refused at full HP; stim legal + applied; the screen's
+consumable rewrite pins (med pack out-of-combat = instant 5
+clamped + regen apply, no full heal, refused at full HP; stim
+legal + applied; the screen's
 detail text renders the stim's AP format, never "+0 HP"). The
 save round-trip pin (live mid-tick entries: remaining, theater
 tag, source). The worktree pre/post harness diff + the full gate
@@ -1588,9 +1603,9 @@ No cooldown work. No AoE.
 4. Carry a status to the pad (city steps freeze it), board: it
    pauses in space; land: the debuff is gone at the rest line,
    buffs survive and resume.
-5. Med pack out of combat: no full heal — REGEN ticks on steps;
-   refused at full HP. Stim out of combat: legal, and the walk
-   spends it.
+5. Med pack out of combat: +5 now, no full heal — REGEN ticks on
+   steps; refused at full HP. Stim out of combat: legal, and the
+   walk spends it.
 6. The core-button loan never bleeds: end a fight right after
    pressing core — no −1 AP in the next fight's first round.
 7. Both rewritten guide sentences read correct; the exploration
@@ -1841,14 +1856,17 @@ in the Build C rulings SETTLED section.
 - **q12b (user: REGEN EVERYWHERE — the keep-full-heal lean was
   considered and OVERRIDDEN):** EVERY med pack use applies the
   regen status. The out-of-combat instant full heal RETIRES (a
-  Build C behavior change: healing is always over time, in or out
-  of combat; out of combat the regen ticks on exploration
-  steps). Consequences recorded: the med pack's out-of-combat
-  value drops from a full top-up to the regen's total (+6 at the
-  working numbers) — a live-economy WATCH ROW for Build C's
-  playtest; regen at max HP is a no-op; a re-drink refreshes
-  (q2). Any full-heal strings change — prose-gated, called out
-  in Build C's checklist.
+  Build C behavior change: out of combat the regen ticks on
+  exploration steps). Consequences recorded: the med pack's
+  out-of-combat value drops from a full top-up — a live-economy
+  WATCH ROW for Build C's playtest; regen at max HP is a no-op; a
+  re-drink refreshes (q2). Any full-heal strings change —
+  prose-gated, called out in Build C's checklist. **AMENDED at
+  the Build C prose gate (user, 2026-10-19): the instant 5
+  applies at BOTH use sites** ("outside of combat it should
+  behave the same way?") — the original Build C shape (regen only
+  out of combat) is superseded; out-of-combat value = 5 now + 6
+  over steps. Full shape in the Build C rulings SETTLED section.
 
 ### q8 — Potency: structural only in v1
 
