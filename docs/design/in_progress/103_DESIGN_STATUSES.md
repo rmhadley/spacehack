@@ -1,12 +1,10 @@
 # DESIGN: Statuses — the durable buff/debuff system
 
-**Status: BUILD B LANDED (2026-10-18 — the staggered debut: the
-pre-build prose gate ran first, 13 ledger items settled through the
-loop; 8 commits; reviewer rounds on every code commit — APPROVE /
-APPROVE / REQUEST_CHANGES x2 with all blockers+minors folded
-in-commit; full suite green at 3951). PLAYTEST PENDING. Next:
-the Build B playtest verdict, then `/implement-phase 103.6` (Build C,
-the durable boundaries).**
+**Status: BUILD B LANDED + PLAYTEST PASSED (2026-10-19 — user
+confirmed; the checklist read clean, no mid-playtest rulings or
+fixes this round). Two phases remain: `/implement-phase 103.6`
+(Build C, the durable boundaries — its brief is already written)
+and the Close.**
 
 Companions: `complete/102_DESIGN_CYBERNETICS.md` (the Parked sketch
 this doc inherits — "a general statuses container (`id → rounds
@@ -549,7 +547,11 @@ B's playtest checklist.
       2026-10-04; report-only — pre-existing drift the tuning
       pass owns, verified not this build's). The med pack guide's
       "fully heal outside combat" sentence stands until Build C
-      retires the full heal (q12b). PLAYTEST PENDING.
+      retires the full heal (q12b). PLAYTEST PASSED (user,
+      2026-10-19): all five checklist items read clean — the
+      two-sided stagger, the refresh, the survivors-only guard,
+      the seam's full-ego/deep-burn spread, and the `v` window
+      with Tab cycling; no mid-playtest rulings, no fixes.
 - [ ] Build C: the durable boundaries — the fight-end defuse rule
       flips to carry-over (leftover regen keeps healing while you
       explore), the exploration tick hook (what counts as a turn
