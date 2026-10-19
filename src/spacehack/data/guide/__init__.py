@@ -287,9 +287,9 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
         body=(
             "Statuses are timed effects on a combatant, shown on the right-hand "
             "panel (REGEN 2, STAGGERED 2). Enemy statuses display beside their "
-            "names. Press V in combat to open the status window; Tab inside "
-            "switches between you and each enemy. Burnt Ego makes you more "
-            "susceptible to status ailments."
+            "names. Press V in combat or while exploring to open the status "
+            "window; in combat, Tab inside switches between you and each "
+            "enemy. Burnt Ego makes you more susceptible to status ailments."
         ),
     ),
     GuideSection(
@@ -334,12 +334,14 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "- Select a Med Pack or Combat Stim in the Expedition Pack and choose "
             "Use or Discard."
             "\n"
-            "- Med Packs fully heal outside combat. In combat they restore 5 HP "
-            "immediately and regenerate 2 HP at the start of the next 3 turns. "
-            "Using another Med Pack refreshes that regeneration duration."
+            "- Med Packs restore 5 HP immediately and regenerate 2 HP at the "
+            "start of the next 3 turns; while exploring, the regeneration "
+            "ticks per step instead. Using another Med Pack refreshes that "
+            "regeneration duration."
             "\n"
-            "- Combat Stims cannot be used while exploring. In combat they grant "
-            "+1 AP on each of the next 3 turns; a blue `+1` indicator appears "
+            "- Combat Stims grant +1 AP on each of the next 3 turns. They "
+            "can be used while exploring; each step taken exploring spends "
+            "1 turn of the duration. In combat a blue `+1` indicator appears "
             "beside the AP readout while it is active."
             "\n"
             "Weapons are carried as two sets - one ranged, one melee. Each set "
