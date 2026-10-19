@@ -1,11 +1,10 @@
 # DESIGN: Statuses — the durable buff/debuff system
 
-**Status: BUILD C RULED + BRIEF DRAFTED (2026-10-19 — the four
-boundary rulings settled, see the Build C rulings SETTLED section:
-the dungeon-turn tick law, the TRANSITION-REMOVAL SYSTEM
-superseding the smother shape, the v+HUD carry surface, the med
-pack's kept instant 5; the Implementation brief below is drafted
-and awaiting approval). Two phases remain: Build C and the Close.**
+**Status: BUILD C BRIEF APPROVED (2026-10-19 — the four boundary
+rulings settled and the Implementation brief drafted,
+advisor-folded, and user-approved this session). Two phases
+remain: Build C (ready for `/implement-phase 103.6`) and the
+Close.**
 
 Companions: `complete/102_DESIGN_CYBERNETICS.md` (the Parked sketch
 this doc inherits — "a general statuses container (`id → rounds
@@ -563,7 +562,7 @@ B's playtest checklist.
       with Tab cycling; no mid-playtest rulings, no fixes.
 - [ ] Build C: the durable boundaries — ALL RULED 2026-10-19 (the
       Build C rulings SETTLED section + the Implementation brief
-      below, drafted this session and awaiting approval): the
+      below, APPROVED 2026-10-19): the
       fight-end defuse flips to field-keyed carry-over (leftover
       regen keeps healing while you explore); the exploration tick
       = DUNGEON TURNS (steps, waits, goto, auto-explore — cities
@@ -1441,7 +1440,7 @@ clamp, not the use gate.
   harness diff should read IDENTICAL — run it as insurance,
   expect zero moved rows, and investigate any that move.
 
-## Implementation brief — Build C: the durable boundaries (DRAFTED 2026-10-19; advisor ADVISE-folded — verdict ADVICE, 9 issues, 3 blocking, all folded; awaiting user approval)
+## Implementation brief — Build C: the durable boundaries (APPROVED 2026-10-19 — drafted, advisor ADVISE-folded (verdict ADVICE, 9 issues, 3 blocking, all folded), user-approved)
 
 ### Pre-build gate (prose)
 
