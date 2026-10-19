@@ -1611,6 +1611,28 @@ No cooldown work. No AoE.
 7. Both rewritten guide sentences read correct; the exploration
    HUD row and `v` work while exploring.
 
+## Build C prose ledger (2026-10-19 — every string settled through the loop; silence never read as acceptance)
+
+Mid-gate RULING (user, verbatim challenge): "Hold on. outside of
+combat it should behave the same way? Why would we get the initial
+5 HP in combat but not outside of combat?" → re-ruled **5
+everywhere** (the med pack's instant 5 at BOTH use sites; the
+SETTLED section above carries the amended shape). Retiring strings,
+called out for the playtest checklist: "Med Packs fully heal
+outside combat." (guide), "Combat Stims cannot be used while
+exploring." (guide), "Press V in combat" (guide clause, amended in
+place), and `"{spec.name} can only be used in ground combat."`
+(ground_consumables refusal — RETIRES: no remaining consumer; the
+tinker kit is intercepted by `try_manage_kit` upstream of
+`use_consumable`, verified this session).
+
+| # | Surface | Ruled text | Verdict |
+|---|---|---|---|
+| 1 | med pack guide entry (Ground Gear → Consumables) | `- Med Packs restore 5 HP immediately and regenerate 2 HP at the start of the next 3 turns; while exploring, the regeneration ticks per step instead. Using another Med Pack refreshes that regeneration duration.` | Ship it |
+| 2 | stim guide entry (same section) | `- Combat Stims grant +1 AP on each of the next 3 turns. They can be used while exploring; each step taken exploring spends 1 turn of the duration. In combat a blue \`+1\` indicator appears beside the AP readout while it is active.` | Ship it |
+| 3 | Statuses section V clause (Build B's paragraph, amended in place) | `Press V in combat or while exploring to open the status window; in combat, Tab inside switches between you and each enemy.` | Ship it |
+| 4 | med pack character-screen detail suffix (the Expedition Pack row; the stim's `+1 AP x3` beside it is UNCHANGED) | `+5 HP/+2 HP x3` | Ship it |
+
 ## Acceptance criteria
 
 1. **One mechanism**: no new ad-hoc timed-effect field, key, or
