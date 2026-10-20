@@ -769,9 +769,10 @@ def test_shared_combat_present_uses_native_overlay_and_map_only(monkeypatch):
 
 def test_shared_combat_present_captures_hud_text_past_window_width(monkeypatch):
     """The live shared present() path must capture combat HUD cells past
-    cell SCREEN_WIDTH (the hud_x_max fix). A 24-cell shield row starting
-    at hud_x=80 spans past cell 100; dropping it clips the shield readout
-    at 20 cells."""
+    cell SCREEN_WIDTH (the hud_x_max fix). A long synthetic HUD row
+    (27 cells — its own literal, not a painter's output) starting at
+    hud_x=80 spans past cell 100; dropping it clips the readout at 20
+    cells."""
     from src.spacehack.engine import HUD_WIDTH, SCREEN_WIDTH
     from src.spacehack.framebuffer import FrameBuffer
 

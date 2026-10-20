@@ -141,7 +141,7 @@ def _render_ap_evade_pow_rows(
         console.print(x=hud_x, y=y, string=_stim[0], fg=_stim[1])
         y += 1
     if evade_bonus is not None:
-        # No colon so the row aligns with the bar-style Hull/Shd rows;
+        # No colon so the row aligns with the bar-style Hull/Shield rows;
         # green when movement has stacked any dodge bonus.
         from .xp import bounty_hunter_evade_bonus
         _evade = evade_bonus + bounty_hunter_evade_bonus(ctx)

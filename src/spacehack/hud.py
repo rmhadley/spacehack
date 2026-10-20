@@ -30,7 +30,7 @@ it):
     |                 | Spd 5     |  A
     |                 | -------- |  A-close divider
     |                 | Hull ###..|  B core (hud_core)
-    |                 | Shd  ##...|  B (blank without shields)
+    |                 | Shield ##.|  B (blank without shields)
     |                 | Cargo 0/10|  B
     |                 |          |  B status slot (blank when empty)
     |                 |          |  C reserved (the fight's WEAPONS
@@ -65,6 +65,7 @@ from .hud_core import (
     GROUND_CORE_Y,
     GROUND_WEAPONS_Y,
     HUD_TEXT_MAX,
+    _aligned_row,
     SPACE_BAND_Y,
     SPACE_CORE_Y,
     SPACE_WEAPONS_Y,
@@ -330,7 +331,7 @@ def _render_fuel_spd_rows(console, hud_x, y, *, fuel, max_fuel, eff_spd) -> int:
     _fuel_fg = COLOR_FUEL_OK if fuel >= 10 else COLOR_FUEL_LOW
     console.print(
         x=hud_x, y=y,
-        string=f"{'Fuel':<8}{_bar_str(fuel, max_fuel):<11}{fuel}/{max_fuel}"[:HUD_TEXT_MAX],
+        string=_aligned_row("Fuel", _bar_str(fuel, max_fuel), f"{fuel}/{max_fuel}"),
         fg=_fuel_fg,
     )
     console.print(
@@ -541,7 +542,10 @@ def _render_city_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, m
     """Paint the city/dungeon-mode HUD body below the title, doc 104's
     reserved regions: A = the location/date band, B = the shared core
     via hud_core, C = the WEAPONS anchor, D = the terminals + help
-    band. The band rows can change freely — the core's rows and y
+    band (the terminal block closes with the rule before the help
+    lines — mid-playtest ruling 2026-10-20, item 17; dungeon's D has
+    no terminals, so its help lines follow the C-close divider
+    directly). The band rows can change freely — the core's rows and y
     never move."""
     _render_city_identity(
         console, hud_x, GROUND_BAND_Y,
@@ -551,13 +555,17 @@ def _render_city_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, m
     _render_city_core(console, hud_x, ctx, ship_catalog=ship_catalog)
     y = _render_ground_weapons_block(console, hud_x, GROUND_WEAPONS_Y, ctx)
     _render_divider(console, hud_x, y)
+    _terms_y = y + 1
     y = _render_city_terminals(
-        console, hud_x, y + 1,
+        console, hud_x, _terms_y,
         has_armory_terminal=has_armory_terminal,
         has_mech_terminal=has_mech_terminal,
         has_trade_terminal=has_trade_terminal,
         has_kiosk=has_kiosk,
     )
+    if y > _terms_y:
+        _render_divider(console, hud_x, y)
+        y += 1
     _render_city_help_lines(console, hud_x, y, mode)
     paint_xp_footer(console, hud_x, hud_view_height, xp_line=xp_line, xp_fg=xp_fg)
 

@@ -91,6 +91,14 @@ def _bar_str(value: int, max_value: int, width: int = 10) -> str:
     return _BAR_CHAR_FULL * full + _BAR_CHAR_EMPTY * (width - full)
 
 
+def _aligned_row(label: str, bar: str, value: str) -> str:
+    """The core's one-column law (doc 104 items 15 + 18): label <8 +
+    bar <11 + value — every meter row's bars land at column 8 and its
+    values at column 19, truncated to the panel's real glyph capacity.
+    ONE site owns the widths so no meter row can drift off the column."""
+    return f"{label:<8}{bar:<11}{value}"[:HUD_TEXT_MAX]
+
+
 def paint_hp_armor_rows(
     console: FrameBuffer, hud_x: int, y: int, *,
     hp: int, max_hp: int, armor: int,
@@ -102,7 +110,7 @@ def paint_hp_armor_rows(
     _hp_fg = COLOR_HP_GOOD if hp * 2 >= max_hp else COLOR_HP_LOW
     console.print(
         x=hud_x, y=y,
-        string=f"{'HP':<8}{_bar_str(hp, max_hp):<11}{hp}/{max_hp}"[:HUD_TEXT_MAX],
+        string=_aligned_row("HP", _bar_str(hp, max_hp), f"{hp}/{max_hp}"),
         fg=_hp_fg,
     )
     console.print(
@@ -130,29 +138,35 @@ def paint_hull_shield_rows(
     shields: int, max_shields: int,
     shield_regen_rate: int = 0, shield_recharge_bonus: int = 0,
 ) -> int:
-    """Region B's space meter (doc 104 Phase 3) — the ONE shape, the
-    space fight's rows: Hull above Shield (the health row first, like
-    the ground core's HP-above-Armor). The shield row carries its
-    regen suffix in POINTS (``+N`` is next turn's gain, never percent)
-    and the white-fill level indicator tracks ONLY ``shield_regen_rate``
-    (the S-key setting) so the highlight moves 1:1 with the key.
-    Always consumes both rows — a ship without shields (max 0) keeps
-    the row BLANK, so B stays four rows and the rows below never
-    shift. Returns the next row (always ``y + 2``)."""
+    """Region B's space meter (doc 104 Phase 3 + the mid-playtest
+    ruling 2026-10-20: ``Shield`` spelled out, the bars lining up with
+    Cargo) — the core's aligned shape, label <8 + 10-cell bar <11 +
+    cur/max, values at column 19, Hull above Shield (the health row
+    first, like the ground core's HP-above-Armor). The shield row
+    carries its regen suffix in POINTS (``+N`` is next turn's gain,
+    never percent) and the white-fill level indicator tracks ONLY
+    ``shield_regen_rate`` (the S-key setting) so the highlight moves
+    1:1 with the key. Always consumes both rows — a ship without
+    shields (max 0) keeps the row BLANK, so B stays four rows and the
+    rows below never shift. Returns the next row (always ``y + 2``)."""
     console.print(
         x=hud_x, y=y,
-        string=f"Hull {_bar_str(hull, max_hull)} {hull}/{max_hull}"[:HUD_TEXT_MAX],
+        string=_aligned_row("Hull", _bar_str(hull, max_hull), f"{hull}/{max_hull}"),
         fg=_hull_bar_color(hull / max(max_hull, 1)),
     )
     if max_shields > 0:
         _total = shield_regen_rate + shield_recharge_bonus
         _bar = _bar_str(shields, max_shields, width=10)
-        _shd = f"Shd  {_bar} {shields}/{max_shields}"
+        _shd = f"{shields}/{max_shields}"
         if _total > 0:
             _shd += f" +{_total}"
-        console.print(x=hud_x, y=y + 1, string=_shd[:HUD_TEXT_MAX], fg=COLOR_SHIELD_BAR)
+        console.print(
+            x=hud_x, y=y + 1,
+            string=_aligned_row("Shield", _bar, _shd),
+            fg=COLOR_SHIELD_BAR,
+        )
         for _i in range(min(shield_regen_rate, len(_bar))):
-            console.print(x=hud_x + 5 + _i, y=y + 1, string=_bar[_i], fg=COLOR_SHIELD_BAR, bg=(255, 255, 255))
+            console.print(x=hud_x + 8 + _i, y=y + 1, string=_bar[_i], fg=COLOR_SHIELD_BAR, bg=(255, 255, 255))
     return y + 2
 
 
@@ -163,7 +177,7 @@ def paint_cargo_row(
     the same aligned bar shape the meter uses. Returns the next row."""
     console.print(
         x=hud_x, y=y,
-        string=f"{'Cargo':<8}{_bar_str(used, max_cargo):<11}{used}/{max_cargo}"[:HUD_TEXT_MAX],
+        string=_aligned_row("Cargo", _bar_str(used, max_cargo), f"{used}/{max_cargo}"),
         fg=COLOR_VALUE_WHITE,
     )
     return y + 1

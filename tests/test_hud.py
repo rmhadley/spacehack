@@ -76,9 +76,9 @@ def test_shield_bar_matches_hull_bar_width():
         "hull": 100, "max_hull": 100, "shields": 12, "max_shields": 20,
         "shield_regen_rate": 1, "shield_recharge_bonus": 3,
     })
-    assert hull_row == "Hull ########## 100/100"
-    assert row == "Shd  ######.... 12/20 +4"
-    assert white == [5]
+    assert hull_row == "Hull    ########## 100/100"
+    assert row == "Shield  ######.... 12/20 +4"
+    assert white == [8]
 
 
 def test_three_digit_values_keep_full_bar():
@@ -87,7 +87,7 @@ def test_three_digit_values_keep_full_bar():
         "hull": 135, "max_hull": 135, "shields": 135, "max_shields": 135,
         "shield_regen_rate": 1, "shield_recharge_bonus": 3,
     })
-    assert row == "Shd  ########## 135/135 +4"
+    assert row == "Shield  ########## 135/135 +4"
     assert row.endswith("+4")
 
 
@@ -106,7 +106,7 @@ def test_no_suffix_when_no_regen_at_all():
         "hull": 100, "max_hull": 100, "shields": 12, "max_shields": 20,
         "shield_regen_rate": 0, "shield_recharge_bonus": 0,
     })
-    assert row == "Shd  ######.... 12/20"
+    assert row == "Shield  ######.... 12/20"
     assert white == []
 
 
@@ -120,7 +120,7 @@ def test_shield_row_blank_but_consumed_without_shields():
     )
     hull_row = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
     shield_row = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
-    assert hull_row == "Hull ########## 15/15"
+    assert hull_row == "Hull    ########## 15/15"
     assert shield_row == ""
     assert next_y == 2
 
@@ -233,6 +233,11 @@ def test_dungeon_hud_renders_the_weapons_block():
     assert any(row.startswith("HOLSTER  Laser Pistol") for row in rows)
     assert "PST 132/160" in rows
     assert "CEL 61/250" in rows
+    # The item-17 terminal close is CONDITIONAL: dungeon has no
+    # terminals, so its help lines follow the C-close divider directly
+    # — never a stacked double rule.
+    _c_close = max(y for y, row in enumerate(rows) if row and set(row) == {"-"})
+    assert rows[_c_close + 1].startswith("[P] Pickup")
 
 
 def test_city_hud_renders_the_weapons_block():
@@ -269,6 +274,12 @@ def test_city_hud_renders_the_weapons_block():
     assert rows[_weapons_y - 1].strip() == ""   # the blank status slot above
     for _terminal in ("A  Armory", "%  Mechanic", "=  Trade", "$  Terminus Tech"):
         assert rows.index(_terminal) > _weapons_y  # terminals live in D now
+    # The terminal block closes with the rule before the help lines
+    # (mid-playtest ruling 2026-10-20, item 17 — the user flagged its
+    # absence on Earth: a divider between the kiosk key and the hints).
+    _kiosk_y = rows.index("$  Terminus Tech")
+    assert set(rows[_kiosk_y + 1]) == {"-"}
+    assert rows[_kiosk_y + 2].startswith("[R] Reload")
     assert "[ESC] Pause" in "\n".join(rows)
 
 
@@ -379,6 +390,23 @@ def test_city_stat_values_line_up_in_one_column():
     assert rows[0][19] == "1"  # 10/10
     assert rows[1][8] == "3"   # Armor
     assert rows[2][19] == "0"  # 0/0 (no ship -> empty bar)
+
+
+def test_space_meter_bars_line_up_with_cargo_in_one_column():
+    """The mid-playtest ruling (2026-10-20): Hull, Shield, and Cargo
+    line up — one bar column (8) and one value column (19) across the
+    space core, with ``Shield`` spelled out (the ground twin of
+    test_city_stat_values_line_up_in_one_column)."""
+    console = FrameBuffer(40, 4)
+    y = hud_core.paint_hull_shield_rows(
+        console, 0, 0, hull=10, max_hull=10, shields=8, max_shields=10,
+        shield_recharge_bonus=2,
+    )
+    hud_core.paint_cargo_row(console, 0, y, used=0, max_cargo=10)
+    rows = ["".join(console.cell(x, _y).char for x in range(40)) for _y in range(4)]
+    assert rows[1].startswith("Shield  ")
+    assert rows[0][8] == "#" and rows[1][8] == "#" and rows[2][8] == "."   # bars
+    assert rows[0][19] == "1" and rows[1][19] == "8" and rows[2][19] == "0"  # values
 
 
 def test_space_fuel_spd_rows_use_bars():
@@ -500,7 +528,7 @@ def test_shield_row_survives_the_wider_combat_console():
         console.cell(x, 1).char
         for x in range(SCREEN_WIDTH - HUD_WIDTH, SCREEN_WIDTH + HUD_WIDTH)
     )
-    assert row.rstrip() == "Shd  ########## 135/135 +8"
+    assert row.rstrip() == "Shield  ########## 135/135 +8"
 
 
 def test_ap_pool_str_shows_fractional_carry():
@@ -701,8 +729,8 @@ def test_space_pair_shares_the_core_rows_and_the_region_frame():
     explore, fight = _render_space_pair(_space_pair_ctx())
     _divider_y = hud_core.SPACE_WEAPONS_Y + hud_core.space_weapons_rows(1)
     for rows, d_first in ((explore, "[G] Go To"), (fight, "ENEMIES")):
-        assert rows[hud_core.SPACE_CORE_Y] == "Hull ########## 25/25"
-        assert rows[hud_core.SPACE_CORE_Y + 1] == "Shd  ########## 5/5 +1"
+        assert rows[hud_core.SPACE_CORE_Y] == "Hull    ########## 25/25"
+        assert rows[hud_core.SPACE_CORE_Y + 1] == "Shield  ########## 5/5 +1"
         assert rows[hud_core.SPACE_CORE_Y + 2].startswith("Cargo")
         assert rows[hud_core.SPACE_CORE_Y + 3] == ""   # the blank status slot
         assert len(rows[_divider_y]) == hud.HUD_TEXT_MAX and set(rows[_divider_y]) == {"-"}
