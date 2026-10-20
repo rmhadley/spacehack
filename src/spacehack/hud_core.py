@@ -11,7 +11,10 @@ Region row budget (the ground pair; the reserved-height law — a band
 growing or shrinking can never push the core):
 
     y=0        title (both panels)
-    y=2..5     A: mode band, GROUND_BAND_ROWS reserved
+    y=2..5     A: mode band, GROUND_BAND_ROWS reserved (combat closes
+               the band with the divider on its last reserved row —
+               doc 104 item 16; every panel closes A and C with the
+               rule)
     y=6        the exploration divider / the combat PLAYER label row
     y=7..10    B: the core — HP, Armor, Cargo, the status slot
     y=11..     C: the WEAPONS anchor (GROUND_WEAPONS_Y)

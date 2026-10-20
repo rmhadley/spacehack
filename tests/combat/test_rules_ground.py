@@ -2271,6 +2271,43 @@ def test_doc104_core_rows_share_one_y_across_the_ground_pair(monkeypatch):
         assert _weapons.startswith("WEAPONS")
 
 
+def test_doc104_combat_panel_carries_both_boundary_dividers(monkeypatch):
+    """Doc 104 item 16 (mid-playtest ruling 2026-10-20): the boundary
+    dividers are panel chrome, not exploration flavor — the fight
+    closes its A band (the reserved blank above the PLAYER label) and
+    region C (the old blank spacing row below the weapons block) with
+    the full-width rule, at zero row cost: PLAYER, the core, and
+    WEAPONS hold their pinned rows."""
+    from src.spacehack import hud_core
+
+    _ctx, _game_map, _console, _enemy = _ground_fixture()
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    _line_calls: list = []
+    _patch_render_deps(monkeypatch, _line_calls)
+    _frame = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, SCREEN_HEIGHT)
+    _rules_ground.render_frame(_frame, _ctx, _game_map)
+
+    _hud_x = SCREEN_WIDTH - HUD_WIDTH
+
+    def _row(y):
+        return "".join(
+            _frame.cell(x, y).char
+            for x in range(_hud_x, _hud_x + HUD_WIDTH * 2)
+        ).rstrip()
+
+    _band_close = hud_core.GROUND_BAND_Y + hud_core.GROUND_BAND_ROWS - 1
+    assert _row(_band_close) == "-" * hud_core.HUD_TEXT_MAX
+    assert _row(hud_core.GROUND_CORE_Y - 1).startswith("PLAYER")
+    assert _row(hud_core.GROUND_CORE_Y).startswith("HP")
+    assert _row(hud_core.GROUND_WEAPONS_Y).startswith("WEAPONS")
+    # C's close: the divider sits directly above the ENEMIES title.
+    _enemies_y = next(
+        y for y in range(hud_core.GROUND_WEAPONS_Y, SCREEN_HEIGHT)
+        if _row(y).startswith("ENEMIES")
+    )
+    assert _row(_enemies_y - 1) == "-" * hud_core.HUD_TEXT_MAX
+
+
 def test_doc104_combat_status_slot_blank_when_empty_row_consumed():
     """Item 13 on the combat side: no active statuses = the slot row
     paints nothing (no placeholder glyph) and the row is still

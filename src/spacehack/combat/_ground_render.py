@@ -26,6 +26,7 @@ from ..hud import (
     _cargo_used_max,
     _hud_xp_line,
     _render_action_pairs,
+    _render_divider,
     _resolve_ship_catalog,
     ap_pool_str,
     bandolier_hud_lines,
@@ -273,6 +274,12 @@ def _render_combat_band(console, ctx) -> None:
         console.print(
             x=hud_x, y=hud_core.GROUND_BAND_Y + 2, string=_stim[0], fg=_stim[1],
         )
+    # The mid-playtest divider ruling (doc 104 item 16): the A band
+    # closes with the same full-width rule exploration paints — in the
+    # reserved blank above the PLAYER label, so no anchored row moves.
+    _render_divider(
+        console, hud_x, hud_core.GROUND_BAND_Y + hud_core.GROUND_BAND_ROWS - 1,
+    )
 
 
 def _render_player_panel(console, ctx) -> int:
@@ -347,7 +354,12 @@ def _render_weapons_panel(console, ctx, weapons, y: int) -> int:
     for i, wid in enumerate(weapons):
         y = _print_weapon_block(console, ctx, hud_x, y, i, wid)
     y = _print_holster_row(console, ctx, hud_x, y)
-    return _print_bandolier_rows(console, ctx, hud_x, y) + 1
+    y = _print_bandolier_rows(console, ctx, hud_x, y)
+    # Region C closes with the divider (doc 104 item 16) — replacing
+    # the old blank spacing row, so the enemies panel starts exactly
+    # where it did before the ruling (zero row cost).
+    _render_divider(console, hud_x, y)
+    return y + 1
 
 
 def _print_holster_row(console, ctx, hud_x: int, y: int) -> int:
