@@ -42,8 +42,11 @@ moments.** One core, four panels (ground/space × explore/fight).
   same rows in every panel**: the mode's health meter (HP on the
   ground; hull/shield in space — the core's ONLY space-vs-ground
   difference), cargo (re-added to space combat, where it informs
-  boarding), and the status row (FIXED slot everywhere — never
-  conditional, never popping). "Fixed" means structurally pinned —
+  boarding), the status row (FIXED slot everywhere — never
+  conditional, never popping), and THE FOOTER (ruled 2026-10-20,
+  item 12: the XP row alone, bottom-anchored, all four panels —
+  the bar stops vanishing when a fight starts; both combat panels
+  GAIN the in-fight XP read). "Fixed" means structurally pinned —
   the DATA is live; the rows, their y, and the painter never
   change.
 - **Reserved regions, not insertions (the load-bearing geometry,
@@ -111,6 +114,7 @@ slot) → WEAPONS/holster/bandolier → terminals → help.
 | # | Ruling |
 |---|---|
 | 11 | **FULL FRAME confirmed** — four-HUD core + ground anchoring |
+| 12 | **THE FOOTER joins the core, slimmed to one row** (user, 2026-10-20): the XP bar alone, shared and bottom-anchored across all four panels. "bump to interact" DROPS entirely (verified: only the two exploration panels paint a footer today, and neither combat panel paints any bottom rows — so unifying ADDS the XP read to both fights). "ESC to quit" RETIRES as STALE — ESC opens the pause menu, it does not quit — and ESC joins each mode's key-hint block (the help lines exploring, ACTIONS fighting) with prose-gated wording |
 
 ## Phases (proposed — the refine pass settles briefs)
 
@@ -151,6 +155,11 @@ slot) → WEAPONS/holster/bandolier → terminals → help.
 2. **The guide's stim sentence** — the "+1 indicator" clause
    rewrites when the marker dies (prose loop at build; the sentence
    also carries the exploration-legal teaching that stays).
+2a. **The ESC hint's new wording** — "ESC to quit" retires (stale:
+   ESC opens the pause menu); its replacement label in the help
+   lines and ACTIONS blocks settles through the prose loop at
+   build ("ESC Menu" shape). "bump to interact" needs no
+   replacement (ruled: gone).
 3. **The C-screen credits row's exact shape** — a header line
    (`Credits 1250`) vs a stats-column row; player-facing, settles
    through the prose loop at build.
