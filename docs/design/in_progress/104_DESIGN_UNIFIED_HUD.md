@@ -1,10 +1,10 @@
 # DESIGN: The unified HUD — one core, four panels
 
-**Status: PHASE 2 LANDED + PLAYTEST PASSED (2026-10-20 — build
-8a30716b + guide 900b05f6, gate green, reviewer APPROVE; mid-playtest
-ruling 16 + addendum 72e053ae; the playtest passed incl. the two
-called-out guide edits and the new dividers). Next:
-`/implement-phase 104.3` (the space pair — the last phase).**
+**Status: PHASE 3 BUILT (2026-10-20 — builds 859d5def audit + e3ca92fd,
+gate green 3995, reviewer APPROVE; its two mechanical minors applied,
+the degenerate-tail minor REPORTED for the playtest per the brief's
+surprise rule). Next: the Phase 3 playtest, then the doc's close
+(SYSTEMS.md entries + move to complete/).**
 
 Companions: `in_progress/103_DESIGN_STATUSES.md` (the status row —
 the first surface that lives on every panel, whose fight-boundary
@@ -403,9 +403,32 @@ C-screen redesign beyond the one row; no prose beyond ledger #2 and
    active."); the C enumeration now reads "…your level, experience,
    credits, skills, available points, traits…" (was: no
    "credits").
-- [ ] Phase 3 — the space pair: cargo joins space combat; the
+- [x] Phase 3 — the space pair: cargo joins space combat; the
       space explore↔fight transition anchors. PLAYTEST: the
       boarding decision reads the bay; the space boundary calms.
+      LANDED 2026-10-20 (builds 859d5def audit + e3ca92fd, gate
+      green, reviewer APPROVE). The space pair renders the frame:
+      five-row A bands (exploration identity/Fuel/Spd; fight
+      mode/AP/STIM/Evade/Pow), the core at rows 8-11 — byte-identical
+      across the boundary, pinned (hull `25/25`, `Shd 5/5 +1`, cargo,
+      the status slot) — the per-loadout C budget
+      (`space_weapons_rows` = 1+3n) with both item-16 dividers at the
+      same rows on both panels, D at the same row, footer at 52 on
+      both. Audit-bound riders that rode the build: the space fight's
+      PLAYER label died (the brief's B carries no label row — "the
+      same B" as exploration); combat's legacy Shd-above-Hull order
+      swapped to Hull-first (the brief and sketch list Hull first
+      everywhere); exploration's old ALIGNED hull row died for the
+      fight's shape (one painter, one shape); `[ESC] Pause` joined the
+      space fight's ACTIONS (prose ledger #1's all-modes sweep
+      completing — Phase 1 shipped ground + space help, this brief
+      owned the fight's block). Reviewer APPROVE x1; its minors 2-3
+      applied in-commit (`_status_segments` twin collapsed; the
+      C-budget lockstep pinned so a weapon-row change trips the pin
+      first); minor 1 (degenerate 11-12-weapon loadouts strand
+      ACTIONS past the footer — same class as the old order's
+      off-panel tail, probed empirically) REPORTED on the playtest
+      checklist, not fixed unruled.
 
 ### Implementation brief — Phase 3 (APPROVED 2026-10-20)
 
