@@ -286,6 +286,90 @@ work; no prose beyond the ruled `[ESC] Pause`.
       credits→C with its new C-screen home, skills grid), the
       suffix and marker die, the weapon rows slim. PLAYTEST: the
       panels read at a glance; C carries credits.
+
+### Implementation brief — Phase 2 (APPROVED 2026-10-20)
+
+**Scope (exact files/hook points).**
+
+- `src/spacehack/hud.py` — the ruled drops on the exploration
+  panel: `_render_city_identity` loses the species/class rows
+  (location/date remain; signature and callers in `render_hud`
+  slim with it); the D-band interim rows die — the Credits row out
+  of `_render_city_stat_rows`, the skills grid plus
+  `_render_skill_line`/`_skill_slot` (and any callerless helpers
+  behind them — the dead-code self-audit sweep). The panel lands
+  the approved end-state mock.
+- `src/spacehack/character_screen.py` — the shared credits row,
+  wording verbatim `Credits: {stats.credits}`, under the title on
+  ALL three tabs: threaded through `_equipment_frame`,
+  `_cargo_character_frame`, and the Stats tab's `_stats_frame`
+  (one shared header-row builder if three copies would drift). C
+  becomes credits' canonical read (acceptance 3's landing spot).
+- `src/spacehack/combat/_ground_render.py` — the suffix/marker/
+  slim: the HP regen suffix dies in `_render_player_panel`
+  (`_active_regen_amount` goes with it if callerless); the gold
+  `+1` temp-AP marker dies in `_render_ap_row` (`_active_ap_bonus`
+  likewise); `_print_weapon_block` slims to checkbox + name +
+  magazine indicator — the per-weapon DMG/HIT/RNG/AP reference
+  rows die. The WEAPONS title row's `[N] 2AP` read stays; the
+  targeting line and target card stay (item 9: they own the live
+  numbers).
+- Guide — two edits, both ruled verbatim (prose ledger #2, #4): the
+  consumables section's stim sentence replacement; the Character &
+  Skills enumeration gains "credits". Nothing else in the guide
+  references a doomed row or the reference rows (verified by sweep
+  2026-10-20) — any surprise found at build is REPORTED at the
+  playtest checkpoint, never edited unruled.
+
+**Build order.** Exploration drops → C credits row → combat
+suffix/marker → weapon slim → guide edits (own commit, per the
+prose gate) → tests.
+
+**Binding rulings.** Items 1, 4, 5, 6, 7, 9 + prose #2/#3/#4;
+acceptance 4's single-surface law — regen and the stim bonus each
+render exactly once per panel (the status row); the walking
+weapon-row shape is name + magazine, combat's checkbox its only
+extra mark.
+
+**Required tests** (`tests/test_hud.py`, the ground-render HUD
+tests in `tests/test_pygame_ui.py`, and the character-screen
+tests):
+1. Absence: species/class/credits/skills render nowhere on the
+   exploration panel.
+2. Presence: `Credits:` row under the title on each of the three C
+   tabs; the number tracks `ctx.stats.credits`.
+3. Combat HP row never carries a ` +N` suffix; the AP row never
+   carries the gold `+N` (`test_no_suffix_when_no_regen_at_all`
+   retargets into this absence pin).
+4. The combat weapon block paints no DMG/HIT/RNG/AP reference
+   rows; checkbox + magazine still paint.
+5. The two guide edits render (their sections' shape pins keep
+   passing).
+
+**Stop point — do NOT start.** No space-pair work (Phase 3; the
+space panels never carried the dropped rows anyway); no hud_core
+geometry changes (the regions fixed in Phase 1 are law); no
+C-screen redesign beyond the one row; no prose beyond ledger #2 and
+#4 verbatim.
+
+**Playtest checklist.**
+1. The exploration panel reads at a glance: location/date straight
+   into HP/Armor/Cargo — no identity rows, no credits, no skills
+   grid.
+2. Open C on Equipment, Stats, and Cargo: `Credits: N` sits under
+   the title on every tab; spend some and reopen — the number
+   moves.
+3. Fight with regen and a stim active: no `+2` on the HP row, no
+   gold `+1` beside AP — the status row alone reads REGEN/STIM.
+4. The fight's WEAPONS rows are name + magazine (+ the checkbox);
+   the targeting line and target card still carry the live numbers.
+5. Guide review (called out, not silent): the stim sentence now
+   reads "While it lasts the effect reads on the right-hand panel
+   as `STIM` with its remaining turns." (was: "In combat a blue
+   `+1` indicator appears beside the AP readout while it is
+   active."); the C enumeration now reads "…your level, experience,
+   credits, skills, available points, traits…" (was: no
+   "credits").
 - [ ] Phase 3 — the space pair: cargo joins space combat; the
       space explore↔fight transition anchors. PLAYTEST: the
       boarding decision reads the bay; the space boundary calms.
@@ -307,24 +391,25 @@ work; no prose beyond the ruled `[ESC] Pause`.
 
 ## Open questions
 
-1. ~~The empty status slot~~ — **SETTLED 2026-10-20, item 13**: blank
-   row.
-2. **The guide's stim sentence** — the "+1 indicator" clause rewrites
-   when the marker dies (prose loop; the sentence also carries the
-   exploration-legal teaching that stays). Phase 2's prose item.
+1. ~~The empty status slot~~ — **SETTLED 2026-10-20, item 13**:
+   blank row.
+2. ~~The guide's stim sentence~~ — **SETTLED 2026-10-20, prose
+   ledger #2**.
 2a. ~~The ESC hint's new wording~~ — **SETTLED 2026-10-20, prose
    ledger #1**: `[ESC] Pause`.
-3. **The C-screen credits row's exact shape** — a header line
-   (`Credits 1250`) vs a stats-column row; player-facing, settles
-   through the prose loop. Phase 2's prose item.
+3. ~~The C-screen credits row's exact shape~~ — **SETTLED
+   2026-10-20, prose ledger #3**: shared row under the title, all
+   three tabs.
 4. ~~Band order within each mode~~ — **SETTLED 2026-10-20, item 15**:
    the approved mocks are the layout contract.
-5. **The shared module's home** — neutral sibling vs
-   data-parameterized painters inside `hud.py`; bound in Phase 1's
-   brief from code facts (combat already imports `hud.py`
-   module-level, `hud.py` sits at 848 lines near the ratchet, and
-   four panels need one import home → the neutral `hud_core`
-   sibling).
+5. ~~The shared module's home~~ — **SETTLED 2026-10-20, bound in
+   Phase 1's brief from code facts**: the neutral `hud_core`
+   sibling (combat already imports `hud.py` module-level, `hud.py`
+   sits at 848 lines near the ratchet, and four panels need one
+   import home).
+
+All open questions settled; every phase's brief approved. The doc
+awaits `/implement-phase 104.1`.
 
 ## Prose ledger
 
@@ -333,3 +418,18 @@ work; no prose beyond the ruled `[ESC] Pause`.
    **SHIPPED verbatim 2026-10-20.** (Consistent with the guide's
    existing "ESC: pause menu (save & exit, dump char)" line — no
    guide edit rides the label.)
+2. Guide, consumables section, the combat-stim sentence's final
+   clause — replacement **SHIPPED verbatim 2026-10-20**: "While it
+   lasts the effect reads on the right-hand panel as `STIM` with
+   its remaining turns." (was: "In combat a blue `+1` indicator
+   appears beside the AP readout while it is active." — dies with
+   the marker, item 7; the STIM status segment already exists).
+3. The C-screen credits row — **SHIPPED verbatim 2026-10-20**:
+   shared row under the title on ALL three tabs, wording
+   `Credits: {value}` (mock: `Credits: 1250`); joins the screen's
+   header band, not the stats-only block.
+4. Guide, Character & Skills section, the C-screen enumeration —
+   **SHIPPED verbatim 2026-10-20**: "It shows your level,
+   experience, credits, skills, available points, traits, and -
+   when you are exploring on foot - your carried equipment." (was:
+   no "credits").
