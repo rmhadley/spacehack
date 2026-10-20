@@ -615,6 +615,103 @@ move to complete/) waits for the phase's playtest, not this build.
    magazine presence lands in the one weapon-slim pin
    (`test_weapon_block_ammo_line_drops_the_reserve_suffix`'s home).
 
+## Pre-implementation audit (2026-10-20, Phase 3)
+
+### Existing modules/helpers to extend or reuse
+
+- `hud_core`'s Phase-1 painters — `paint_cargo_row`, `paint_status_slot`,
+  `paint_xp_footer` — serve as-is on both space panels (the brief).
+- `hud_combat._render_hull_shield_rows` + `_hull_bar_color` + the
+  hull/shield palette (`COLOR_HULL_BAR_GREEN/YELLOW/RED`,
+  `COLOR_SHIELD_BAR`) — the meter's ink moves to hud_core as the
+  data-parameterized `paint_hull_shield_rows`; hud_combat imports the
+  palette back for its ENEMY rows (`Hul`/`Shd` are D-band content and
+  stay in hud_combat).
+- `combat/_stats._calc_max_shields` + `_free_shield_regen` — the
+  computed shield max and free regen exploration now reads (lazy
+  import, the pygame_overlay precedent — its docstring already calls
+  it "same formula the player and the exploration overlay read").
+  Every fight inits shields to max with rate 0
+  (`_player_state_dict`: `shields = max_shields`,
+  `shield_regen_rate = 0`), so exploration passing
+  `shields=max, rate=0, free=computed` paints the exact row the
+  fight's round 0 shows — same data, same ink, zero drift.
+- `hud._cargo_used_max` + `_resolve_ship_catalog` — the fight core's
+  cargo read (ctx is threaded at both call sites, verified
+  `_rules_space.py:708`, `_animations.py:625`; the ground render's
+  exact wiring pattern).
+- `hud._hud_xp_line` + `hud_core.paint_xp_footer` — the fight footer;
+  ground's `_paint_xp_footer` pattern computes
+  `hud_view_height = screen_height - MSG_LOG_HEIGHT` from the already-
+  passed `screen_height` (no signature change).
+- `hud._render_ship_identity` / `_render_divider` /
+  `_render_help_lines` + `_SPACE_HELP_LINES` — the exploration band,
+  both dividers, and D, unchanged painters at new reserved rows.
+- Test scaffolding to mirror: `_ground_weapons_ctx` (SimpleNamespace
+  ctx fixture), `FrameBuffer(SCREEN_WIDTH + HUD_WIDTH)` (the
+  glyph-budget law), `xp_footer_row` = `hud_view_height - 2`.
+
+### Brief clarifications bound from code facts
+
+1. **The space region geometry**: both space A bands need exactly 5
+   rows (exploration: ship name/location/date/Fuel/Spd; combat:
+   mode/AP/STIM/Evade/Pow) → `SPACE_BAND_Y = 2`, `SPACE_BAND_ROWS =
+   5` (row 1 blank under the title, matching the ground pair), the
+   A-close divider at `SPACE_CORE_Y - 1 = 7` on BOTH panels, core
+   rows 8-11, `SPACE_WEAPONS_Y = 12`. No PLAYER label on the space
+   core — the brief's B lists hull/shield/cargo/status only, so the
+   label dies with `_render_player_block` (both panels' B starts at
+   the Hull row).
+2. **Hull paints ABOVE Shield** in the shared painter: the brief and
+   the doc's space sketch list Hull first everywhere (combat's legacy
+   Shd-above-Hull order swaps; parallels the ground core's
+   HP-above-Armor). The row format is hud_combat's verbatim — `Hull
+   {bar} {cur}/{max}` in the color trio, `Shd  {bar} {cur}/{max} +N`
+   with the S-key white indicator — so exploration's old ALIGNED hull
+   row dies (one shape, the fight's, per "in hud_combat's shape").
+3. **The meter painter always consumes both rows** — the shield row
+   stays BLANK when the ship has none (`max_shields == 0`): the
+   same-rows law's "one row-set" means B is 4 rows for every ship, so
+   the C anchor is a constant and rows below never shift when shield
+   modules change at a fitting screen (item 13's blank-when-empty law
+   extended to the meter; legacy combat omitted the row, but the
+   shieldless case is `starter`-hull common and the omission would
+   make SPACE_WEAPONS_Y loadout-dependent). Both panels share the
+   condition (data-driven, mode-independent) so the boundary pin
+   holds for every ship.
+4. **The C budget is per-loadout**: `space_weapons_rows(n) = 1 + 3n`
+   (the WEAPONS title + `_render_weapon_row`'s exact 3 rows/weapon),
+   read from the ship's flown weapons on exploration and
+   `weapon_list` in the fight. Doc 56 SETTLED 18 retired slot counts,
+   so no constant max exists to reserve against; per-loadout sizing
+   lands the C-close divider and D's start at the SAME y on both
+   panels (the fight's block exactly fills its budget) and never
+   wastes blank rows. The C-close divider replaces the block's
+   trailing spacer row — item 16's ground pattern, zero row cost.
+5. **`[ESC] Pause` joins the space fight's ACTIONS** (ledger #1:
+   "help lines + ACTIONS pairs, all modes" — Phase 1 shipped the
+   ground pair + the space help list; the space fight's ACTIONS was
+   left for this brief to wire). Ruled prose completing its sweep,
+   appended last as ground carries it; called out on the playtest
+   checklist.
+
+### Duplication hotspots and DRY strategy
+
+1. **The shield-max/free-regen computation.** Exploration hand-rolling
+   `base_shield_max + module bonuses` would drift from the fight init
+   and the shield bubble. **Fix:** lazy-import
+   `_calc_max_shields`/`_free_shield_regen` from `combat._stats` (the
+   pygame_overlay precedent) — one formula feeds all three surfaces.
+2. **The divider span.** Four new divider call sites (A- and C-close
+   on both panels) could each hand-roll a rule. **Fix:**
+   `hud._render_divider` stays the one divider painter (ground's
+   pattern); every close calls it.
+3. **The C budget computed twice** (exploration from
+   `owned_ship.weapons`, the fight from `weapon_list`) drifting when
+   the weapon-row shape changes. **Fix:** one `space_weapons_rows`
+   helper in hud_core beside the constants; both panels pass their
+   lens on the same loadout.
+
 ## Acceptance criteria
 
 1. The status row occupies the same slot in all four panels and
