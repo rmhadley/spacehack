@@ -65,6 +65,13 @@ def _skill_spend_marker(ctx: GameContext, index: int, skill: str) -> str:
     return "MAX" if base >= 100 else ""
 
 
+def _credits_header_line(ctx: GameContext) -> str:
+    """The shared credits row under the title (doc 104 item 4, prose
+    ledger #3): C is credits' canonical read — one wording, first
+    content row on every tab."""
+    return f"Credits: {ctx.stats.credits}"
+
+
 def _stats_header_lines(ctx: GameContext, current_xp: int, needed: int) -> tuple[str, ...]:
     """The informational header rows above the stats (the old
     ScreenFrame body, verbatim — Brief 4.3 moves them into the
@@ -174,7 +181,10 @@ def _stats_frame(ctx: GameContext, title: str, current_xp: int, needed: int, sel
 
     header = tuple(
         pygame_split.SplitRow(line, "", "", "", selectable=False)
-        for line in _stats_header_lines(ctx, current_xp, needed)
+        for line in (
+            _credits_header_line(ctx),
+            *_stats_header_lines(ctx, current_xp, needed),
+        )
     )
     stats = tuple(
         pygame_split.SplitRow(
@@ -211,13 +221,13 @@ def _cargo_character_frame(ctx: GameContext, title: str, selected: int):
     owned = ctx.player_owned_ship
     if owned is None:
         return pygame_screen.ScreenFrame(
-            title, ("No ship available.",), (),
+            title, (_credits_header_line(ctx), "No ship available."), (),
             (pygame_ui.modal_hint("TAB next tab", "ESC close", pygame_ui.GUIDE_HINT),),
             tabs=("STATS", "EQUIPMENT", "CARGO"), active_tab=2,
         )
     ship_spec = ship_module.find_ship(owned.ship_id)
     max_cargo = ship_module.effective_max_cargo(ship_spec, owned, ctx)
-    body = _cargo_body(ctx, owned, max_cargo)
+    body = (_credits_header_line(ctx), *_cargo_body(ctx, owned, max_cargo))
     return pygame_screen.ScreenFrame(
         title, body, _cargo_rows(owned),
         (pygame_ui.modal_hint(

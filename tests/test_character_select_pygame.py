@@ -174,7 +174,9 @@ def test_stats_tab_lists_owned_identity_gear():
         base = dict(
             player_level=1, player_xp=0, player_skill_points=0,
             player_traits=[], character_info={},
-            stats=SimpleNamespace(gunnery=10, piloting=10, engineering=10),
+            stats=SimpleNamespace(
+                credits=100, gunnery=10, piloting=10, engineering=10,
+            ),
             ground_stats=SimpleNamespace(
                 gunnery=10, piloting=10, engineering=10, stamina=10,
                 force=10, resilience=10,

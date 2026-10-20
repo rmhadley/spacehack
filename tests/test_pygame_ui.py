@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 from src.spacehack import (
     character_screen,
+    hud,
     pygame_screen,
     pygame_menu,
     pygame_quest_log,
@@ -2199,15 +2200,16 @@ def test_screen_tabs_reserve_font_budget_and_shift_panels():
 
 def test_equipment_tab_split_frame_pairs_management_with_bandolier():
     """Doc 52.3 amendment: the Equipment tab renders as the split UX —
-    left = the equipment rows verbatim (headers as dividers), right =
-    ALL six calibers current/max, read-only, with feeding weapons."""
+    left = the equipment rows verbatim (headers as dividers; the shared
+    credits row first, doc 104 item 4), right = ALL six calibers
+    current/max, read-only, with feeding weapons."""
     ctx = SimpleNamespace(
         player_level=1,
         player_xp=0,
         player_skill_points=0,
         player_traits=[],
         character_info={"class_name": "merchant"},
-        stats=SimpleNamespace(gunnery=10, piloting=10, engineering=10),
+        stats=hud.HudStats(1250),
         ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
         equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 5)],
         holstered_ground_weapons=[GroundWeaponInstance("laser_pistol", None)],
@@ -2219,8 +2221,10 @@ def test_equipment_tab_split_frame_pairs_management_with_bandolier():
     frame = character_screen._character_frame(ctx, 1, 0)
 
     assert isinstance(frame, pygame_split.SplitFrame)
-    assert frame.left_rows[0].divider is True
-    assert frame.left_rows[0].label.startswith("--- WEAPONS - RANGED")
+    assert frame.left_rows[0].label == "Credits: 1250"
+    assert not frame.left_rows[0].selectable
+    assert frame.left_rows[1].divider is True
+    assert frame.left_rows[1].label.startswith("--- WEAPONS - RANGED")
     assert frame.right_label == "Ammo"
     right = list(frame.right_rows)
     assert len(right) == 6
@@ -2762,7 +2766,7 @@ def test_character_equipment_management_explains_backpack_actions():
         player_skill_points=0,
         player_traits=[],
         character_info={"class_name": "merchant"},
-        stats=SimpleNamespace(gunnery=10, piloting=10, engineering=10),
+        stats=hud.HudStats(100),
         ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
         equipped_ground_weapons=[],
         holstered_ground_weapons=[],
@@ -2816,6 +2820,7 @@ def test_character_equipment_management_keeps_slots_selectable_without_pack_item
 def test_character_equipment_down_reaches_second_active_weapon():
 
     ctx = SimpleNamespace(
+        stats=hud.HudStats(100),
         equipped_ground_weapons=[
             GroundWeaponInstance("kinetic_pistol", 12),
             GroundWeaponInstance("kinetic_pistol", 12),
@@ -2848,12 +2853,13 @@ def test_character_equipment_down_reaches_second_active_weapon():
 
     event = SimpleNamespace(type=FakePygame.KEYDOWN, key=FakePygame.K_DOWN, unicode="")
 
-    # Selection starts on the first selectable row (member 1); DOWN
-    # reaches the second set member beneath the group header — through
-    # the split's flag-based screen keymap (doc 52.3).
-    assert frame.left_rows[1].selectable is True
+    # Selection starts on the first selectable row (member 1, under the
+    # shared credits row + group divider); DOWN reaches the second set
+    # member beneath the group header — through the split's flag-based
+    # screen keymap (doc 52.3).
     assert frame.left_rows[2].selectable is True
-    assert pygame_split._handle_screen_key(FakePygame, event, frame) == ("IGNORE", 2)
+    assert frame.left_rows[3].selectable is True
+    assert pygame_split._handle_screen_key(FakePygame, event, frame) == ("IGNORE", 3)
 
 
 def test_character_equipment_management_reports_empty_compatible_choices():

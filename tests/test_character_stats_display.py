@@ -24,7 +24,7 @@ from src.spacehack.ship import OwnedShip, StoredEquipment
 
 def _ctx(modules=(), installed_chrome=()):
     return SimpleNamespace(
-        stats=SimpleNamespace(gunnery=25, piloting=20, engineering=15),
+        stats=SimpleNamespace(credits=1250, gunnery=25, piloting=20, engineering=15),
         ground_stats=SimpleNamespace(reflexes=8, strength=10, stamina=9),
         player_owned_ship=OwnedShip(
             ship_id="starter", modules=tuple(modules),
@@ -111,7 +111,7 @@ def test_spend_marker_still_reads_the_base_value():
     rows = _row_texts(ctx)
     assert rows[0] == "Gunnery        35 (+10)  [+]"
     capped = _ctx(modules=[StoredEquipment("module", "targeting_computer")])
-    capped.stats = SimpleNamespace(gunnery=100, piloting=20, engineering=15)
+    capped.stats = SimpleNamespace(credits=1250, gunnery=100, piloting=20, engineering=15)
     capped.player_skill_points = 1
     assert _row_texts(capped)[0] == "Gunnery       110 (+10)  MAX"
 
@@ -143,6 +143,49 @@ def test_stats_tab_adopts_the_split_family():
     assert all(not row.selectable for row in frame.right_rows)
 
 
+def test_credits_row_under_the_title_on_all_three_tabs():
+    """Doc 104 item 4 + prose ledger #3: C is credits' canonical read —
+    the shared row is the first content row under the title on the
+    Stats, Equipment, and Cargo tabs, and the number tracks
+    ``ctx.stats.credits``."""
+    from src.spacehack.character_screen import _equipment_frame
+    from src.spacehack.character_screen_stats import _cargo_character_frame
+
+    ctx = _ctx()
+    ctx.equipped_ground_weapons = []
+    ctx.holstered_ground_weapons = []
+    ctx.equipped_ground_armor = {}
+    ctx.ground_expedition_inventory = []
+    ctx.ground_expedition_items = []
+    ctx.bandolier = {}
+
+    stats_header = [row.label for row in _stats_frame(ctx, "C", 0, 100, 0).left_rows]
+    equipment_rows = _equipment_frame(
+        ctx, "C", 0, equipment_management=False, swap_allowed=True,
+    ).left_rows
+    cargo_body = _cargo_character_frame(ctx, "C", 0).body
+
+    assert stats_header[0] == "Credits: 1250"
+    assert equipment_rows[0].label == "Credits: 1250"
+    assert cargo_body[0] == "Credits: 1250"
+
+    ctx.stats.credits = 999
+    assert _stats_frame(ctx, "C", 0, 100, 0).left_rows[0].label == "Credits: 999"
+    assert _cargo_character_frame(ctx, "C", 0).body[0] == "Credits: 999"
+
+
+def test_credits_row_survives_the_shipless_cargo_tab():
+    """The Cargo tab's no-ship fallback still carries the credits row —
+    the read never depends on owning a ship."""
+    from src.spacehack.character_screen_stats import _cargo_character_frame
+
+    ctx = _ctx()
+    ctx.player_owned_ship = None
+    assert _cargo_character_frame(ctx, "C", 0).body == (
+        "Credits: 1250", "No ship available.",
+    )
+
+
 def test_chrome_glyphs_ride_the_trailing_column_not_the_number():
     """User ruling 2026-10-17: a glyph per ANATOMY (char + color),
     appended in a trailing column at the row's end — the number
@@ -165,13 +208,14 @@ def test_chrome_pane_pairs_names_with_indented_details():
     """2026-10-17 playtest revision: each piece is its name with the
     ruled detail line slightly indented below (no leader line)."""
     ctx = _ctx(installed_chrome=["terminus_optics", "terminus_smartlink"])
-    # No gear line in this ctx: header rows 0-1, stat rows 2-7.
-    gunnery = _stats_frame(ctx, "CHARACTER", 0, 100, 2)
+    # No gear line in this ctx: header rows 0-2 (credits, XP, traits),
+    # stat rows 3-8.
+    gunnery = _stats_frame(ctx, "CHARACTER", 0, 100, 3)
     assert [row.label for row in gunnery.right_rows] == [
         "Terminus Optics",
         "   Space crit chance 15%.",
     ]
-    reflexes = _stats_frame(ctx, "CHARACTER", 0, 100, 5)
+    reflexes = _stats_frame(ctx, "CHARACTER", 0, 100, 6)
     assert [row.label for row in reflexes.right_rows] == [
         "Terminus SmartLink",
         "   Ranged crit chance 15%.",
@@ -207,7 +251,7 @@ def test_header_selection_clamps_to_the_nearest_stat():
     ]
     stim = _stats_frame(
         _ctx(installed_chrome=["terminus_neural_stim"]),
-        "CHARACTER", 0, 100, 4,   # row 4 = Engineering
+        "CHARACTER", 0, 100, 5,   # row 5 = Engineering
     )
     assert [row.label for row in stim.right_rows] == [
         "Terminus Neural Stim",
@@ -244,16 +288,17 @@ def test_row_budgets_stay_within_the_split_viewport():
     ])
     ctx.transponder_cutout = True  # the Gear header line joins
     frame = _stats_frame(ctx, "CHARACTER", 0, 100, 0)
-    assert len(frame.left_rows) == 9            # XP, Traits, Gear + 6 stats
+    assert len(frame.left_rows) == 10           # Credits, XP, Traits, Gear + 6 stats
     assert len(frame.right_rows) == 2           # piece name + indented detail
     assert len(frame.left_rows) <= MAX_VISIBLE_ROWS
     assert len(frame.right_rows) <= MAX_VISIBLE_ROWS
 
 
-def test_header_rows_carry_the_old_body_verbatim():
+def test_header_rows_lead_with_the_shared_credits_row():
     frame = _stats_frame(_ctx(), "CHARACTER", 12, 100, 0)
     header = [row.label for row in frame.left_rows if not row.selectable]
     assert header == [
+        "Credits: 1250",
         "XP: 12 / 100    Skill points available: 0",
         "Traits: None",
     ]

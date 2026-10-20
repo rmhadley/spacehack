@@ -41,7 +41,7 @@ from ._animations import (
     _draw_range_colored_line,
 )
 from ._stats import _distance
-from ._statuses import hud_segments, paint_hud_segments as _statuses_paint, sum_effects
+from ._statuses import hud_segments, paint_hud_segments as _statuses_paint
 from ._ground_presentation import (
     build_target_card as _build_target_card,
     enemy_detail_lines,
@@ -125,7 +125,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
     _render_range_line(console, ctx, game_map, active_w, alive, cam)
     _render_combat_band(console, ctx)
     y = _render_player_panel(console, ctx)
-    y = _render_weapons_panel(console, ctx, weapons, alive, y)
+    y = _render_weapons_panel(console, ctx, weapons, y)
     y = _render_enemies_panel(console, ctx, alive, y)
     _render_actions_panel(console, weapons, y)
     _paint_xp_footer(console, ctx)
@@ -234,16 +234,6 @@ def _active_container() -> dict:
     return getattr(_ctx, "active_statuses", None) or {}
 
 
-def _active_regen_amount() -> int:
-    """Return the total HP regenerated at the next turn boundary."""
-    return sum_effects(_active_container()).regen_per_round
-
-
-def _active_ap_bonus() -> int:
-    """Return the temporary AP added on the next turn boundary."""
-    return sum_effects(_active_container()).ap_per_round
-
-
 def _ground_evasion(ctx) -> int:
     """The HUD evasion line reads the ONE dodge assembly (doc 49
     phase 2): movement + Evasive + the Bounty Hunter trait."""
@@ -251,23 +241,24 @@ def _ground_evasion(ctx) -> int:
 
 
 def _render_ap_row(console, hud_x, y, state) -> int:
-    """The AP row with the temporary-bonus suffix; next row."""
-    _ap_text = f"AP: {state.player_ap}/{ap_pool_str(state.player_ap_total, state.player_ap_carry_twentieths)}"
-    console.print(x=hud_x, y=y, string=_ap_text, fg=_COLOR_GROUND_ACTION)
-    _ap_bonus = _active_ap_bonus()
-    if _ap_bonus > 0:
-        console.print(
-            x=hud_x + len(_ap_text) + 1, y=y,
-            string=f"+{_ap_bonus}", fg=_COLOR_GROUND_TEMP_AP,
-        )
+    """The AP row (doc 104 item 7: the gold +N marker died with Phase
+    2 — the status row owns the stim bonus, the panel's single
+    surface); next row."""
+    console.print(
+        x=hud_x, y=y,
+        string=(
+            f"AP: {state.player_ap}/"
+            f"{ap_pool_str(state.player_ap_total, state.player_ap_carry_twentieths)}"
+        ),
+        fg=_COLOR_GROUND_ACTION,
+    )
     return y + 1
 
 
 def _render_combat_band(console, ctx) -> None:
     """Region A (doc 104): the title + AP/EVA/STIM rows inside the
-    reserved band rows — the gold AP marker and STIM row live until
-    Phase 2's slim; a short band leaves the reserved blanks (the band
-    can never push the core)."""
+    reserved band rows; a short band leaves the reserved blanks (the
+    band can never push the core)."""
     _state = _rules()._state
     hud_x = SCREEN_WIDTH - HUD_WIDTH
     console.print(x=hud_x, y=0, string="> GROUND COMBAT <", fg=_COLOR_GROUND_TITLE)
@@ -296,12 +287,10 @@ def _render_player_panel(console, ctx) -> int:
         x=hud_x, y=hud_core.GROUND_CORE_Y - 1, string="PLAYER",
         fg=_COLOR_GROUND_PLAYER,
     )
-    _regen = _active_regen_amount()
-    _suffix = f" +{_regen}" if _regen > 0 else ""
     y = hud_core.paint_hp_armor_rows(
         console, hud_x, hud_core.GROUND_CORE_Y,
         hp=_state.player_hp, max_hp=_state.player_max_hp,
-        armor=_state.armor_defense, regen_suffix=_suffix,
+        armor=_state.armor_defense,
     )
     _owned = getattr(ctx, "player_owned_ship", None)
     _cargo_used, _max_cargo = _cargo_used_max(
@@ -343,7 +332,7 @@ def _stim_hud_row(ctx) -> tuple[str, tuple[int, int, int]] | None:
     return stim_hud_label(0), _COLOR_GROUND_TEMP_AP
 
 
-def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:
+def _render_weapons_panel(console, ctx, weapons, y: int) -> int:
     """Paint the weapon list + armed-volley AP cost; return the next row."""
     _state = _rules()._state
     hud_x = SCREEN_WIDTH - HUD_WIDTH
@@ -356,7 +345,7 @@ def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:
         console.print(x=hud_x + 12, y=y, string=f"{_max_ap}AP", fg=_ap_fg)
     y += 1
     for i, wid in enumerate(weapons):
-        y = _print_weapon_block(console, ctx, hud_x, y, i, wid, alive)
+        y = _print_weapon_block(console, ctx, hud_x, y, i, wid)
     y = _print_holster_row(console, ctx, hud_x, y)
     return _print_bandolier_rows(console, ctx, hud_x, y) + 1
 
@@ -391,31 +380,17 @@ def _print_bandolier_rows(console, ctx, hud_x: int, y: int) -> int:
     return y
 
 
-def _print_weapon_name(console, hud_x, y, wid, quality, index, is_active):
-    """One weapon's checkbox + name row; the tiered name paints in its
-    quality colour while the active/dim cue stays on the checkbox (a
-    tier colour always reads active)."""
+def _print_weapon_block(console, ctx, hud_x: int, y: int, i: int, wid: str) -> int:
+    """Paint one weapon's row (doc 104 item 9: the slim): checkbox +
+    name + magazine — the walking shape, the volley checkbox combat's
+    only extra mark. The DMG/HIT/RNG/AP reference rows died with the
+    slim; the targeting line and target card own the live numbers.
+    Stats read the slot's effective (quality-scaled) spec so the
+    magazine agrees with the actual roll (doc 47.2)."""
     from ..data.quality import quality_color
     from ..ground_equipment import display_name
+    from ..ground_weapon_ammo import magazine_indicator
 
-    sel = "[x]" if is_active else "[ ]"
-    name_fg = _COLOR_GROUND_WEAPON if is_active else _COLOR_GROUND_WEAPON_DIM
-    label = display_name("weapon", wid, quality)[:HUD_TEXT_MAX]
-    prefix = f"{sel}[{index+1}] "
-    console.print(x=hud_x, y=y, string=prefix, fg=name_fg)
-    console.print(
-        x=hud_x + len(prefix), y=y,
-        string=label[: max(0, HUD_TEXT_MAX - len(prefix))],
-        fg=quality_color(quality) or name_fg,
-    )
-
-
-def _print_weapon_block(console, ctx, hud_x: int, y: int, i: int, wid: str, alive) -> int:
-    """Paint one weapon's panel block; return the next row.
-
-    Stats read the slot's effective (quality-scaled) spec so the
-    readout agrees with the actual roll (doc 47.2).
-    """
     _state = _rules()._state
     _inst = (
         ctx.equipped_ground_weapons[i]
@@ -427,22 +402,19 @@ def _print_weapon_block(console, ctx, hud_x: int, y: int, i: int, wid: str, aliv
     except KeyError:
         return y
     is_active = _state.active_weapon_list[i] if i < len(_state.active_weapon_list) else True
-    _print_weapon_name(console, hud_x, y, wid, _quality, i, is_active)
-    y += 1
-    hc = _rules().hit_chance(wid, alive[_state.target_idx], ctx, _quality) if _state.target_idx < len(alive) else 0
-    console.print(x=hud_x, y=y, string=f"     DMG {ws.damage} HIT {hc}%", fg=ui.COLOR_VALUE_DIM)
-    y += 1
-    _min_range, _max_range = _rules().weapon_range(wid, ctx, _state.player_ap)
-    console.print(x=hud_x, y=y, string=f"     RNG {_min_range}-{_max_range} AP {ws.ap_cost}", fg=ui.COLOR_VALUE_DIM)
-    y += 1
-    if _inst is not None and _inst.loaded_ammo is not None:
-        console.print(
-            x=hud_x, y=y,
-            string=f"     AMMO {_inst.loaded_ammo}/{ws.ammo_capacity}",
-            fg=ui.COLOR_VALUE_DIM,
-        )
-        y += 1
-    return y
+    label = display_name("weapon", wid, _quality) + (
+        magazine_indicator(ws, _inst) if _inst is not None else ""
+    )
+    sel = "[x]" if is_active else "[ ]"
+    name_fg = _COLOR_GROUND_WEAPON if is_active else _COLOR_GROUND_WEAPON_DIM
+    prefix = f"{sel} "
+    console.print(x=hud_x, y=y, string=prefix, fg=name_fg)
+    console.print(
+        x=hud_x + len(prefix), y=y,
+        string=label[: max(0, HUD_TEXT_MAX - len(prefix))],
+        fg=quality_color(_quality) or name_fg,
+    )
+    return y + 1
 
 
 def toggle_target_card(ctx) -> None:

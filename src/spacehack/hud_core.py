@@ -53,19 +53,16 @@ def _bar_str(value: int, max_value: int, width: int = 10) -> str:
 
 def paint_hp_armor_rows(
     console: FrameBuffer, hud_x: int, y: int, *,
-    hp: int, max_hp: int, armor: int, regen_suffix: str = "",
+    hp: int, max_hp: int, armor: int,
 ) -> int:
     """Region B's health meter — the ONE shape (doc 104 item 15): the
     exploration panel's aligned format, label <8 + 10-cell bar <11 +
     cur/max (values land at column 19), HP tinted by the half-health
-    cue. ``regen_suffix`` is ground combat's interim ``+N`` read (item
-    6 kills it in Phase 2). Returns the next row."""
+    cue. Returns the next row."""
     _hp_fg = COLOR_HP_GOOD if hp * 2 >= max_hp else COLOR_HP_LOW
     console.print(
         x=hud_x, y=y,
-        string=(
-            f"{'HP':<8}{_bar_str(hp, max_hp):<11}{hp}/{max_hp}{regen_suffix}"
-        )[:HUD_TEXT_MAX],
+        string=f"{'HP':<8}{_bar_str(hp, max_hp):<11}{hp}/{max_hp}"[:HUD_TEXT_MAX],
         fg=_hp_fg,
     )
     console.print(

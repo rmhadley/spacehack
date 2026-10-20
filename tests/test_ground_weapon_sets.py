@@ -425,8 +425,7 @@ def test_hud_holster_row_lists_holstered_names_dim():
     )
     _console = _Console()
     _ground_render._render_weapons_panel(
-        _console, _ctx, _rules_ground.player_weapons(_ctx),
-        _rules_ground._state.enemies, 0,
+        _console, _ctx, _rules_ground.player_weapons(_ctx), 0,
     )
     _holster = [(s, fg) for s, fg in _console.prints if s.startswith("HOLSTER")]
     assert len(_holster) == 1
@@ -446,8 +445,7 @@ def test_hud_bandolier_lines_show_union_calibers_current_max():
     _ctx.bandolier = {"kinetic_pistol": 132, "energy_cell": 61}
     _console = _Console()
     _ground_render._render_weapons_panel(
-        _console, _ctx, _rules_ground.player_weapons(_ctx),
-        _rules_ground._state.enemies, 0,
+        _console, _ctx, _rules_ground.player_weapons(_ctx), 0,
     )
     _ammo = [s for s, _fg in _console.prints if s.startswith("PST ")]
     assert _ammo == ["PST 132/160"]
@@ -463,8 +461,7 @@ def test_hud_bandolier_lines_collapse_duplicate_calibers():
     )
     _console = _Console()
     _ground_render._render_weapons_panel(
-        _console, _ctx, _rules_ground.player_weapons(_ctx),
-        _rules_ground._state.enemies, 0,
+        _console, _ctx, _rules_ground.player_weapons(_ctx), 0,
     )
     assert [s for s, _ in _console.prints if "/" in s and s[:3].isupper()] == [
         "PST 0/160",
@@ -478,8 +475,7 @@ def test_hud_bandolier_lines_absent_for_plasma_and_melee():
     )
     _console = _Console()
     _ground_render._render_weapons_panel(
-        _console, _ctx, _rules_ground.player_weapons(_ctx),
-        _rules_ground._state.enemies, 0,
+        _console, _ctx, _rules_ground.player_weapons(_ctx), 0,
     )
     assert not [
         s for s, _ in _console.prints
@@ -487,26 +483,40 @@ def test_hud_bandolier_lines_absent_for_plasma_and_melee():
     ]
 
 
-def test_weapon_block_ammo_line_drops_the_reserve_suffix():
-    """The per-weapon AMMO line shows the magazine only — the caliber
-    lines own the reserve read (doc 52.3 rework of the phase-1 RES)."""
+def test_weapon_block_slims_to_checkbox_name_and_magazine():
+    """Doc 104 item 9: one row per weapon — checkbox + name + magazine
+    (the walking shape, the checkbox combat's only extra mark). The
+    DMG/HIT/RNG/AP/AMMO reference rows render nowhere; the targeting
+    line and target card own the live numbers."""
     _ctx, _ = _swap_fixture([GroundWeaponInstance("kinetic_pistol", 5)], [])
+    _console = _Console()
+    next_y = _ground_render._print_weapon_block(
+        _console, _ctx, 0, 0, 0, "kinetic_pistol",
+    )
+    _prints = [s for s, _fg in _console.prints]
+    # One ink pair (prefix + label) on one row; the magazine rides the name.
+    assert _prints == ["[x] ", "Kinetic Pistol [5/12]"]
+    assert next_y == 1
+    assert not any(
+        marker in s
+        for s in _prints
+        for marker in ("DMG", "HIT", "RNG", "AP", "AMMO")
+    )
+    # The inactive mark stays the only other shape on the row.
+    _rules_ground._state.active_weapon_list = [False]
     _console = _Console()
     _ground_render._print_weapon_block(
         _console, _ctx, 0, 0, 0, "kinetic_pistol",
-        _rules_ground._state.enemies,
     )
-    _ammo_lines = [s for s, _ in _console.prints if "AMMO" in s]
-    assert _ammo_lines == ["     AMMO 5/12"]
-    assert not any("RES" in s for s, _ in _console.prints)
+    assert _console.prints[0][0] == "[ ] "
+    assert _console.prints[0][1] == _ground_render._COLOR_GROUND_WEAPON_DIM
 
 
 def test_hud_holster_row_hidden_when_set_empty():
     _ctx, _ = _swap_fixture([GroundWeaponInstance("kinetic_pistol", 5)], [])
     _console = _Console()
     _ground_render._render_weapons_panel(
-        _console, _ctx, _rules_ground.player_weapons(_ctx),
-        _rules_ground._state.enemies, 0,
+        _console, _ctx, _rules_ground.player_weapons(_ctx), 0,
     )
     assert not [s for s, _ in _console.prints if s.startswith("HOLSTER")]
 

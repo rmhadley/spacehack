@@ -1,4 +1,4 @@
-"""Right-side HUD: character name, species, class, and core stats.
+"""Right-side HUD: the unified core plus per-mode bands (doc 104).
 
 Layout (assumes ``screen_width = SCREEN_WIDTH`` and
 ``hud_view_height = SCREEN_HEIGHT - MSG_LOG_HEIGHT``):
@@ -7,15 +7,15 @@ City mode (default; doc 104's reserved regions — the bands swap, the
 core and the WEAPONS anchor never move):
     +-----------------+----------+
     |                 | Spacehack|
-    |                 | HUMAN    |  A band (interim)
-    |       MAP       | PIRATE   |  A
+    |                 | Eri City |  A band (location/date)
+    |       MAP       | 2160-04-12|  A
     |     REGION      | -------- |
     |                 | HP 10/10 |  B core (hud_core)
     |                 | Armor  0 |  B
     |                 | Cargo 0/0|  B
     |                 |          |  B status slot (blank when empty)
     |                 | WEAPONS  |  C anchor
-    |                 | ..       |  D band (parked stats, terminals, help)
+    |                 | ..       |  D band (terminals, help)
     +-----------------+----------+
 
 Space mode (when ``owned_ship`` is provided):
@@ -93,7 +93,6 @@ COLOR_PLAYER_CRITICAL: tuple[int, int, int] = (255, 80, 80)          # < quarter
 # Space-mode HUD palette — cyan is reserved for the ship identity.
 COLOR_SHIP_NAME: tuple[int, int, int] = (150, 235, 255)             # bright cyan
 COLOR_SHIP_VALUE: tuple[int, int, int] = (255, 255, 255)            # white stat values
-COLOR_SHIP_LABEL: tuple[int, int, int] = (240, 240, 230)            # near-white labels
 COLOR_FUEL_OK: tuple[int, int, int] = (110, 245, 125)               # green when fuel is adequate
 COLOR_FUEL_LOW: tuple[int, int, int] = (255, 190, 75)               # amber when fuel is low (< jump cost)
 COLOR_HELP_DESC: tuple[int, int, int] = (240, 240, 230)             # near-white key descriptions
@@ -186,66 +185,6 @@ def _render_divider(console: FrameBuffer, hud_x: int, y: int) -> None:
     characters). Pure print — caller owns y advancement.
     """
     console.print(x=hud_x, y=y, string="-" * HUD_TEXT_MAX, fg=COLOR_DIVIDER)
-
-
-def _render_mission_line(
-    console: FrameBuffer, hud_x: int, y: int, title: str,
-) -> None:
-    """Print the active mission title at ``(hud_x, y)`` with "M: " prefix.
-
-    Truncates to fit HUD_TEXT_MAX. Pure print — caller owns y advancement.
-    """
-    room = max(0, HUD_TEXT_MAX - len("M: "))
-    console.print(x=hud_x, y=y, string=f"M: {title[:room]}", fg=COLOR_HUD_TITLE)
-
-
-def _skill_slot(label: str, value: int) -> str:
-    """One aligned stat slot: 11-wide label + 3-digit right-aligned value.
-
-    ``ENGINEERING`` (the longest label) defines the 11-char field, so
-    every value lands in the same right-aligned column across rows.
-    """
-    return f"{label:<11}{value:>3}"
-
-
-def _render_stat_pairs(console: FrameBuffer, hud_x: int, y: int, pairs, fg) -> int:
-    """Render ``(label, value)`` pairs two per row in aligned slots.
-
-    Returns the next ``y`` row. Pure print — caller owns y advancement
-    via the returned value.
-    """
-    for i in range(0, len(pairs), 2):
-        _row = _skill_slot(*pairs[i])
-        if i + 1 < len(pairs):
-            _row += "  " + _skill_slot(*pairs[i + 1])
-        console.print(x=hud_x, y=y, string=_row[:HUD_TEXT_MAX], fg=fg)
-        y += 1
-    return y
-
-
-def _render_skill_line(
-    console: FrameBuffer, hud_x: int, y: int, stats: HudStats,
-    ground_stats=None,
-) -> int:
-    """Print the skill grid, two skills per row; return the next row.
-
-    Ship skills (GUN/PIL/ENG) always render; ground stats (REF/STR/STA)
-    join the same aligned grid when available.
-    """
-    _pairs = [
-        ("GUNNERY", stats.gunnery),
-        ("PILOTING", stats.piloting),
-        ("ENGINEERING", stats.engineering),
-    ]
-    if ground_stats is not None:
-        _pairs.extend([
-            ("REFLEXES", ground_stats.reflexes),
-            ("STRENGTH", ground_stats.strength),
-            ("STAMINA", ground_stats.stamina),
-        ])
-    return _render_stat_pairs(
-        console, hud_x, y, tuple(_pairs), COLOR_SHIP_LABEL,
-    )
 
 
 def _cargo_used_max(owned_ship, ship_catalog, ctx=None) -> tuple[int, int]:
@@ -367,13 +306,14 @@ def _render_ship_identity(console, hud_x, y, *, ship_name, location, date_str) -
     return y + 1
 
 
-def _render_ship_stat_rows(console, hud_x, y, *, fuel, max_fuel, hull, max_hull, cargo_used, max_cargo, eff_spd, stats, ground_stats) -> int:
-    """Paint the space-mode stat rows (fuel…speed + cargo); return next row.
+def _render_ship_stat_rows(console, hud_x, y, *, fuel, max_fuel, hull, max_hull, cargo_used, max_cargo, eff_spd) -> int:
+    """Paint the space-mode stat rows (fuel…speed); return next row.
 
     Fuel / Hull / Cargo share one label column and one value column
     (10-cell bars) and all read cur/max. The slot-count summaries
     retired with doc 56 SETTLED 18 — the line keeps Spd only; power
-    detail lives on the fitting screen.
+    detail lives on the fitting screen. The skills grid retired with
+    doc 104 item 5 (C's Stats tab owns skills).
     """
     _fuel_fg = COLOR_FUEL_OK if fuel >= 10 else COLOR_FUEL_LOW
     console.print(
@@ -400,9 +340,7 @@ def _render_ship_stat_rows(console, hud_x, y, *, fuel, max_fuel, hull, max_hull,
         string=f"Spd {eff_spd}"[:HUD_TEXT_MAX],
         fg=COLOR_SHIP_VALUE,
     )
-    y += 3
-    y = _render_skill_line(console, hud_x, y, stats, ground_stats=ground_stats)
-    return y
+    return y + 1
 
 
 _SPACE_HELP_LINES = [
@@ -417,8 +355,6 @@ def _render_space_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, 
     """Paint the space-mode HUD body below the title."""
     from . import ship as _ship_mod
     owned_ship = ctx.player_owned_ship
-    stats = ctx.stats
-    ground_stats = ctx.ground_stats
     ship_name = _ship_mod.ship_display_name(owned_ship)
     hull_cur, hull_max = _ship_mod.hull_cur_max(owned_ship, ship_catalog)
     cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog, ctx)
@@ -430,7 +366,7 @@ def _render_space_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, 
         max_fuel=getattr(ship_catalog, 'max_fuel', 1),
         hull=hull_cur, max_hull=hull_max,
         cargo_used=cargo_used, max_cargo=max_cargo,
-        eff_spd=eff_spd, stats=stats, ground_stats=ground_stats,
+        eff_spd=eff_spd,
     )
     y += 1
     _render_divider(console, hud_x, y)
@@ -439,14 +375,10 @@ def _render_space_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, 
     paint_xp_footer(console, hud_x, hud_view_height, xp_line=xp_line, xp_fg=xp_fg)
 
 
-def _render_city_identity(console, hud_x, y, *, species_name, class_name, location, date_str) -> int:
-    """Paint the species / class / location / date rows; return next row."""
-    if species_name:
-        console.print(x=hud_x, y=y, string=species_name.title()[:HUD_TEXT_MAX], fg=COLOR_VALUE_WHITE)
-    y += 1
-    if class_name:
-        console.print(x=hud_x, y=y, string=class_name.title()[:HUD_TEXT_MAX], fg=COLOR_VALUE_WHITE)
-    y += 1
+def _render_city_identity(console, hud_x, y, *, location, date_str) -> int:
+    """Paint the location / date band rows (doc 104 item 1: identity
+    lives on the C screen — species/class retired with Phase 2);
+    return next row."""
     if location:
         console.print(x=hud_x, y=y, string=location[:HUD_TEXT_MAX], fg=COLOR_VALUE_DIM)
     y += 1
@@ -472,18 +404,6 @@ def _render_city_core(console, hud_x, ctx, *, ship_catalog) -> int:
     cargo_used, max_cargo = _cargo_used_max(ctx.player_owned_ship, ship_catalog, ctx)
     y = paint_cargo_row(console, hud_x, y, used=cargo_used, max_cargo=max_cargo)
     return paint_status_slot(console, hud_x, y, _status_segments(ctx))
-
-
-def _render_city_parked_rows(console, hud_x, y, *, stats, ground_stats) -> int:
-    """The interim D-top stats (doc 104 Phase 1): credits and the
-    skills grid park here until Phase 2's ruled drops (the C screen's
-    header gains credits; its Stats tab owns skills)."""
-    console.print(
-        x=hud_x, y=y,
-        string=f"{'Credits':<19}{stats.credits}"[:HUD_TEXT_MAX],
-        fg=COLOR_VALUE_WHITE,
-    )
-    return _render_skill_line(console, hud_x, y + 2, stats, ground_stats=ground_stats)
 
 
 def _render_city_terminals(
@@ -589,24 +509,18 @@ def _status_segments(ctx):
 
 def _render_city_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, mode, hud_view_height, xp_line, xp_fg, has_trade_terminal, has_mech_terminal, has_armory_terminal, has_kiosk=False) -> None:
     """Paint the city/dungeon-mode HUD body below the title, doc 104's
-    reserved regions: A = the identity band (species/class interim +
-    location/date), B = the shared core via hud_core, C = the WEAPONS
-    anchor, D = the parked stats + terminals + help band. The band
-    rows can change freely — the core's rows and y never move."""
-    character = ctx.character_info
+    reserved regions: A = the location/date band, B = the shared core
+    via hud_core, C = the WEAPONS anchor, D = the terminals + help
+    band. The band rows can change freely — the core's rows and y
+    never move."""
     _render_city_identity(
         console, hud_x, GROUND_BAND_Y,
-        species_name=character.get("species_name", ""),
-        class_name=character.get("class_name", ""),
         location=location, date_str=date_str,
     )
     _render_divider(console, hud_x, GROUND_CORE_Y - 1)
     _render_city_core(console, hud_x, ctx, ship_catalog=ship_catalog)
     y = _render_ground_weapons_block(console, hud_x, GROUND_WEAPONS_Y, ctx)
     _render_divider(console, hud_x, y)
-    y = _render_city_parked_rows(
-        console, hud_x, y + 1, stats=ctx.stats, ground_stats=ctx.ground_stats,
-    )
     y = _render_city_terminals(
         console, hud_x, y + 1,
         has_armory_terminal=has_armory_terminal,

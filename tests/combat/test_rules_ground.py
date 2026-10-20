@@ -891,9 +891,10 @@ def _patch_render_deps(monkeypatch, line_calls: list) -> None:
     monkeypatch.setattr(_ground_render, "_bar_str", lambda *a, **k: "########")
 
 
-def test_ground_player_hp_row_shows_current_max_and_active_regen():
-    """The core HP row (doc 104's one shape) reads cur/max and keeps
-    the interim regen suffix until Phase 2 kills it."""
+def test_ground_player_hp_row_reads_cur_max_and_never_a_regen_suffix():
+    """Doc 104 items 6 + acceptance 4: the HP row reads cur/max in the
+    one shape and NEVER carries the ` +N` regen suffix — the status
+    row is regen's single surface per panel."""
     _ctx, _game_map, _console, _enemy = _ground_fixture()
     _ctx.ground_hp = 10
     _rules_ground.init(_ctx, [_enemy], _game_map)
@@ -917,13 +918,16 @@ def test_ground_player_hp_row_shows_current_max_and_active_regen():
         _frame.cell(x, 7).char
         for x in range(_hud_x, _hud_x + HUD_WIDTH * 2)
     ).rstrip()
-    assert _row
-    assert "HP      ######.... 17/25 +2" in _row
+    assert _row.startswith("HP      ")
+    assert "17/25" in _row
+    assert "+" not in _row
+    assert " +2" not in _row  # the interim suffix died with Phase 2
 
 
-def test_ground_ap_row_shows_blue_temporary_stim_bonus():
-    """An active Combat Stim is visible beside the base AP pool (the
-    A-band row, doc 104's reserved band)."""
+def test_ground_ap_row_reads_the_pool_without_the_temp_marker():
+    """Doc 104 item 7: the AP row never carries the gold `+N` temp-AP
+    marker — the status row owns the stim bonus (the marker was also
+    sign-blind). The row stays plain for the stim's whole life."""
     _ctx, _game_map, _console, _enemy = _ground_fixture()
     _rules_ground.init(_ctx, [_enemy], _game_map)
     _rules_ground.apply_consumable_effect(
@@ -944,8 +948,12 @@ def test_ground_ap_row_shows_blue_temporary_stim_bonus():
         _frame.cell(x, 2).char
         for x in range(_hud_x, SCREEN_WIDTH)
     ).rstrip()
-    assert _row == "AP: 4/4 +1"
-    assert _frame.cell(_hud_x + 8, 2).fg == _ground_render._COLOR_GROUND_TEMP_AP
+    assert _row == "AP: 4/4"
+    # No second ink on the row: the gold marker would print past the pool.
+    assert all(
+        _frame.cell(x, 2).fg != _ground_render._COLOR_GROUND_TEMP_AP
+        for x in range(_hud_x, SCREEN_WIDTH)
+    )
 
     for _ in range(4):
         _rules_ground.reset_turn(_ctx)

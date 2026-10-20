@@ -318,7 +318,6 @@ def test_primary_reading_palette_is_high_contrast_on_black():
         message_log.COLOR_MESSAGE,
         message_log.COLOR_MESSAGE_DIM,
         hud.COLOR_LABEL,
-        hud.COLOR_SHIP_LABEL,
         hud.COLOR_HELP_DESC,
         hud_combat.COLOR_POWER,
         hud_combat.COLOR_COMBAT_WEAPON_DIM,

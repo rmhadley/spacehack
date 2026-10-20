@@ -351,71 +351,52 @@ def test_city_stat_values_line_up_in_one_column():
 
 def test_space_fuel_hull_rows_use_bars():
     """Space Fuel/Hull rows use 10-cell bars and cur/max values."""
-    console = FrameBuffer(40, 2)
-    stats = SimpleNamespace(gunnery=1, piloting=1, engineering=1)
     console = FrameBuffer(40, 4)
     hud._render_ship_stat_rows(
         console, 0, 0,
         fuel=90, max_fuel=100, hull=67, max_hull=100, cargo_used=0, max_cargo=10,
         eff_spd=5,
-        stats=stats, ground_stats=None,
     )
     row0 = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
     row1 = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
     row3 = "".join(console.cell(x, 3).char for x in range(40)).rstrip()
     assert row0.startswith("Fuel    ####") and row0.endswith("90/100")
     assert row1.startswith("Hull    #####") and row1.endswith("67/100")
-    # Doc 56 SETTLED 18: the slot summaries retired — Spd only.
+    # Doc 56 SETTLED 18: the slot summaries retired — Spd only. Doc 104
+    # item 5: the skills grid retired with it (C's Stats tab owns skills).
     assert row3 == "Spd 5"
 
 
-def test_skill_lines_pair_two_per_row():
-    """Skills render two per row, values right-aligned in fixed slots."""
-    console = FrameBuffer(40, 3)
-    next_y = hud._render_skill_line(
-        console, 0, 0, SimpleNamespace(gunnery=4, piloting=3, engineering=2),
-    )
-    row0 = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
-    row1 = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
-    assert "GUNNERY" in row0 and "PILOTING" in row0
-    assert "ENGINEERING" in row1 and "PILOTING" not in row1
-    # Values right-align to the same columns across both rows.
-    assert row0[13] == "4" and row0[29] == "3"
-    assert row1[13] == "2"
-    assert next_y == 2
-
-
-def test_skill_grid_merges_ship_and_ground_stats():
-    """All six skills share one aligned 3-row grid, two per row."""
-    console = FrameBuffer(40, 4)
-    next_y = hud._render_skill_line(
-        console, 0, 0,
-        SimpleNamespace(gunnery=4, piloting=3, engineering=2),
+def test_dropped_rows_render_nowhere_on_the_exploration_panel():
+    """Doc 104 Phase 2 items 1/4/5: species, class, credits, and the
+    skills grid render NOWHERE on the exploration panel — their ruled
+    landing spots are the C screen (identity, credits, skills)."""
+    ctx = _ground_weapons_ctx(
         ground_stats=SimpleNamespace(reflexes=10, strength=9, stamina=8),
+        equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 5)],
+        holstered_ground_weapons=[],
+        bandolier={"kinetic_pistol": 132},
     )
-    rows = [
-        "".join(console.cell(x, y).char for x in range(40)).rstrip()
-        for y in range(4)
-    ]
-    assert "GUNNERY" in rows[0] and "PILOTING" in rows[0]
-    assert "ENGINEERING" in rows[1] and "REFLEXES" in rows[1]
-    assert "STRENGTH" in rows[2] and "STAMINA" in rows[2]
-    # Values stay in the same right-aligned columns across all three rows.
-    assert rows[0][13] == "4" and rows[0][29] == "3"
-    assert rows[1][13] == "2" and rows[1][28:30] == "10"
-    assert rows[2][13] == "9" and rows[2][29] == "8"
-    assert next_y == 3
+    ctx.stats = hud.HudStats(100, gunnery=4, piloting=3, engineering=2)
+    console = FrameBuffer(120, 54)
 
-
-def test_skill_values_right_align_with_three_digit_room():
-    """3-digit values fill the value column without shifting the layout."""
-    console = FrameBuffer(40, 1)
-    hud._render_skill_line(
-        console, 0, 0, SimpleNamespace(gunnery=134, piloting=3, engineering=2),
+    hud.render_hud(
+        console, ctx, screen_width=100, hud_view_height=54, mode="city",
     )
-    row0 = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
-    assert row0[11:14] == "134"   # 3-digit value fills the value column
-    assert row0[29] == "3"        # 1-digit value still lands at column 29
+
+    hud_x = 100 - 20  # screen_width - HUD_WIDTH: the panel's 40 half-width cells
+    flat = "\n".join(
+        "".join(console.cell(x, y).char for x in range(hud_x, 120))
+        for y in range(54)
+    )
+    assert "Human" not in flat and "Merchant" not in flat
+    assert "Credits" not in flat
+    for skill in ("GUNNERY", "PILOTING", "ENGINEERING",
+                  "REFLEXES", "STRENGTH", "STAMINA"):
+        assert skill not in flat
+    # The kept rows still read: the clock's ambient home + the anchor.
+    assert "WEAPONS" in flat
+    assert any("Kinetic Pistol [5/12]" in line for line in flat.splitlines())
 
 
 def test_help_lines_pair_two_per_row():

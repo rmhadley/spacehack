@@ -64,6 +64,7 @@ def _equipment_frame(
     """Build the Equipment-tab split frame (doc 52.3 amendment): equipment
     management on the left, the read-only bandolier on the right."""
     from . import pygame_split, pygame_ui
+    from .character_screen_stats import _credits_header_line
 
     rows = _equipment_rows(
         ctx,
@@ -78,7 +79,13 @@ def _equipment_frame(
     )
     return pygame_split.SplitFrame(
         title, "Equipment", "Ammo",
-        _split_equipment_rows(rows), _bandolier_rows(ctx),
+        (
+            pygame_split.SplitRow(
+                _credits_header_line(ctx), "", "", "", selectable=False,
+            ),
+            *_split_equipment_rows(rows),
+        ),
+        _bandolier_rows(ctx),
         f"Expedition Pack: {_expedition_used_slots(ctx)}/{capacity}",
         "Ammo is read-only",
         pygame_ui.modal_hint(*hint_parts),
