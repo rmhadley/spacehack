@@ -519,6 +519,17 @@ def test_hud_actions_legend_carries_swap_entry():
     )
 
 
+def test_hud_actions_legend_carries_esc_pause():
+    """[ESC] Pause joins the ACTIONS pairs (doc 104 item 12 + prose
+    ledger #1) — ESC's home in the fight, replacing the retired
+    'ESC to quit' footer line."""
+    _console = _Console()
+    _ground_render._render_actions_panel(_console, ["kinetic_pistol"], 0)
+    assert any(
+        "[ESC]" in s and "Pause" in s for s, _ in _console.prints
+    )
+
+
 # ---------------------------------------------------------------------------
 # Phase 3 — class-keyed homes (SETTLED 3), install primitive, magazine
 # preservation through storage entries
@@ -855,13 +866,15 @@ def test_enemies_panel_keeps_the_actions_legend_on_the_hud():
 
     _console = _Console()
     next_y = _ground_render._render_enemies_panel(_console, _ctx, _alive, 21)
-    assert next_y + 4 <= hud_bottom - 1  # legend's 5 rows end on-panel
-    assert next_y == 45  # exact drift guard: targeted e0 + 9 more listed
+    # Legend is 6 rows since [ESC] Pause joined (title + 5 pairs), and
+    # the XP footer owns the band's last row (doc 104 Phase 1).
+    assert next_y + 5 <= hud_bottom - 2  # legend + footer end on-panel
+    assert next_y == 43  # exact drift guard: targeted e0 + 9 more listed
 
     # Adversarial: the boundary-listed enemy is the target — its detail
     # rows still leave the legend on-panel.
     _rules_ground._state.target_idx = 9
     _console = _Console()
     next_y = _ground_render._render_enemies_panel(_console, _ctx, _alive, 21)
-    assert next_y + 4 <= hud_bottom - 1
+    assert next_y + 5 <= hud_bottom - 2
     _rules_ground._state.target_idx = 0

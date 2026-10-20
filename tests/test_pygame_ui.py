@@ -1034,13 +1034,13 @@ def test_navigation_marker_labels_fall_below_objects_at_top_edge():
     assert y > center_y
 
 
-def test_footer_rows_leave_exit_text_inside_hud_bounds():
-    from src.spacehack import hud
+def test_footer_xp_row_anchors_to_the_panel_bottom():
+    from src.spacehack import hud_core
 
-    xp_y, bump_y, exit_y = hud._footer_rows(54)
-
-    assert (xp_y, bump_y, exit_y) == (50, 51, 52)
-    assert exit_y < 54
+    # Doc 104 item 12: the footer is ONE row — the XP bar alone,
+    # anchored to the HUD panel's bottom row.
+    assert hud_core.xp_footer_row(54) == 53
+    assert hud_core.xp_footer_row(4) == 3  # short panels clamp inside
 
 
 def test_modal_footer_geometry_leaves_clearance_above_log_panel():

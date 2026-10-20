@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from src.spacehack import hud, hud_combat
+from src.spacehack import hud, hud_combat, hud_core
 from src.spacehack.ground_equipment import (
     GroundWeaponInstance,
     StoredGroundEquipment,
@@ -147,16 +147,12 @@ def test_xp_line_spans_the_full_panel():
 
 
 def test_city_hp_row_uses_the_bar_layout():
-    """City HP row uses the combat-style bar and fills the panel width."""
+    """The core HP row uses the aligned bar shape and fills the panel width."""
     console = FrameBuffer(40, 3)
-    ctx = SimpleNamespace(ground_hp=10, ground_max_hp=10)
-    stats = SimpleNamespace(credits=100, gunnery=4, piloting=3, engineering=2)
-    hud._render_city_stat_rows(
-        console, 0, 0,
-        ctx=ctx, stats=stats, owned_ship=None, ship_catalog=None, ground_stats=None,
-    )
+    next_y = hud_core.paint_hp_armor_rows(console, 0, 0, hp=10, max_hp=10, armor=0)
     row = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
     assert row == "HP      ########## 10/10"
+    assert next_y == 2
 
 
 def _ground_weapons_ctx(**extra):
@@ -212,9 +208,9 @@ def test_city_hud_renders_the_weapons_block():
     became hostile-capable in doc 53, so magazine state and the caliber
     reserve must be visible there (supersedes the doc 52.3 city fold).
 
-    With all three terminal hints on, the block must land BELOW the
-    terminal rows, not on top of them (the = Trade row used to be
-    overwritten — _render_city_terminals returned the row it printed)."""
+    Doc 104: the block is the C anchor at the pinned row directly under
+    the core's status slot; terminals moved into the D band BELOW it
+    (they used to sit above the status row)."""
     ctx = _ground_weapons_ctx(
         equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 5)],
         holstered_ground_weapons=[GroundWeaponInstance("laser_pistol", None)],
@@ -232,26 +228,22 @@ def test_city_hud_renders_the_weapons_block():
         "".join(console.cell(x, y).char for x in range(80, 120)).rstrip()
         for y in range(54)
     ]
-    assert "WEAPONS" in rows
     assert "Kinetic Pistol [5/12]" in rows
     assert any(row.startswith("HOLSTER  Laser Pistol") for row in rows)
     assert "PST 132/160" in rows
     assert any(row.startswith("[R] Reload") for row in rows)
-    assert any(row.startswith("A  Armory") for row in rows)
-    assert any(row.startswith("%  Mechanic") for row in rows)
-    assert any(row.startswith("$  Terminus Tech") for row in rows)
-    _last_terminal_y = rows.index("$  Terminus Tech")
-    # Section rhythm matches the rest of the panel: blank row, divider,
-    # then the next section (the kiosk hint ends the terminal block).
-    assert rows[_last_terminal_y + 1].strip() == ""
-    assert set(rows[_last_terminal_y + 2]) == {"-"}
-    assert rows.index("WEAPONS") == _last_terminal_y + 3
+    _weapons_y = rows.index("WEAPONS")
+    assert _weapons_y == 11                     # the pinned C anchor
+    assert rows[_weapons_y - 1].strip() == ""   # the blank status slot above
+    for _terminal in ("A  Armory", "%  Mechanic", "=  Trade", "$  Terminus Tech"):
+        assert rows.index(_terminal) > _weapons_y  # terminals live in D now
+    assert "[ESC] Pause" in "\n".join(rows)
 
 
-def test_city_weapons_block_follows_stats_without_terminals():
-    """No terminal hints on screen = the weapons block attaches right
-    under the stats divider, same layout as dungeon mode (no orphan
-    divider between two absent sections)."""
+def test_city_weapons_block_follows_the_core_without_terminals():
+    """No terminal hints on screen = the weapons block attaches
+    directly under the core's status slot at the pinned anchor row —
+    no orphan divider between two absent sections."""
     ctx = _ground_weapons_ctx(
         equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 5)],
     )
@@ -265,8 +257,9 @@ def test_city_weapons_block_follows_stats_without_terminals():
         "".join(console.cell(x, y).char for x in range(80, 120)).rstrip()
         for y in range(54)
     ]
-    assert "WEAPONS" in rows
-    assert set(rows[rows.index("WEAPONS") - 1]) == {"-"}
+    _weapons_y = rows.index("WEAPONS")
+    assert _weapons_y == 11
+    assert rows[_weapons_y - 1].strip() == ""
 
 
 def test_city_weapons_block_silent_on_bare_fists():
@@ -307,17 +300,9 @@ def test_dungeon_weapons_block_silent_on_bare_fists():
 
 
 def test_dungeon_stat_rows_show_current_ground_armor():
-    """Dungeon HUD stat rows expose the combined armor defense."""
+    """The core's second meter row reads the combined armor defense."""
     console = FrameBuffer(40, 4)
-    ctx = SimpleNamespace(ground_hp=10, ground_max_hp=10)
-    stats = SimpleNamespace(credits=100, gunnery=4, piloting=3, engineering=2)
-
-    hud._render_city_stat_rows(
-        console, 0, 0,
-        ctx=ctx, stats=stats, owned_ship=None, ship_catalog=None,
-        ground_stats=None, ground_armor=3,
-    )
-
+    hud_core.paint_hp_armor_rows(console, 0, 0, hp=10, max_hp=10, armor=3)
     row = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
     assert row == "Armor   3"
 
@@ -353,18 +338,15 @@ def test_city_hud_shows_current_ground_armor():
 
 
 def test_city_stat_values_line_up_in_one_column():
-    """HP / Cargo / Credits values all start at the same column."""
+    """HP / Cargo values share the core's value column; Armor's value
+    lands at the label column's end."""
     console = FrameBuffer(40, 3)
-    ctx = SimpleNamespace(ground_hp=10, ground_max_hp=10)
-    stats = SimpleNamespace(credits=1234, gunnery=4, piloting=3, engineering=2)
-    hud._render_city_stat_rows(
-        console, 0, 0,
-        ctx=ctx, stats=stats, owned_ship=None, ship_catalog=None, ground_stats=None,
-    )
+    y = hud_core.paint_hp_armor_rows(console, 0, 0, hp=10, max_hp=10, armor=3)
+    hud_core.paint_cargo_row(console, 0, y, used=0, max_cargo=0)
     rows = ["".join(console.cell(x, y).char for x in range(40)) for y in range(3)]
     assert rows[0][19] == "1"  # 10/10
-    assert rows[1][19] == "0"  # 0/0 (no ship -> empty bar)
-    assert rows[2][19] == "1"  # 1234
+    assert rows[1][8] == "3"   # Armor
+    assert rows[2][19] == "0"  # 0/0 (no ship -> empty bar)
 
 
 def test_space_fuel_hull_rows_use_bars():
@@ -555,6 +537,27 @@ def test_help_lines_show_weapon_set_swap_in_city_and_dungeon():
     assert all(key != "X" for key, _label in hud._SPACE_HELP_LINES)
 
 
+def test_esc_pause_joins_the_help_pairs():
+    """[ESC] Pause (doc 104 item 12 + prose ledger #1): ESC's hint
+    reads in every mode's key-hint block — city, dungeon, and the
+    space list — replacing the retired 'ESC to quit' footer line."""
+    for mode in ("city", "dungeon"):
+        console = FrameBuffer(40, 8)
+        hud._render_city_help_lines(console, 0, 0, mode)
+        text = "\n".join(
+            "".join(console.cell(x, y).char for x in range(40)).rstrip()
+            for y in range(8)
+        )
+        assert "[ESC] Pause" in text
+    console = FrameBuffer(40, 6)
+    hud._render_help_lines(console, 0, 0, hud._SPACE_HELP_LINES)
+    text = "\n".join(
+        "".join(console.cell(x, y).char for x in range(40)).rstrip()
+        for y in range(6)
+    )
+    assert "[ESC] Pause" in text
+
+
 def test_cargo_used_max_threads_the_merchant_hold():
     """Both HUD branches share this read (doc 49 phase 2): a merchant
     sees the +10, a plain pilot the class-free capacity, and a missing
@@ -633,11 +636,11 @@ def test_combat_status_row_paints_labelled_rows_and_consumes_one_row():
     ) is False
 
 
-def test_exploration_status_row_paints_segments_in_city_and_dungeon():
-    """The exploration status line (doc 103 Build C): the same
-    one-row segments the combat panels carry, on the city/dungeon
-    panel — labelled rows paint with their remaining, an empty
-    container consumes no row (frozen city rows still display)."""
+def test_exploration_status_slot_paints_segments_and_stays_fixed():
+    """The exploration status slot (doc 103 q7 + doc 104 item 13's
+    fixed-slot law): labelled rows paint with their remaining, and an
+    empty container leaves the row BLANK — the row is still consumed,
+    so the slot never pops at a mode boundary."""
     from src.spacehack.combat import _statuses
     from src.spacehack.engine import HUD_WIDTH, SCREEN_WIDTH
     from src.spacehack import hud as _hud
@@ -648,7 +651,7 @@ def test_exploration_status_row_paints_segments_in_city_and_dungeon():
     frame = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, 12)
     hud_x = SCREEN_WIDTH - HUD_WIDTH
 
-    _y = _hud._render_status_segments_row(frame, hud_x, 5, ctx)
+    _y = hud_core.paint_status_slot(frame, hud_x, 5, _hud._status_segments(ctx))
     _row = "".join(
         frame.cell(x, 5).char for x in range(hud_x, hud_x + HUD_WIDTH * 2)
     ).rstrip()
@@ -656,9 +659,14 @@ def test_exploration_status_row_paints_segments_in_city_and_dungeon():
     assert _y == 6  # one row consumed
 
     _statuses.dispel(ctx.active_statuses, lambda _a: True)
-    assert _hud._render_status_segments_row(
-        FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, 12), hud_x, 5, ctx,
-    ) == 5  # no row consumed
+    _empty_frame = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, 12)
+    assert hud_core.paint_status_slot(
+        _empty_frame, hud_x, 5, _hud._status_segments(ctx),
+    ) == 6  # the empty slot still consumes its row
+    _empty_row = "".join(
+        _empty_frame.cell(x, 5).char for x in range(hud_x, hud_x + HUD_WIDTH * 2)
+    ).rstrip()
+    assert _empty_row == ""  # blank, never a placeholder glyph
 
 
 def test_v_opens_the_you_only_window_exploring(monkeypatch):

@@ -18,7 +18,7 @@ import pytest
 
 from src.spacehack import ui, world, pygame_target_card
 from src.spacehack.combat import _loop, _rules_ground
-from src.spacehack.engine import HUD_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH
+from src.spacehack.engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH
 from src.spacehack.framebuffer import FrameBuffer
 from src.spacehack.combat import _ground_render
 from src.spacehack.combat import _ground_presentation
@@ -861,6 +861,10 @@ def _ground_fixture():
         player_traits=[],
         installed_chrome=[],
         active_statuses={},
+        player_owned_ship=None,
+        player_level=3,
+        player_xp=100,
+        player_skill_points=0,
         log=SimpleNamespace(
             add=lambda _message, **_kwargs: None,
             add_colored=lambda _message, _color, **_kwargs: None,
@@ -888,7 +892,8 @@ def _patch_render_deps(monkeypatch, line_calls: list) -> None:
 
 
 def test_ground_player_hp_row_shows_current_max_and_active_regen():
-    """The player row uses numeric HP and shows the next regen amount."""
+    """The core HP row (doc 104's one shape) reads cur/max and keeps
+    the interim regen suffix until Phase 2 kills it."""
     _ctx, _game_map, _console, _enemy = _ground_fixture()
     _ctx.ground_hp = 10
     _rules_ground.init(_ctx, [_enemy], _game_map)
@@ -903,19 +908,22 @@ def test_ground_player_hp_row_shows_current_max_and_active_regen():
             duration_turns=3,
         ),
     )
-    _frame = FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT)
+    # The real combat console is one HUD-width wider than the window
+    # (the aligned core row needs the panel's ~40 half-width chars).
+    _frame = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, SCREEN_HEIGHT)
     _ground_render._render_player_panel(_frame, _ctx)
     _hud_x = SCREEN_WIDTH - HUD_WIDTH
     _row = "".join(
-        _frame.cell(x, 3).char
-        for x in range(_hud_x, SCREEN_WIDTH)
+        _frame.cell(x, 7).char
+        for x in range(_hud_x, _hud_x + HUD_WIDTH * 2)
     ).rstrip()
     assert _row
-    assert "HP  ####... 17/25 +2" in _row
+    assert "HP      ######.... 17/25 +2" in _row
 
 
 def test_ground_ap_row_shows_blue_temporary_stim_bonus():
-    """An active Combat Stim is visible beside the base AP pool."""
+    """An active Combat Stim is visible beside the base AP pool (the
+    A-band row, doc 104's reserved band)."""
     _ctx, _game_map, _console, _enemy = _ground_fixture()
     _rules_ground.init(_ctx, [_enemy], _game_map)
     _rules_ground.apply_consumable_effect(
@@ -930,28 +938,29 @@ def test_ground_ap_row_shows_blue_temporary_stim_bonus():
         ),
     )
     _frame = FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT)
-    _ground_render._render_player_panel(_frame, _ctx)
+    _ground_render._render_combat_band(_frame, _ctx)
     _hud_x = SCREEN_WIDTH - HUD_WIDTH
     _row = "".join(
-        _frame.cell(x, 5).char
+        _frame.cell(x, 2).char
         for x in range(_hud_x, SCREEN_WIDTH)
     ).rstrip()
     assert _row == "AP: 4/4 +1"
-    assert _frame.cell(_hud_x + 8, 5).fg == _ground_render._COLOR_GROUND_TEMP_AP
+    assert _frame.cell(_hud_x + 8, 2).fg == _ground_render._COLOR_GROUND_TEMP_AP
 
     for _ in range(4):
         _rules_ground.reset_turn(_ctx)
     _frame = FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT)
-    _ground_render._render_player_panel(_frame, _ctx)
+    _ground_render._render_combat_band(_frame, _ctx)
     _row = "".join(
-        _frame.cell(x, 5).char
+        _frame.cell(x, 2).char
         for x in range(_hud_x, SCREEN_WIDTH)
     ).rstrip()
     assert _row == "AP: 4/4"
 
 
 def test_ground_player_panel_shows_current_armor():
-    """The player panel exposes the combined flat armor defense."""
+    """The core's second meter row reads the combined flat armor
+    defense in the one shape (values at the label column's end)."""
     _ctx, _game_map, _console, _enemy = _ground_fixture()
     _ctx.equipped_ground_armor = {
         "head": StoredGroundEquipment("armor", "light_helmet"),
@@ -964,10 +973,10 @@ def test_ground_player_panel_shows_current_armor():
 
     _hud_x = SCREEN_WIDTH - HUD_WIDTH
     _row = "".join(
-        _frame.cell(x, 4).char
+        _frame.cell(x, 8).char
         for x in range(_hud_x, SCREEN_WIDTH)
     ).rstrip()
-    assert _row == "Armor: 3"
+    assert _row == "Armor   3"
 
 
 class TestRangeLineHidden:
@@ -2148,12 +2157,15 @@ class TestEnemyQualityStatDisplay:
         assert any("DMG 6" in t for t in _texts)
 
 
-def test_ground_status_row_reads_and_never_shifts_weapons():
-    """The one-row status line (doc 103 q7): labelled rounds rows read
-    `LABEL n` polarity-colored in the player panel's closing gap row —
-    WEAPONS stays put, and label-less rows (the loan) never render."""
+def test_ground_status_row_reads_from_the_fixed_slot():
+    """The one-row status line (doc 103 q7) in its doc 104 home: the
+    core's FIXED slot at GROUND_CORE_Y + 3 — labelled rounds rows read
+    `LABEL n` polarity-colored, the OPENER label alone, label-less
+    rows (the loan) never render; the panel always returns the pinned
+    C-anchor row, so WEAPONS can never shift."""
     _ctx, _game_map, _console, _enemy = _ground_fixture()
     _rules_ground.init(_ctx, [_enemy], _game_map)
+    from src.spacehack import hud_core
     from src.spacehack.combat import _statuses
     from src.spacehack.data.statuses import NEURAL_STIM_LOAN_ID, PIRATE_OPENER_ID
 
@@ -2166,27 +2178,158 @@ def test_ground_status_row_reads_and_never_shifts_weapons():
     # The real combat console is one HUD-width wider than the window
     # (the panel's ~40 half-width chars — test_hud's fixture precedent).
     _frame = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, SCREEN_HEIGHT)
-    _ground_render._render_player_panel(_frame, _ctx)
+    _next_y = _ground_render._render_player_panel(_frame, _ctx)
     _hud_x = SCREEN_WIDTH - HUD_WIDTH
     _row = "".join(
-        _frame.cell(x, 7).char
+        _frame.cell(x, hud_core.GROUND_CORE_Y + 3).char
         for x in range(_hud_x, _hud_x + HUD_WIDTH * 2)
     ).rstrip()
     # OPENER is label-only (fight class, no countdown — the label
     # ruled at the Build A playtest); the loan still declines a label.
     assert _row == "OPENER  REGEN 3  STIM 3"
-    assert _frame.cell(_hud_x, 7).fg == (100, 235, 115)
+    assert _frame.cell(_hud_x, hud_core.GROUND_CORE_Y + 3).fg == (100, 235, 115)
+    assert _next_y == hud_core.GROUND_WEAPONS_Y
 
-    # The gap-row paint never shifts WEAPONS: the panel's next-row
-    # return is unchanged with statuses on.
-    _y_with = _ground_render._render_player_panel(
-        FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT), _ctx,
+
+def _city_hud_ctx():
+    """A render_hud-ready exploration ctx (doc 104's ground-pair pins),
+    mirroring the real caller's full kwarg set (pygame_overlay.capture)."""
+    from src.spacehack.hud import HudStats
+
+    return SimpleNamespace(
+        character_info={"species_name": "Human", "class_name": "Merchant"},
+        stats=HudStats(100),
+        player_owned_ship=None,
+        player_xp=100,
+        player_level=3,
+        player_skill_points=0,
+        ground_stats=None,
+        ground_hp=18,
+        ground_max_hp=24,
+        equipped_ground_weapons=[_weapon("fists")],
+        holstered_ground_weapons=[],
+        equipped_ground_armor={},
+        bandolier={},
+        active_statuses={},
+        time_day=12, time_month=4, time_year=2160,
     )
-    _statuses.dispel(_ctx.active_statuses, lambda _a: True)
-    _y_without = _ground_render._render_player_panel(
-        FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT), _ctx,
+
+
+def test_doc104_core_rows_share_one_y_across_the_ground_pair(monkeypatch):
+    """THE Phase 1 pin: B's core rows — the health meter, cargo, and
+    the FIXED status slot — paint at the same rows on the exploration
+    panel and the combat panel (same active status on both renders),
+    and the WEAPONS anchor holds the same row on both."""
+    from src.spacehack import hud
+    from src.spacehack import hud_core
+    from src.spacehack.combat import _statuses
+
+    _city_ctx = _city_hud_ctx()
+    _statuses.apply(_city_ctx.active_statuses, "regen", theater="ground", source="Med Pack")
+    _city_frame = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, SCREEN_HEIGHT)
+    hud.render_hud(
+        _city_frame, _city_ctx,
+        screen_width=SCREEN_WIDTH,
+        hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT,
+        location="Eri City", mode="city",
+        has_trade_terminal=False, has_mech_terminal=False,
+        has_armory_terminal=False, has_kiosk=False,
     )
-    assert _y_with == _y_without
+
+    _f_ctx, _game_map, _console, _enemy = _ground_fixture()
+    _rules_ground.init(_f_ctx, [_enemy], _game_map)
+    _statuses.apply(_f_ctx.active_statuses, "regen", theater="ground", source="Med Pack")
+    _line_calls: list = []
+    _patch_render_deps(monkeypatch, _line_calls)
+    _fight_frame = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, SCREEN_HEIGHT)
+    _rules_ground.render_frame(_fight_frame, _f_ctx, _game_map)
+
+    _hud_x = SCREEN_WIDTH - HUD_WIDTH
+    for _frame in (_city_frame, _fight_frame):
+        _hp = "".join(
+            _frame.cell(x, hud_core.GROUND_CORE_Y).char
+            for x in range(_hud_x, _hud_x + HUD_WIDTH * 2)
+        ).rstrip()
+        _slot = "".join(
+            _frame.cell(x, hud_core.GROUND_CORE_Y + 3).char
+            for x in range(_hud_x, _hud_x + HUD_WIDTH * 2)
+        ).rstrip()
+        _weapons = "".join(
+            _frame.cell(x, hud_core.GROUND_WEAPONS_Y).char
+            for x in range(_hud_x, _hud_x + HUD_WIDTH * 2)
+        ).rstrip()
+        assert _hp.startswith("HP")
+        assert _slot.startswith("REGEN")
+        assert _weapons.startswith("WEAPONS")
+
+
+def test_doc104_combat_status_slot_blank_when_empty_row_consumed():
+    """Item 13 on the combat side: no active statuses = the slot row
+    paints nothing (no placeholder glyph) and the row is still
+    consumed — the panel returns the pinned anchor row."""
+    from src.spacehack import hud_core
+
+    _ctx, _game_map, _console, _enemy = _ground_fixture()
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    _frame = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, SCREEN_HEIGHT)
+    _next_y = _ground_render._render_player_panel(_frame, _ctx)
+    _hud_x = SCREEN_WIDTH - HUD_WIDTH
+    _slot = "".join(
+        _frame.cell(x, hud_core.GROUND_CORE_Y + 3).char
+        for x in range(_hud_x, _hud_x + HUD_WIDTH * 2)
+    ).rstrip()
+    assert _slot == ""
+    assert _next_y == hud_core.GROUND_WEAPONS_Y
+
+
+def test_doc104_cargo_bar_reads_in_the_combat_core():
+    """Item 14: the fight's core carries the cargo bar (the boarding
+    read's ground twin) via the shared _cargo_used_max."""
+    from src.spacehack import hud_core, ship as _ship_mod
+
+    _ctx, _game_map, _console, _enemy = _ground_fixture()
+    _ctx.player_owned_ship = _ship_mod.OwnedShip(ship_id="starter")
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    _frame = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, SCREEN_HEIGHT)
+    _ground_render._render_player_panel(_frame, _ctx)
+    _hud_x = SCREEN_WIDTH - HUD_WIDTH
+    _row = "".join(
+        _frame.cell(x, hud_core.GROUND_CORE_Y + 2).char
+        for x in range(_hud_x, _hud_x + HUD_WIDTH * 2)
+    ).rstrip()
+    assert _row == "Cargo   .......... 0/50"
+
+
+def test_doc104_fight_gains_the_xp_footer_and_the_retired_strings_die(monkeypatch):
+    """Item 12 in the fight: the one-row XP footer paints at the HUD
+    band's bottom row (the new in-fight read), 'bump to interact' and
+    'ESC to quit' appear nowhere, and ESC's hint reads in ACTIONS."""
+    _ctx, _game_map, _console, _enemy = _ground_fixture()
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    _line_calls: list = []
+    _patch_render_deps(monkeypatch, _line_calls)
+    _frame = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, SCREEN_HEIGHT)
+    _rules_ground.render_frame(_frame, _ctx, _game_map)
+
+    _hud_x = SCREEN_WIDTH - HUD_WIDTH
+    _bottom = "".join(
+        _frame.cell(x, SCREEN_HEIGHT - MSG_LOG_HEIGHT - 1).char
+        for x in range(_hud_x, _hud_x + HUD_WIDTH * 2)
+    ).rstrip()
+    assert _bottom.startswith("LV")  # the in-fight XP read, bottom-anchored
+    _flat = "\n".join(
+        "".join(
+            _frame.cell(x, y).char
+            for x in range(_hud_x, _hud_x + HUD_WIDTH * 2)
+        )
+        for y in range(SCREEN_HEIGHT)
+    )
+    assert "bump to interact" not in _flat
+    assert "ESC to quit" not in _flat
+    assert any(
+        "[ESC]" in _line and "Pause" in _line
+        for _line in _flat.splitlines()
+    )
 
 
 def test_enemy_panel_rows_wear_the_status_suffix():

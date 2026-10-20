@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .. import ui, world
+from .. import hud_core, ui, world
 from ..engine import MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, HUD_WIDTH
 from ..dungeon_fov import cell_in_sight
 from ..game_context import GameContext
@@ -23,7 +23,10 @@ from ..data.ground_weapons import find_ground_weapon as _find_gw
 from ..data.quality import effective_weapon_spec
 from ..hud import (
     _bar_str,
+    _cargo_used_max,
+    _hud_xp_line,
     _render_action_pairs,
+    _resolve_ship_catalog,
     ap_pool_str,
     bandolier_hud_lines,
     ground_holster_names,
@@ -66,14 +69,13 @@ _COLOR_GROUND_WEAPON_DIM: tuple[int, int, int] = (120, 100, 60)
 _COLOR_GROUND_ACTION: tuple[int, int, int] = (180, 220, 255)
 _COLOR_GROUND_TEMP_AP: tuple[int, int, int] = (100, 170, 255)
 
-# The enemies listing must leave the panel's closing spacer plus the
-# ACTIONS legend (title + 4 pair rows) inside the ground HUD's rows
-# (0..SCREEN_HEIGHT - MSG_LOG_HEIGHT - 1 — the message band owns the
-# rest), and one enemy block costs 2 rows plus up to 3 target-detail
-# rows. Derived post-re-review: anchoring to SCREEN_HEIGHT under-
-# counted the tail and landed the legend in the message band.
+# The enemies listing must leave the panel's closing spacer, the
+# ACTIONS legend (title + 5 pair rows since [ESC] Pause joined), and
+# the XP footer inside the ground HUD's rows (0..SCREEN_HEIGHT -
+# MSG_LOG_HEIGHT - 1 — the message band owns the rest); one enemy
+# block costs 2 rows plus up to 3 target-detail rows.
 _ENEMY_BLOCK_ROWS = 5
-_ACTIONS_TAIL_ROWS = 6
+_ACTIONS_TAIL_ROWS = 8
 _ENEMY_LIST_BOTTOM = (
     SCREEN_HEIGHT - MSG_LOG_HEIGHT - _ACTIONS_TAIL_ROWS - _ENEMY_BLOCK_ROWS
 )
@@ -120,10 +122,12 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
     weapons = _rules().player_weapons(ctx)
     active_w = _active_weapon_ids(ctx, weapons)
     _render_range_line(console, ctx, game_map, active_w, alive, cam)
+    _render_combat_band(console, ctx)
     y = _render_player_panel(console, ctx)
     y = _render_weapons_panel(console, ctx, weapons, alive, y)
     y = _render_enemies_panel(console, ctx, alive, y)
     _render_actions_panel(console, weapons, y)
+    _paint_xp_footer(console, ctx)
     # The message band is painted natively by pygame_combat.present from
     # ctx.log via the shared log_band_rows builder — no cell capture.
 
@@ -258,50 +262,66 @@ def _render_ap_row(console, hud_x, y, state) -> int:
     return y + 1
 
 
-def _render_player_panel(console, ctx) -> int:
-    """Paint the player HP/AP/evasion block; return the next HUD row."""
+def _render_combat_band(console, ctx) -> None:
+    """Region A (doc 104): the title + AP/EVA/STIM rows inside the
+    reserved band rows — the gold AP marker and STIM row live until
+    Phase 2's slim; a short band leaves the reserved blanks (the band
+    can never push the core)."""
     _state = _rules()._state
     hud_x = SCREEN_WIDTH - HUD_WIDTH
-    y = 0
-    console.print(x=hud_x, y=y, string="> GROUND COMBAT <", fg=_COLOR_GROUND_TITLE)
-    y += 2
-    console.print(x=hud_x, y=y, string="PLAYER", fg=_COLOR_GROUND_PLAYER)
-    y += 1
-    _regen = _active_regen_amount()
-    _regen_suffix = f" +{_regen}" if _regen > 0 else ""
-    _bar_width = 7 if _regen > 0 else 8
-    hp_bar = _bar_str(_state.player_hp, _state.player_max_hp, width=_bar_width)
+    console.print(x=hud_x, y=0, string="> GROUND COMBAT <", fg=_COLOR_GROUND_TITLE)
+    _render_ap_row(console, hud_x, hud_core.GROUND_BAND_Y, _state)
+    eva = _ground_evasion(ctx)
     console.print(
-        x=hud_x, y=y,
-        string=f"HP  {hp_bar} {_state.player_hp}/{_state.player_max_hp}{_regen_suffix}",
-        fg=_COLOR_GROUND_PLAYER,
-    )
-    y += 1
-    console.print(
-        x=hud_x, y=y,
-        string=f"Armor: {_state.armor_defense}",
+        x=hud_x, y=hud_core.GROUND_BAND_Y + 1, string=f"EVA: {eva}%",
         fg=_COLOR_GROUND_ACTION,
     )
-    y = _render_ap_row(console, hud_x, y + 1, _state)
-    eva = _ground_evasion(ctx)
-    console.print(x=hud_x, y=y, string=f"EVA: {eva}%", fg=_COLOR_GROUND_ACTION)
-    y += 1
     _stim = _stim_hud_row(ctx)
     if _stim is not None:
-        console.print(x=hud_x, y=y, string=_stim[0], fg=_stim[1])
-        y += 1
-    _render_status_row(console, hud_x, y)
-    return y + 2
+        console.print(
+            x=hud_x, y=hud_core.GROUND_BAND_Y + 2, string=_stim[0], fg=_stim[1],
+        )
 
 
-def _render_status_row(console, hud_x: int, y: int) -> None:
-    """The one-row status line (doc 103 q7): terse polarity-colored
-    labels + remaining, painted into the player panel's closing gap
-    row — WEAPONS never shifts. Label-less rows never render (the
-    loan's debt-line decline; the opener carries no remaining)."""
-    _statuses_paint(
-        console, hud_x, y,
-        hud_segments(_active_container()), hud_x + HUD_TEXT_MAX,
+def _render_player_panel(console, ctx) -> int:
+    """Region B — the shared core via hud_core (doc 104): the PLAYER
+    label row (it names the meter block), the health meter, cargo,
+    and the FIXED status slot — one painter, one y with the
+    exploration core. Returns the C anchor's pinned row (the WEAPONS
+    header row)."""
+    _state = _rules()._state
+    hud_x = SCREEN_WIDTH - HUD_WIDTH
+    console.print(
+        x=hud_x, y=hud_core.GROUND_CORE_Y - 1, string="PLAYER",
+        fg=_COLOR_GROUND_PLAYER,
+    )
+    _regen = _active_regen_amount()
+    _suffix = f" +{_regen}" if _regen > 0 else ""
+    y = hud_core.paint_hp_armor_rows(
+        console, hud_x, hud_core.GROUND_CORE_Y,
+        hp=_state.player_hp, max_hp=_state.player_max_hp,
+        armor=_state.armor_defense, regen_suffix=_suffix,
+    )
+    _owned = getattr(ctx, "player_owned_ship", None)
+    _cargo_used, _max_cargo = _cargo_used_max(
+        _owned, _resolve_ship_catalog(_owned), ctx,
+    )
+    y = hud_core.paint_cargo_row(
+        console, hud_x, y, used=_cargo_used, max_cargo=_max_cargo,
+    )
+    hud_core.paint_status_slot(
+        console, hud_x, y, hud_segments(_active_container()),
+    )
+    return hud_core.GROUND_WEAPONS_Y
+
+
+def _paint_xp_footer(console, ctx) -> None:
+    """The in-fight XP read (doc 104 Phase 1): the shared one-row
+    footer, bottom-anchored at the ground HUD band's last row."""
+    _line, _fg = _hud_xp_line(ctx.player_level, ctx.player_xp, ctx)
+    hud_core.paint_xp_footer(
+        console, SCREEN_WIDTH - HUD_WIDTH, SCREEN_HEIGHT - MSG_LOG_HEIGHT,
+        xp_line=_line, xp_fg=_fg,
     )
 
 
@@ -541,6 +561,7 @@ def _render_actions_panel(console, weapons: list[str], y: int) -> None:
     actions = [
         ("[Tab]", "Target"), ("[m]", "Move"), ("[f]", "Fire"), ("[r]", "Reload"),
         ("[x]", "Swap"), ("[w]", "Wait"), ("[e]", "Info"), ("[v]", "Status"),
+        ("[ESC]", "Pause"),
     ]
     if len(weapons) > 1:
         actions.insert(5, (f"[1-{len(weapons)}]", "Toggle Wpn"))

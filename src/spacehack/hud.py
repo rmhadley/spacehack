@@ -3,18 +3,19 @@
 Layout (assumes ``screen_width = SCREEN_WIDTH`` and
 ``hud_view_height = SCREEN_HEIGHT - MSG_LOG_HEIGHT``):
 
-City mode (default):
+City mode (default; doc 104's reserved regions — the bands swap, the
+core and the WEAPONS anchor never move):
     +-----------------+----------+
     |                 | Spacehack|
-    |                 | HUMAN    |
-    |       MAP       | PIRATE   |
-    |     REGION      |          |
-    |                 | -------- |
-    |                 | HP 10/10 |
-    |                 | Cargo 0/0|
-    |                 | $   100  |
-    |                 |          |
-    |                 | ..       |
+    |                 | HUMAN    |  A band (interim)
+    |       MAP       | PIRATE   |  A
+    |     REGION      | -------- |
+    |                 | HP 10/10 |  B core (hud_core)
+    |                 | Armor  0 |  B
+    |                 | Cargo 0/0|  B
+    |                 |          |  B status slot (blank when empty)
+    |                 | WEAPONS  |  C anchor
+    |                 | ..       |  D band (parked stats, terminals, help)
     +-----------------+----------+
 
 Space mode (when ``owned_ship`` is provided):
@@ -29,7 +30,7 @@ Space mode (when ``owned_ship`` is provided):
     |                 | G - Go To|
     |                 | P - Pickup|
     |                 | M - Map  |
-    |                 | ESC Quit |
+    |                 | ESC Pause|
     +-----------------+----------+
 
 The HUD paints only into the top portion of the screen so the message
@@ -50,6 +51,19 @@ from typing import TYPE_CHECKING
 from .framebuffer import FrameBuffer
 
 from .engine import HUD_WIDTH
+from .hud_core import (
+    COLOR_HP_GOOD,
+    COLOR_HP_LOW,
+    GROUND_BAND_Y,
+    GROUND_CORE_Y,
+    GROUND_WEAPONS_Y,
+    HUD_TEXT_MAX,
+    _bar_str,
+    paint_cargo_row,
+    paint_hp_armor_rows,
+    paint_status_slot,
+    paint_xp_footer,
+)
 from .ui import COLOR_DIVIDER, COLOR_VALUE_DIM, COLOR_VALUE_WHITE  # shared palette (single source)
 
 if TYPE_CHECKING:
@@ -59,11 +73,11 @@ if TYPE_CHECKING:
 # High-contrast HUD palette: neutral labels and values carry the reading
 # load, while saturated colors communicate health and resource state.
 # The shared white/dim/divider colors come from ui.py so brightness stays
-# consistent across menus and gameplay.
+# consistent across menus and gameplay. The HP good/low pair lives in
+# hud_core (the unified core's meter painter owns it) and is re-exported
+# here for the space hull row and the combat importers.
 COLOR_HUD_TITLE: tuple[int, int, int] = (255, 205, 95)             # vivid gold
 COLOR_LABEL: tuple[int, int, int] = (245, 245, 235)                # near-white label
-COLOR_HP_GOOD: tuple[int, int, int] = (110, 245, 125)               # bright green
-COLOR_HP_LOW: tuple[int, int, int] = (255, 110, 110)                # bright red
 COLOR_EVADE: tuple[int, int, int] = (135, 235, 150)                # green, positive-buff accent
 
 # Player glyph health zones — the on-map character mirrors the ground
@@ -256,12 +270,6 @@ def _cargo_used_max(owned_ship, ship_catalog, ctx=None) -> tuple[int, int]:
     return cargo_used, max_cargo
 
 
-def _footer_rows(hud_view_height: int) -> tuple[int, int, int]:
-    """Return safe XP, interaction, and exit rows inside the HUD panel."""
-    bottom = max(3, hud_view_height - 1)
-    return bottom - 3, bottom - 2, bottom - 1
-
-
 def ground_holster_names(ctx) -> str:
     """Comma-joined holstered-set weapon names ('' when the set is empty).
 
@@ -347,14 +355,6 @@ def _hud_xp_line(player_level: int, player_xp: int, ctx) -> tuple[str, tuple[int
     )
 
 
-def _render_hud_footer(console, hud_x, hud_view_height, *, xp_line, xp_fg) -> None:
-    """Paint the XP bar + bottom hints anchored to the panel's bottom edge."""
-    _xp_y, _bump_y, _exit_y = _footer_rows(hud_view_height)
-    console.print(x=hud_x, y=_xp_y, string=xp_line, fg=xp_fg)
-    console.print(x=hud_x, y=_bump_y, string="bump to interact", fg=COLOR_VALUE_DIM)
-    console.print(x=hud_x, y=_exit_y, string="ESC to quit", fg=COLOR_VALUE_DIM)
-
-
 def _render_ship_identity(console, hud_x, y, *, ship_name, location, date_str) -> int:
     """Paint the ship name / location / date rows; return the next row."""
     console.print(x=hud_x, y=y, string=ship_name.upper()[:HUD_TEXT_MAX], fg=COLOR_SHIP_NAME)
@@ -409,6 +409,7 @@ _SPACE_HELP_LINES = [
     ("G", "Go To"), ("P", "Pickup"), ("M", "Map"),
     ("T", "Comms"), ("C", "Character"), ("F", "Factions"),
     (CONSOLE_LOG_KEY, CONSOLE_LOG_LABEL), ("?", "Guide"), ("numpad", "Move"),
+    ("ESC", "Pause"),
 ]
 
 
@@ -435,7 +436,7 @@ def _render_space_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, 
     _render_divider(console, hud_x, y)
     y += 3
     _render_help_lines(console, hud_x, y, _SPACE_HELP_LINES)
-    _render_hud_footer(console, hud_x, hud_view_height, xp_line=xp_line, xp_fg=xp_fg)
+    paint_xp_footer(console, hud_x, hud_view_height, xp_line=xp_line, xp_fg=xp_fg)
 
 
 def _render_city_identity(console, hud_x, y, *, species_name, class_name, location, date_str) -> int:
@@ -454,53 +455,35 @@ def _render_city_identity(console, hud_x, y, *, species_name, class_name, locati
     return y + 1
 
 
-def _render_ground_armor_row(console, hud_x, y, armor: int | None) -> int:
-    """Paint the dungeon HUD armor row when ground armor is available."""
-    if armor is None:
-        return y
-    console.print(
-        x=hud_x, y=y,
-        string=f"{'Armor':<8}{armor}",
-        fg=COLOR_VALUE_WHITE,
-    )
-    return y + 1
-
-
-def _render_city_stat_rows(
-    console, hud_x, y, *, ctx, stats, owned_ship, ship_catalog, ground_stats,
-    ground_armor: int | None = None,
-) -> int:
-    """Paint HP / cargo / credits / skill rows; return the next row.
-
-    All three stat rows share one label column and one value column so
-    the readouts line up; HP and Cargo render as 10-cell bars. Credits
-    has no capacity, so its value lands in the same value column.
-    """
+def _render_city_core(console, hud_x, ctx, *, ship_catalog) -> int:
+    """Region B — the shared core (doc 104): the health meter, cargo,
+    and the FIXED status slot, painted by hud_core at the reserved
+    rows — one painter, one y with the ground-combat core."""
+    from .ground_equipment import sum_armor_defense as _sum_armor_defense
     hp = max(0, ctx.ground_hp)
     max_hp = max(1, ctx.ground_max_hp)
-    _hp_fg = COLOR_HP_GOOD if hp * 2 >= max_hp else COLOR_HP_LOW
-    console.print(
-        x=hud_x, y=y,
-        string=f"{'HP':<8}{_bar_str(hp, max_hp):<11}{hp}/{max_hp}"[:HUD_TEXT_MAX],
-        fg=_hp_fg,
+    y = paint_hp_armor_rows(
+        console, hud_x, GROUND_CORE_Y,
+        hp=hp, max_hp=max_hp,
+        armor=_sum_armor_defense(
+            getattr(ctx, "equipped_ground_armor", {}).values(),
+        ),
     )
-    y += 1
-    y = _render_ground_armor_row(console, hud_x, y, ground_armor)
-    cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog, ctx)
-    console.print(
-        x=hud_x, y=y,
-        string=f"{'Cargo':<8}{_bar_str(cargo_used, max_cargo):<11}{cargo_used}/{max_cargo}"[:HUD_TEXT_MAX],
-        fg=COLOR_VALUE_WHITE,
-    )
-    y += 1
+    cargo_used, max_cargo = _cargo_used_max(ctx.player_owned_ship, ship_catalog, ctx)
+    y = paint_cargo_row(console, hud_x, y, used=cargo_used, max_cargo=max_cargo)
+    return paint_status_slot(console, hud_x, y, _status_segments(ctx))
+
+
+def _render_city_parked_rows(console, hud_x, y, *, stats, ground_stats) -> int:
+    """The interim D-top stats (doc 104 Phase 1): credits and the
+    skills grid park here until Phase 2's ruled drops (the C screen's
+    header gains credits; its Stats tab owns skills)."""
     console.print(
         x=hud_x, y=y,
         string=f"{'Credits':<19}{stats.credits}"[:HUD_TEXT_MAX],
         fg=COLOR_VALUE_WHITE,
     )
-    y += 3
-    y = _render_skill_line(console, hud_x, y, stats, ground_stats=ground_stats)
-    return y
+    return _render_skill_line(console, hud_x, y + 2, stats, ground_stats=ground_stats)
 
 
 def _render_city_terminals(
@@ -528,6 +511,7 @@ def _render_city_help_lines(console, hud_x, y, mode) -> int:
     _help_lines = [
         ("Q", "Quest Log"), ("C", "Character"), ("F", "Factions"), (CONSOLE_LOG_KEY, CONSOLE_LOG_LABEL),
         ("X", "Swap Sets"), ("?", "Guide"), ("numpad", "Move"),
+        ("ESC", "Pause"),
     ]
     if mode == "dungeon":
         _help_lines[0:0] = [
@@ -592,86 +576,46 @@ def _render_ground_weapons_block(console, hud_x: int, y: int, ctx) -> int:
     return y
 
 
-def _render_status_segments_row(console: FrameBuffer, hud_x: int, y: int, ctx) -> int:
-    """The exploration status line (doc 103 Build C): the same
-    one-row segments the combat panels carry (q7's law extended to
-    the surface where the carry lives) — REGEN 2, STAGGERED 1,
-    polarity-colored, label-only rows alone. Renders on city screens
-    too: a carried row reads FROZEN there (city streets are outside
-    status time), honestly. Lazy import: hud cannot import combat at
-    module level (the cycle through combat's package init — the
-    bandolier precedent)."""
-    from .combat._statuses import hud_segments, paint_hud_segments
+def _status_segments(ctx):
+    """The player's status segments (doc 103 q7) for the core's FIXED
+    slot (doc 104 item 13) — computed here (lazy combat import, the
+    bandolier precedent) so hud_core's painter stays combat-free:
+    segments in, ink out. Carried rows read on city streets too
+    (frozen outside status time, honestly)."""
+    from .combat._statuses import hud_segments
 
-    _segments = hud_segments(getattr(ctx, "active_statuses", None) or {})
-    if _segments:
-        paint_hud_segments(console, hud_x, y, _segments, hud_x + HUD_TEXT_MAX)
-        return y + 1
-    return y
-
-
-def _render_city_ground_sections(console, hud_x, y, ctx, mode, *, has_trade_terminal, has_mech_terminal, has_armory_terminal, has_kiosk=False) -> int:
-    """Paint the terminal hints, the exploration status line, and the
-    ground weapons block — the sections between the stats divider and
-    the help divider.
-
-    When terminal hints render, the weapons block is its own section and
-    gets the panel's blank-row + divider rhythm; without hints it attaches
-    directly under the stats divider like dungeon mode.
-    """
-    y = _render_city_terminals(
-        console, hud_x, y,
-        has_armory_terminal=has_armory_terminal,
-        has_mech_terminal=has_mech_terminal,
-        has_trade_terminal=has_trade_terminal,
-        has_kiosk=has_kiosk,
-    )
-    if mode in ("city", "dungeon"):
-        if has_armory_terminal or has_mech_terminal or has_trade_terminal:
-            y += 1
-            _render_divider(console, hud_x, y)
-            y += 1
-        y = _render_status_segments_row(console, hud_x, y, ctx)
-        y = _render_ground_weapons_block(console, hud_x, y, ctx)
-    return y
+    return hud_segments(getattr(ctx, "active_statuses", None) or {})
 
 
 def _render_city_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, mode, hud_view_height, xp_line, xp_fg, has_trade_terminal, has_mech_terminal, has_armory_terminal, has_kiosk=False) -> None:
-    """Paint the city/dungeon-mode HUD body below the title."""
+    """Paint the city/dungeon-mode HUD body below the title, doc 104's
+    reserved regions: A = the identity band (species/class interim +
+    location/date), B = the shared core via hud_core, C = the WEAPONS
+    anchor, D = the parked stats + terminals + help band. The band
+    rows can change freely — the core's rows and y never move."""
     character = ctx.character_info
-    y = _render_city_identity(
-        console, hud_x, 2,
+    _render_city_identity(
+        console, hud_x, GROUND_BAND_Y,
         species_name=character.get("species_name", ""),
         class_name=character.get("class_name", ""),
         location=location, date_str=date_str,
     )
+    _render_divider(console, hud_x, GROUND_CORE_Y - 1)
+    _render_city_core(console, hud_x, ctx, ship_catalog=ship_catalog)
+    y = _render_ground_weapons_block(console, hud_x, GROUND_WEAPONS_Y, ctx)
     _render_divider(console, hud_x, y)
-    y += 2
-    from .ground_equipment import sum_armor_defense as _sum_armor_defense
-    y = _render_city_stat_rows(
-        console, hud_x, y,
-        ctx=ctx, stats=ctx.stats,
-        owned_ship=ctx.player_owned_ship, ship_catalog=ship_catalog,
-        ground_stats=ctx.ground_stats,
-        ground_armor=_sum_armor_defense(
-            getattr(ctx, "equipped_ground_armor", {}).values(),
-        ),
+    y = _render_city_parked_rows(
+        console, hud_x, y + 1, stats=ctx.stats, ground_stats=ctx.ground_stats,
     )
-    y += 1
-    _render_divider(console, hud_x, y)
-    y += 1
-    y = _render_city_ground_sections(
-        console, hud_x, y, ctx, mode,
-        has_trade_terminal=has_trade_terminal,
-        has_mech_terminal=has_mech_terminal,
+    y = _render_city_terminals(
+        console, hud_x, y + 1,
         has_armory_terminal=has_armory_terminal,
+        has_mech_terminal=has_mech_terminal,
+        has_trade_terminal=has_trade_terminal,
         has_kiosk=has_kiosk,
     )
-    y += 1
-    _render_divider(console, hud_x, y)
-    y += 2
     _render_city_help_lines(console, hud_x, y, mode)
-    _render_hud_footer(console, hud_x, hud_view_height, xp_line=xp_line, xp_fg=xp_fg)
+    paint_xp_footer(console, hud_x, hud_view_height, xp_line=xp_line, xp_fg=xp_fg)
 
 
 def render_hud(
@@ -720,27 +664,9 @@ def render_hud(
 # Shared combat-format helpers (city, space, and ground combat HUDs)
 # ---------------------------------------------------------------------------
 
-
-# The native overlay renders HUD text at roughly half the cell width
-# (8px glyphs in 16px cells), so the 20-cell HUD panel fits ~36 characters.
-# HUD_TEXT_MAX matches that real glyph capacity for every HUD line (world
-# and combat); the cell renderer clips at the screen edge as a final guard.
-HUD_TEXT_MAX: int = 36
-
-
-_BAR_CHAR_FULL: str = "#"   # full marker
-_BAR_CHAR_EMPTY: str = "."   # empty marker
-
-
-def _bar_str(value: int, max_value: int, width: int = 10) -> str:
-    """Return a CP437-safe bar string with ``#`` for filled and ``.`` for empty.
-
-    Exported so ground combat can import the same function.
-    """
-    if max_value <= 0:
-        return _BAR_CHAR_EMPTY * width
-    full = max(0, min(width, value * width // max_value))
-    return _BAR_CHAR_FULL * full + _BAR_CHAR_EMPTY * (width - full)
+# HUD_TEXT_MAX, _bar_str, and the bar glyphs live in hud_core (the
+# unified core's primitives) and are re-exported above for the combat
+# importers and the space rows.
 
 
 def ap_pool_str(available: int, carry_twentieths: int = 0) -> str:
