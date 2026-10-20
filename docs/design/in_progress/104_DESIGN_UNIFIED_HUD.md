@@ -1,9 +1,10 @@
 # DESIGN: The unified HUD — one core, four panels
 
-**Status: PHASE 2 LANDED (2026-10-20 — build 8a30716b + guide
-900b05f6, gate green 3991 passed, reviewer APPROVE; playtest
-pending). Next: the Phase 2 playtest, then `/implement-phase 104.3`
-(the space pair).**
+**Status: PHASE 2 LANDED + PLAYTEST PASSED (2026-10-20 — build
+8a30716b + guide 900b05f6, gate green, reviewer APPROVE; mid-playtest
+ruling 16 + addendum 72e053ae; the playtest passed incl. the two
+called-out guide edits and the new dividers). Next:
+`/implement-phase 104.3` (the space pair — the last phase).**
 
 Companions: `in_progress/103_DESIGN_STATUSES.md` (the status row —
 the first surface that lives on every panel, whose fight-boundary
@@ -300,19 +301,22 @@ work; no prose beyond the ruled `[ESC] Pause`.
       credits→C with its new C-screen home, skills grid), the
       suffix and marker die, the weapon rows slim. PLAYTEST: the
       panels read at a glance; C carries credits.
-      LANDED 2026-10-20 (build 8a30716b, guide 900b05f6, gate green,
-      reviewer APPROVE). Audit-bound additions that ride the build:
-      the skills-call sweep took `_render_ship_stat_rows`' trailing
-      call, so the SPACE exploration panel lost its interim skills
-      grid one phase early (item 5's drop completing — Phase 3
-      restructures that panel anyway); the combat weapon row's `[N]`
-      slot index died with the slim (the checkbox is the only extra
-      mark, item 15); hud_core's `regen_suffix` param died with the
-      read. Reviewer minors: the pre-existing mangled space-mode
-      docstring diagram (`hud.py`) queued into Phase 3's restructure;
-      one redundant absence assert left as intent documentation.
-      MID-PLAYTEST ADDENDUM (72e053ae): item 16's dividers landed —
-      see the Frame table; the combat mock below is amended.
+      LANDED + PLAYTEST PASSED 2026-10-20 (build 8a30716b, guide
+      900b05f6, gate green, reviewer APPROVE; the verdict covers the
+      full checklist incl. the two called-out guide edits). MID-PLAYTEST
+      RULING 16 + ADDENDUM (72e053ae): the boundary dividers joined
+      the fight as panel chrome — see the Frame table; the combat mock
+      below is amended; the space pair inherits the law. Audit-bound
+      additions that ride the build: the skills-call sweep took
+      `_render_ship_stat_rows`' trailing call, so the SPACE exploration
+      panel lost its interim skills grid one phase early (item 5's
+      drop completing — Phase 3 restructures that panel anyway); the
+      combat weapon row's `[N]` slot index died with the slim (the
+      checkbox is the only extra mark, item 15); hud_core's
+      `regen_suffix` param died with the read. Reviewer minors: the
+      pre-existing mangled space-mode docstring diagram (`hud.py`)
+      queued into Phase 3's restructure; one redundant absence assert
+      left as intent documentation.
 
 ### Implementation brief — Phase 2 (APPROVED 2026-10-20)
 
