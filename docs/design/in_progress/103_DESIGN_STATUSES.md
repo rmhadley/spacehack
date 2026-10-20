@@ -381,10 +381,11 @@ discoveries:
   LIVE AI-side status read is the stim trigger — see the migration
   table.
 - **`sum_effects` is theater-BLIND (named limit, reviewer catch,
-  C3 2026-10-19)**: the home-theater law is enforced at `advance`
-  only; the additive standing-modifier sums (hit/dodge/melee) fold
-  over ALL rows, including carried foreign-theater rows inside a
-  fight. Harmless in v1 (no row authors those fields), but the
+  C3 2026-10-19; the init seed joined its read sites 2026-10-20)**:
+  the home-theater law is enforced at `advance` only; the additive
+  standing-modifier sums (hit/dodge/melee — and, at the ground
+  fight-init seed, ap) fold over ALL rows, including carried
+  foreign-theater rows inside a fight. Harmless in v1 (no row authors those fields), but the
   first row authoring a standing modifier must either add the
   theater filter to `sum_effects` or accept the bleed — a named
   seam, decided when that row lands.
@@ -640,7 +641,14 @@ B's playtest checklist.
       flight-telemetry means, proven PRE-EXISTING by a pre-vs-pre
       re-run of the unmodified tree (the same lines move). Suite
       green at 3983. The checklist below awaits the user's read;
-      then the Close.
+      then the Close. MID-PLAYTEST FIX (user report, 2026-10-20,
+      commit cbab13ef, reviewer APPROVE): a pre-popped stim did
+      not buff the fight's first turn — init's pool seed now reads
+      standing sums like every later reset (the pre-pop seed
+      ruling, recorded in the SETTLED section; symmetric: a
+      carried staggered dips turn one; the defuse reordered ahead
+      of the seed so an abnormal-end space loan can never bleed
+      through the theater-blind sum). Suite green at 3985.
 - [ ] Close (SYSTEMS.md inventory amended same-commit; move to
       complete/)
 
@@ -1287,6 +1295,26 @@ mismatched rows (advisor-endorsed shape — one live read,
 centralized; `theater` is serialized today, `saveload.py:247`, so
 a mid-flight save/quit/continue preserves the filter's input).
 
+**MID-PLAYTEST RULING (user, 2026-10-20 — the pre-pop seed):**
+the user reported "If I pre-pop a combat stim before a fight, I
+don't get the +1 AP in my first turn. I do get it in my 2nd
+though." Root cause: the stim's +1 arrives as ap EVENTS at round
+boundaries, and the fight's first turn is not one — its pool was
+seeded at `init` from the base gain alone, while the walking
+round's event was dropped (no AP pool exists out of combat). The
+ruling/fix: **every AP-pool computation reads standing sums —
+`init`'s seed joins `reset_turn`'s gain fold**
+(`_standing_ap_fold` through the `player_status_effects` choke
+point, `max(0)`-guarded, computed AFTER the fight-start defuse so
+it reads the post-defuse container). A pre-popped stim now buffs
+turn ONE (the walk's dropped round is redeemed at entry; pop, one
+step, seed — turns 1-3 buffed, exactly three for a 3-round row),
+and — symmetric, q13's "re-engaging with rounds left, it applies"
+— a carried staggered now DIPS turn one. No walk at init (no
+double-payment: the first reset's event still pays turn 2); no
+new draws; space init deliberately unseeded (the theater-blind
+named limit below).
+
 ### The transition-removal system (user ruling, verbatim)
 
 "Currently when you land on a planet you are fully healed. I think
@@ -1651,13 +1679,15 @@ No cooldown work. No AoE.
    remaining both survive).
 3. End a fight staggered: the HUD row carries out, walks off on
    steps (the expire line reads); re-engage with rounds left and
-   it applies (your resets dip).
+   it applies (turn ONE dips now — the pre-pop seed ruling — and
+   the resets after).
 4. Carry a status to the pad (city steps freeze it), board: it
    pauses in space; land: the debuff is gone at the rest line,
    buffs survive and resume.
 5. Med pack out of combat: +5 now, no full heal — REGEN ticks on
-   steps; refused at full HP. Stim out of combat: legal, and the
-   walk spends it.
+   steps; refused at full HP. Stim out of combat: legal, the walk
+   spends it, and (the 2026-10-20 seed fix) the fight's FIRST
+   turn carries the +1.
 6. The core-button loan never bleeds: end a fight right after
    pressing core — no −1 AP in the next fight's first round.
 7. Both rewritten guide sentences read correct; the exploration
