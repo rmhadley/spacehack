@@ -7,8 +7,8 @@ module imports nothing from :mod:`spacehack.combat` at module level —
 the status-slot painter lazy-imports the segment ink (the bandolier
 precedent; segments arrive as a parameter).
 
-Region row budget (the ground pair; the reserved-height law — a band
-growing or shrinking can never push the core):
+Region row budget (the reserved-height law — a band growing or
+shrinking can never push the core). The ground pair:
 
     y=0        title (both panels)
     y=2..5     A: mode band, GROUND_BAND_ROWS reserved (combat closes
@@ -18,6 +18,17 @@ growing or shrinking can never push the core):
     y=6        the exploration divider / the combat PLAYER label row
     y=7..10    B: the core — HP, Armor, Cargo, the status slot
     y=11..     C: the WEAPONS anchor (GROUND_WEAPONS_Y)
+
+The space pair (Phase 3) — five reserved A rows, no label row on the
+core, so the A-close divider sits at the same row on both panels:
+
+    y=0        title (both panels)
+    y=2..6     A: mode band, SPACE_BAND_ROWS reserved
+    y=7        the A-close divider (both panels)
+    y=8..11    B: the core — Hull, Shield, Cargo, the status slot
+    y=12..     C: the WEAPONS anchor (SPACE_WEAPONS_Y) — the fight's
+               weapons block; exploration reserves the same per-loadout
+               budget empty, so the C-close divider and D hold their y
 """
 from __future__ import annotations
 
@@ -44,6 +55,32 @@ GROUND_BAND_ROWS: int = 4     # reserved A height: rows 2-5 on both ground panel
 GROUND_CORE_Y: int = GROUND_BAND_Y + GROUND_BAND_ROWS + 1         # 7 — first B row
 GROUND_CORE_ROWS: int = 4     # HP, Armor, Cargo, the status slot
 GROUND_WEAPONS_Y: int = GROUND_CORE_Y + GROUND_CORE_ROWS          # 11 — the C anchor
+
+# The space pair's reserved-region rows (doc 104 Phase 3): both A bands
+# need five rows (exploration: ship name/location/date + Fuel/Spd; the
+# fight: mode + AP/STIM/Evade/Pow).
+SPACE_BAND_Y: int = 2         # first A-band row (row 1 stays blank under the title)
+SPACE_BAND_ROWS: int = 5      # reserved A height: rows 2-6 on both space panels
+SPACE_CORE_Y: int = SPACE_BAND_Y + SPACE_BAND_ROWS + 1            # 8 — first B row
+SPACE_CORE_ROWS: int = 4      # Hull, Shield, Cargo, the status slot
+SPACE_WEAPONS_Y: int = SPACE_CORE_Y + SPACE_CORE_ROWS             # 12 — the C anchor
+
+# Space-meter palette (moved from hud_combat with the meter painter,
+# Phase 3): the hull trio carries the damage stages; cyan is shields.
+COLOR_HULL_BAR_GREEN: tuple[int, int, int] = (100, 235, 115)       # bright green
+COLOR_HULL_BAR_YELLOW: tuple[int, int, int] = (255, 220, 80)       # amber
+COLOR_HULL_BAR_RED: tuple[int, int, int] = (255, 80, 80)           # red
+COLOR_SHIELD_BAR: tuple[int, int, int] = (175, 230, 255)           # bright cyan
+
+
+def space_weapons_rows(weapon_count: int) -> int:
+    """The space pair's shared C budget (doc 104 Phase 3): the rows the
+    fight's WEAPONS block consumes — its title plus three rows per
+    weapon (name / stats / cost). Exploration reserves exactly this
+    many rows empty, so the C-close divider and the D band start at the
+    same y on both panels; sized per-loadout because doc 56 SETTLED 18
+    retired fixed slot counts."""
+    return 1 + 3 * weapon_count
 
 
 def _bar_str(value: int, max_value: int, width: int = 10) -> str:
@@ -73,6 +110,49 @@ def paint_hp_armor_rows(
         string=f"{'Armor':<8}{armor}"[:HUD_TEXT_MAX],
         fg=COLOR_VALUE_WHITE,
     )
+    return y + 2
+
+
+def _hull_bar_color(pct: float) -> tuple[int, int, int]:
+    """The hull row's damage-stage tint: green at half, amber at a
+    quarter, red below (one stage finer than the HP pair — hull damage
+    accumulates across a whole flight, not one fight)."""
+    if pct >= 0.5:
+        return COLOR_HULL_BAR_GREEN
+    if pct >= 0.25:
+        return COLOR_HULL_BAR_YELLOW
+    return COLOR_HULL_BAR_RED
+
+
+def paint_hull_shield_rows(
+    console: FrameBuffer, hud_x: int, y: int, *,
+    hull: int, max_hull: int,
+    shields: int, max_shields: int,
+    shield_regen_rate: int = 0, shield_recharge_bonus: int = 0,
+) -> int:
+    """Region B's space meter (doc 104 Phase 3) — the ONE shape, the
+    space fight's rows: Hull above Shield (the health row first, like
+    the ground core's HP-above-Armor). The shield row carries its
+    regen suffix in POINTS (``+N`` is next turn's gain, never percent)
+    and the white-fill level indicator tracks ONLY ``shield_regen_rate``
+    (the S-key setting) so the highlight moves 1:1 with the key.
+    Always consumes both rows — a ship without shields (max 0) keeps
+    the row BLANK, so B stays four rows and the rows below never
+    shift. Returns the next row (always ``y + 2``)."""
+    console.print(
+        x=hud_x, y=y,
+        string=f"Hull {_bar_str(hull, max_hull)} {hull}/{max_hull}"[:HUD_TEXT_MAX],
+        fg=_hull_bar_color(hull / max(max_hull, 1)),
+    )
+    if max_shields > 0:
+        _total = shield_regen_rate + shield_recharge_bonus
+        _bar = _bar_str(shields, max_shields, width=10)
+        _shd = f"Shd  {_bar} {shields}/{max_shields}"
+        if _total > 0:
+            _shd += f" +{_total}"
+        console.print(x=hud_x, y=y + 1, string=_shd[:HUD_TEXT_MAX], fg=COLOR_SHIELD_BAR)
+        for _i in range(min(shield_regen_rate, len(_bar))):
+            console.print(x=hud_x + 5 + _i, y=y + 1, string=_bar[_i], fg=COLOR_SHIELD_BAR, bg=(255, 255, 255))
     return y + 2
 
 

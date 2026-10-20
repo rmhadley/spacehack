@@ -18,19 +18,26 @@ core and the WEAPONS anchor never move):
     |                 | ..       |  D band (terminals, help)
     +-----------------+----------+
 
-Space mode (when ``owned_ship`` is provided):
+Space mode (when ``owned_ship`` is provided; doc 104 Phase 3 — the
+space pair mirrors the ground pair's regions, and the core shares one
+y with the space-fight core so the explore↔fight boundary never moves
+it):
     +-----------------+----------+
     |                 | Spacehack|
-    |                 | SCOUT    |    |       MAP     |          |
-    |     REGION     | Fuel 90/100|
-    |                 | Hull 100/100|
-    |                 | Cargo 0/10 |
-    |                 | Spd 5      |
-    |                 | -------- |
-    |                 | G - Go To|
-    |                 | P - Pickup|
-    |                 | M - Map  |
-    |                 | ESC Pause|
+    |                 | SCOUT    |  A band (ship name/location/date)
+    |       MAP       | 2160-04-12| A
+    |     REGION      | Fuel 90/100| A
+    |                 | Spd 5     |  A
+    |                 | -------- |  A-close divider
+    |                 | Hull ###..|  B core (hud_core)
+    |                 | Shd  ##...|  B (blank without shields)
+    |                 | Cargo 0/10|  B
+    |                 |          |  B status slot (blank when empty)
+    |                 |          |  C reserved (the fight's WEAPONS
+    |                 |          |  budget, empty exploring)
+    |                 | -------- |  C-close divider
+    |                 | [G] GoTo…|  D band (help lines)
+    |                 | LV 3 [#-]|  footer (XP row, bottom-anchored)
     +-----------------+----------+
 
 The HUD paints only into the top portion of the screen so the message
@@ -52,17 +59,22 @@ from .framebuffer import FrameBuffer
 
 from .engine import HUD_WIDTH
 from .hud_core import (
-    COLOR_HP_GOOD,
-    COLOR_HP_LOW,
+    COLOR_HP_GOOD as COLOR_HP_GOOD,   # re-exported for the combat importers
+    COLOR_HP_LOW as COLOR_HP_LOW,     # (hud_core owns the pair, Phase 1)
     GROUND_BAND_Y,
     GROUND_CORE_Y,
     GROUND_WEAPONS_Y,
     HUD_TEXT_MAX,
+    SPACE_BAND_Y,
+    SPACE_CORE_Y,
+    SPACE_WEAPONS_Y,
     _bar_str,
     paint_cargo_row,
+    paint_hull_shield_rows,
     paint_hp_armor_rows,
     paint_status_slot,
     paint_xp_footer,
+    space_weapons_rows,
 )
 from .ui import COLOR_DIVIDER, COLOR_VALUE_DIM, COLOR_VALUE_WHITE  # shared palette (single source)
 
@@ -75,7 +87,7 @@ if TYPE_CHECKING:
 # The shared white/dim/divider colors come from ui.py so brightness stays
 # consistent across menus and gameplay. The HP good/low pair lives in
 # hud_core (the unified core's meter painter owns it) and is re-exported
-# here for the space hull row and the combat importers.
+# here for the combat importers.
 COLOR_HUD_TITLE: tuple[int, int, int] = (255, 205, 95)             # vivid gold
 COLOR_LABEL: tuple[int, int, int] = (245, 245, 235)                # near-white label
 COLOR_EVADE: tuple[int, int, int] = (135, 235, 150)                # green, positive-buff accent
@@ -306,14 +318,14 @@ def _render_ship_identity(console, hud_x, y, *, ship_name, location, date_str) -
     return y + 1
 
 
-def _render_ship_stat_rows(console, hud_x, y, *, fuel, max_fuel, hull, max_hull, cargo_used, max_cargo, eff_spd) -> int:
-    """Paint the space-mode stat rows (fuel…speed); return next row.
+def _render_fuel_spd_rows(console, hud_x, y, *, fuel, max_fuel, eff_spd) -> int:
+    """Paint the space A band's Fuel + Spd rows; return next row.
 
-    Fuel / Hull / Cargo share one label column and one value column
-    (10-cell bars) and all read cur/max. The slot-count summaries
-    retired with doc 56 SETTLED 18 — the line keeps Spd only; power
-    detail lives on the fitting screen. The skills grid retired with
-    doc 104 item 5 (C's Stats tab owns skills).
+    Fuel keeps its 10-cell bar and cur/max read (green while
+    adequate, amber when low). The slot-count summaries retired with
+    doc 56 SETTLED 18 — the line keeps Spd only; power detail lives
+    on the fitting screen. Hull/Shield/Cargo left the band for the
+    shared core (doc 104 Phase 3 — hud_core paints them).
     """
     _fuel_fg = COLOR_FUEL_OK if fuel >= 10 else COLOR_FUEL_LOW
     console.print(
@@ -321,26 +333,12 @@ def _render_ship_stat_rows(console, hud_x, y, *, fuel, max_fuel, hull, max_hull,
         string=f"{'Fuel':<8}{_bar_str(fuel, max_fuel):<11}{fuel}/{max_fuel}"[:HUD_TEXT_MAX],
         fg=_fuel_fg,
     )
-    y += 1
-    _hull_fg = COLOR_HP_GOOD if hull * 2 >= max_hull else COLOR_HP_LOW
     console.print(
-        x=hud_x, y=y,
-        string=f"{'Hull':<8}{_bar_str(hull, max_hull):<11}{hull}/{max_hull}"[:HUD_TEXT_MAX],
-        fg=_hull_fg,
-    )
-    y += 1
-    console.print(
-        x=hud_x, y=y,
-        string=f"{'Cargo':<8}{_bar_str(cargo_used, max_cargo):<11}{cargo_used}/{max_cargo}"[:HUD_TEXT_MAX],
-        fg=COLOR_SHIP_VALUE,
-    )
-    y += 1
-    console.print(
-        x=hud_x, y=y,
+        x=hud_x, y=y + 1,
         string=f"Spd {eff_spd}"[:HUD_TEXT_MAX],
         fg=COLOR_SHIP_VALUE,
     )
-    return y + 1
+    return y + 2
 
 
 _SPACE_HELP_LINES = [
@@ -351,27 +349,59 @@ _SPACE_HELP_LINES = [
 ]
 
 
+def _space_shield_reads(ship_catalog, owned_ship) -> tuple[int, int]:
+    """``(max_shields, free_regen)`` for the exploration shield row —
+    the one shield formula's out-of-combat read (lazy import, the
+    pygame_overlay precedent): every fight initializes shields to max
+    with rate 0, so passing these in paints the exact row the fight's
+    round 0 shows."""
+    from .combat._stats import _calc_max_shields, _free_shield_regen
+    _modules = getattr(owned_ship, "modules", ()) or ()
+    return (
+        _calc_max_shields(ship_catalog, _modules),
+        _free_shield_regen(ship_catalog, _modules),
+    )
+
+
 def _render_space_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, hud_view_height, xp_line, xp_fg) -> None:
-    """Paint the space-mode HUD body below the title."""
+    """Paint the space-mode HUD body below the title, doc 104's
+    reserved regions: A = ship name/location/date + Fuel/Spd, B = the
+    shared core via hud_core (Hull, Shield, Cargo, the FIXED status
+    slot — one painter, one y with the space-fight core), C = the
+    empty reserved WEAPONS budget closed by the C divider (the fight's
+    weapons land exactly inside it), D = the space help lines, then
+    the footer. The band rows can change freely — the core's rows and
+    y never move."""
     from . import ship as _ship_mod
     owned_ship = ctx.player_owned_ship
     ship_name = _ship_mod.ship_display_name(owned_ship)
     hull_cur, hull_max = _ship_mod.hull_cur_max(owned_ship, ship_catalog)
     cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog, ctx)
-    eff_spd = _ship_mod.effective_speed(ship_catalog, owned_ship)
-    y = _render_ship_identity(console, hud_x, 2, ship_name=ship_name, location=location, date_str=date_str)
-    y = _render_ship_stat_rows(
-        console, hud_x, y,
+    _max_shields, _free_regen = _space_shield_reads(ship_catalog, owned_ship)
+    _render_ship_identity(
+        console, hud_x, SPACE_BAND_Y,
+        ship_name=ship_name, location=location, date_str=date_str,
+    )
+    _render_fuel_spd_rows(
+        console, hud_x, SPACE_BAND_Y + 3,
         fuel=getattr(owned_ship, 'fuel', 0),
         max_fuel=getattr(ship_catalog, 'max_fuel', 1),
-        hull=hull_cur, max_hull=hull_max,
-        cargo_used=cargo_used, max_cargo=max_cargo,
-        eff_spd=eff_spd,
+        eff_spd=_ship_mod.effective_speed(ship_catalog, owned_ship),
     )
-    y += 1
-    _render_divider(console, hud_x, y)
-    y += 3
-    _render_help_lines(console, hud_x, y, _SPACE_HELP_LINES)
+    _render_divider(console, hud_x, SPACE_CORE_Y - 1)
+    y = paint_hull_shield_rows(
+        console, hud_x, SPACE_CORE_Y,
+        hull=hull_cur, max_hull=hull_max,
+        shields=_max_shields, max_shields=_max_shields,
+        shield_recharge_bonus=_free_regen,
+    )
+    y = paint_cargo_row(console, hud_x, y, used=cargo_used, max_cargo=max_cargo)
+    paint_status_slot(console, hud_x, y, _status_segments(ctx))
+    _weapons_budget = space_weapons_rows(len(getattr(owned_ship, "weapons", ()) or ()))
+    _render_divider(console, hud_x, SPACE_WEAPONS_Y + _weapons_budget)
+    _render_help_lines(
+        console, hud_x, SPACE_WEAPONS_Y + _weapons_budget + 1, _SPACE_HELP_LINES,
+    )
     paint_xp_footer(console, hud_x, hud_view_height, xp_line=xp_line, xp_fg=xp_fg)
 
 

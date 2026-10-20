@@ -14,13 +14,24 @@ from src.spacehack.framebuffer import FrameBuffer
 _WHITE = (255, 255, 255)
 
 
-def _shield_row(player_state: dict) -> tuple[str, list[int]]:
-    """Render the shield row into a wide frame; return (row, white cells)."""
+def _hull_shield_rows(player_state: dict) -> tuple[str, str, list[int]]:
+    """Render the core's space meter into a wide frame; return
+    (hull_row, shield_row, white cells) — Hull above Shield (doc 104
+    Phase 3: the health row first, like the ground core)."""
     console = FrameBuffer(40, 3)
-    hud_combat._render_hull_shield_rows(console, 0, 0, player_state)
-    row = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
-    white = [x for x in range(40) if console.cell(x, 0).bg == _WHITE]
-    return row, white
+    hud_core.paint_hull_shield_rows(
+        console, 0, 0,
+        hull=player_state.get("hull", 100),
+        max_hull=player_state.get("max_hull", 100),
+        shields=player_state.get("shields", 0),
+        max_shields=player_state.get("max_shields", 0),
+        shield_regen_rate=player_state.get("shield_regen_rate", 0),
+        shield_recharge_bonus=player_state.get("shield_recharge_bonus", 0),
+    )
+    hull_row = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
+    shield_row = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
+    white = [x for x in range(40) if console.cell(x, 1).bg == _WHITE]
+    return hull_row, shield_row, white
 
 
 def test_ground_player_fg_health_zones():
@@ -61,17 +72,18 @@ def test_ground_player_fg_species_healthy_color_alarms_universal():
 
 def test_shield_bar_matches_hull_bar_width():
     """Shield row uses the same 10-cell bar as Hull, with total regen +N."""
-    row, white = _shield_row({
+    hull_row, row, white = _hull_shield_rows({
         "hull": 100, "max_hull": 100, "shields": 12, "max_shields": 20,
         "shield_regen_rate": 1, "shield_recharge_bonus": 3,
     })
+    assert hull_row == "Hull ########## 100/100"
     assert row == "Shd  ######.... 12/20 +4"
     assert white == [5]
 
 
 def test_three_digit_values_keep_full_bar():
     """135/135 keeps the full 10-cell bar; the +N suffix stays visible."""
-    row, _ = _shield_row({
+    _hull_row, row, _white = _hull_shield_rows({
         "hull": 135, "max_hull": 135, "shields": 135, "max_shields": 135,
         "shield_regen_rate": 1, "shield_recharge_bonus": 3,
     })
@@ -81,7 +93,7 @@ def test_three_digit_values_keep_full_bar():
 
 def test_white_fill_tracks_s_key_rate_only():
     """Free regen must not grow the level indicator (S maps 1:1)."""
-    _row, white = _shield_row({
+    _hull_row, _row, white = _hull_shield_rows({
         "hull": 100, "max_hull": 100, "shields": 12, "max_shields": 20,
         "shield_regen_rate": 2, "shield_recharge_bonus": 5,
     })
@@ -90,7 +102,7 @@ def test_white_fill_tracks_s_key_rate_only():
 
 def test_no_suffix_when_no_regen_at_all():
     """Nothing contributes regen -> no +N and no white fill."""
-    row, white = _shield_row({
+    _hull_row, row, white = _hull_shield_rows({
         "hull": 100, "max_hull": 100, "shields": 12, "max_shields": 20,
         "shield_regen_rate": 0, "shield_recharge_bonus": 0,
     })
@@ -98,20 +110,40 @@ def test_no_suffix_when_no_regen_at_all():
     assert white == []
 
 
-def test_weapons_header_keeps_offset_layout_and_is_not_clipped():
-    """Header keeps its fixed-offset layout; POW's W survives past 20 cells."""
+def test_shield_row_blank_but_consumed_without_shields():
+    """A ship with no shields keeps the row BLANK but consumed (doc 104
+    Phase 3: the same-rows law's one row-set — B stays four rows for
+    every ship, so the rows below never shift)."""
     console = FrameBuffer(40, 3)
+    next_y = hud_core.paint_hull_shield_rows(
+        console, 0, 0, hull=15, max_hull=15, shields=0, max_shields=0,
+    )
+    hull_row = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
+    shield_row = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
+    assert hull_row == "Hull ########## 15/15"
+    assert shield_row == ""
+    assert next_y == 2
+
+
+def test_weapons_header_keeps_offset_layout_and_is_not_clipped():
+    """Header keeps its fixed-offset layout; POW's W survives past 20
+    cells. The returned row also pins the C budget lockstep (doc 104
+    Phase 3): the block exactly fills ``space_weapons_rows(n)`` rows
+    plus the trailing spacer the C-close divider replaces — if a
+    weapon row ever gains or loses a row, this pin trips first."""
+    console = FrameBuffer(40, 15)
     player_state = {
         "ap_remaining": 3, "power_pool": 20,
         "weapon_ammo": {i: -1 for i in range(4)},
     }
-    hud_combat._render_weapons_block(
+    next_y = hud_combat._render_weapons_block(
         console, 0, 0,
         ("plasma_cannon",) * 4, [True] * 4, player_state, None,
     )
     row = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
     assert row == "WEAPONS [4] 2AP 16POW"
     assert row.endswith("16POW")
+    assert next_y == hud_core.space_weapons_rows(4) + 1
 
 
 def test_world_hud_divider_spans_the_full_panel():
@@ -349,22 +381,20 @@ def test_city_stat_values_line_up_in_one_column():
     assert rows[2][19] == "0"  # 0/0 (no ship -> empty bar)
 
 
-def test_space_fuel_hull_rows_use_bars():
-    """Space Fuel/Hull rows use 10-cell bars and cur/max values."""
-    console = FrameBuffer(40, 4)
-    hud._render_ship_stat_rows(
-        console, 0, 0,
-        fuel=90, max_fuel=100, hull=67, max_hull=100, cargo_used=0, max_cargo=10,
-        eff_spd=5,
+def test_space_fuel_spd_rows_use_bars():
+    """The space A band keeps Fuel's 10-cell bar and the Spd row; Hull/
+    Shield/Cargo left the band for the shared core (doc 104 Phase 3 —
+    hud_core paints them at the pinned B rows)."""
+    console = FrameBuffer(40, 3)
+    hud._render_fuel_spd_rows(
+        console, 0, 0, fuel=90, max_fuel=100, eff_spd=5,
     )
     row0 = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
     row1 = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
-    row3 = "".join(console.cell(x, 3).char for x in range(40)).rstrip()
     assert row0.startswith("Fuel    ####") and row0.endswith("90/100")
-    assert row1.startswith("Hull    #####") and row1.endswith("67/100")
     # Doc 56 SETTLED 18: the slot summaries retired — Spd only. Doc 104
     # item 5: the skills grid retired with it (C's Stats tab owns skills).
-    assert row3 == "Spd 5"
+    assert row1 == "Spd 5"
 
 
 def test_dropped_rows_render_nowhere_on_the_exploration_panel():
@@ -427,18 +457,21 @@ def test_dungeon_help_lines_show_reload_control():
 
 
 def test_combat_actions_pair_two_per_row():
-    """Combat key hints render two per row."""
-    console = FrameBuffer(40, 5)
+    """Combat key hints render two per row. [ESC] Pause joined the
+    space fight's pairs (doc 104 Phase 3, completing prose ledger #1's
+    all-modes sweep), so the block reads one pair row taller."""
+    console = FrameBuffer(40, 6)
     next_y = hud_combat._render_combat_actions(console, 0, 0, ("a", "b", "c"))
     row0 = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
     row1 = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
     _flat = "".join(
-        console.cell(x, y).char for y in range(5) for x in range(40)
+        console.cell(x, y).char for y in range(6) for x in range(40)
     )
     assert row0 == "ACTIONS"
     assert "Target" in row1 and "Move" in row1
-    assert "Board" in _flat                     # 7 pairs render 2/row
-    assert next_y == 5                          # header + 4 pair rows
+    assert "Board" in _flat                     # the pairs render 2/row
+    assert "[ESC]  Pause" in _flat              # ledger #1 (the pair painter pads keys to 6)
+    assert next_y == 6                          # header + 5 pair rows
 
 
 def test_space_weapon_row_includes_range():
@@ -458,12 +491,15 @@ def test_shield_row_survives_the_wider_combat_console():
     SCREEN_WIDTH+HUD_WIDTH console (the combat console width)."""
     from src.spacehack.engine import HUD_WIDTH, SCREEN_WIDTH
     console = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, 3)
-    player_state = {
-        "hull": 135, "max_hull": 135, "shields": 135, "max_shields": 135,
-        "shield_regen_rate": 0, "shield_recharge_bonus": 8,
-    }
-    hud_combat._render_hull_shield_rows(console, SCREEN_WIDTH - HUD_WIDTH, 0, player_state)
-    row = "".join(console.cell(x, 0).char for x in range(SCREEN_WIDTH - HUD_WIDTH, SCREEN_WIDTH + HUD_WIDTH))
+    hud_core.paint_hull_shield_rows(
+        console, SCREEN_WIDTH - HUD_WIDTH, 0,
+        hull=135, max_hull=135, shields=135, max_shields=135,
+        shield_recharge_bonus=8,
+    )
+    row = "".join(
+        console.cell(x, 1).char
+        for x in range(SCREEN_WIDTH - HUD_WIDTH, SCREEN_WIDTH + HUD_WIDTH)
+    )
     assert row.rstrip() == "Shd  ########## 135/135 +8"
 
 
@@ -590,31 +626,126 @@ def test_weapon_toggle_hint_conditional_on_mounted_count():
     assert "Toggle Wpn" not in _flat
 
 
-def test_combat_status_row_paints_labelled_rows_and_consumes_one_row():
-    """The space panel's status-row twin (doc 103 q7 + the OPENER
-    ruling): empty containers consume no row; labelled rows paint in
-    their class shape (rounds carry their remaining, fight-class rows
-    are label-only) inside the panel's ~40 half-width characters."""
-    from src.spacehack.combat import _statuses
-    from src.spacehack.data.statuses import PIRATE_OPENER_ID
-    from src.spacehack.engine import HUD_WIDTH, SCREEN_WIDTH
+def _space_pair_ctx():
+    """A space-exploration ctx flying a stock Scout with one laser
+    (shields 5, free regen 1, hull 25 — the catalog reads the core
+    paints from, doc 104 Phase 3)."""
+    from src.spacehack.ship import OwnedShip, StoredEquipment
+    return SimpleNamespace(
+        player_owned_ship=OwnedShip(
+            ship_id="scout", fuel=90,
+            weapons=(StoredEquipment(item_type="weapon", item_id="light_laser"),),
+        ),
+        player_level=3, player_xp=150, player_skill_points=0,
+        player_traits=[], installed_chrome=(), active_statuses={},
+        time_day=12, time_month=4, time_year=2160,
+    )
 
-    ctx = SimpleNamespace(active_statuses={})
-    _statuses.apply(ctx.active_statuses, "regen", source="Med Pack")
-    _statuses.apply(ctx.active_statuses, PIRATE_OPENER_ID)
-    frame = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, 12)
+
+def _space_combat_state() -> dict:
+    """The fight's player_state for the same stock Scout — round 0 of a
+    fight (shields initialized to max, S-key rate 0, the free regen
+    carried), so the core paints the identical rows exploration does."""
+    return {
+        "hull": 25, "max_hull": 25, "shields": 5, "max_shields": 5,
+        "shield_regen_rate": 0, "shield_recharge_bonus": 1,
+        "ap_remaining": 3, "ap_total": 3, "ap_carry_twentieths": 0,
+        "power_pool": 10, "max_power": 10, "power_gen": 3,
+        "weapon_ammo": {0: -1}, "pos": None, "weapons": ("light_laser",),
+    }
+
+
+def _render_space_pair(ctx):
+    """Render both space panels — exploration via render_hud, the fight
+    via render_combat_hud with the REAL callers' full kwarg set (both
+    live call sites thread ctx; the kwarg-threading law) — and return
+    (explore_rows, fight_rows)."""
+    from src.spacehack.engine import (
+        HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH,
+    )
+    explore = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, SCREEN_HEIGHT)
+    hud.render_hud(
+        explore, ctx, screen_width=SCREEN_WIDTH,
+        hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT,
+        location="Sol", mode="space",
+    )
+    fight = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, SCREEN_HEIGHT)
+    hud_combat.render_combat_hud(
+        fight,
+        screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
+        player_state=_space_combat_state(), enemies=(), target_idx=0,
+        player_mode="DEFAULT", active_weapons=[True],
+        weapon_list=("light_laser",), hit_chances=None, evade_bonus=0,
+        range_weapon_id="light_laser", focus_active=False,
+        weapon_qualities=(0,), ctx=ctx,
+    )
     hud_x = SCREEN_WIDTH - HUD_WIDTH
 
-    assert hud_combat._render_status_row(frame, hud_x, 5, ctx) is True
-    _row = "".join(
-        frame.cell(x, 5).char for x in range(hud_x, hud_x + HUD_WIDTH * 2)
-    ).rstrip()
-    assert _row == "REGEN 3  OPENER"
+    def _rows(frame):
+        return [
+            "".join(
+                frame.cell(x, y).char for x in range(hud_x, hud_x + HUD_WIDTH * 2)
+            ).rstrip()
+            for y in range(SCREEN_HEIGHT)
+        ]
 
-    _statuses.dispel(ctx.active_statuses, lambda _a: True)
-    assert hud_combat._render_status_row(
-        FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, 12), hud_x, 5, ctx,
-    ) is False
+    return _rows(explore), _rows(fight)
+
+
+def test_space_pair_shares_the_core_rows_and_the_region_frame():
+    """Doc 104 Phase 3's space pin: hull/shield/cargo and the status
+    slot paint at the SAME y on both space panels (the shield row
+    reads FULL exploring — every fight initializes shields to max),
+    and the region frame (the A- and C-close dividers, D's start)
+    holds with them — only the bands swap at the boundary."""
+    explore, fight = _render_space_pair(_space_pair_ctx())
+    _divider_y = hud_core.SPACE_WEAPONS_Y + hud_core.space_weapons_rows(1)
+    for rows, d_first in ((explore, "[G] Go To"), (fight, "ENEMIES")):
+        assert rows[hud_core.SPACE_CORE_Y] == "Hull ########## 25/25"
+        assert rows[hud_core.SPACE_CORE_Y + 1] == "Shd  ########## 5/5 +1"
+        assert rows[hud_core.SPACE_CORE_Y + 2].startswith("Cargo")
+        assert rows[hud_core.SPACE_CORE_Y + 3] == ""   # the blank status slot
+        assert len(rows[_divider_y]) == hud.HUD_TEXT_MAX and set(rows[_divider_y]) == {"-"}
+        assert rows[_divider_y + 1].startswith(d_first)
+    # The bands are per-mode: identity/Fuel/Spd exploring, mode/AP rows fighting.
+    assert explore[hud_core.SPACE_BAND_Y] == "SCOUT"
+    assert explore[hud_core.SPACE_BAND_Y + 3].startswith("Fuel")
+    assert explore[hud_core.SPACE_BAND_Y + 4] == "Spd 14"
+    assert fight[hud_core.SPACE_BAND_Y] == "[DEFAULT]"
+    assert fight[hud_core.SPACE_BAND_Y + 1].startswith("AP: ")
+
+
+def test_space_fight_core_carries_cargo_status_and_the_xp_footer():
+    """The fight's core carries the boarding read (items 3/14 — cargo
+    right beside the hull), the FIXED status slot paints the labelled
+    rows in their class shapes (doc 103 q7, the space twin retargeted
+    to the slot), and the in-fight XP footer reads at the panel's
+    bottom row (the read ground gained in Phase 1, wired here)."""
+    from src.spacehack.combat import _statuses
+    from src.spacehack.data.statuses import PIRATE_OPENER_ID
+    from src.spacehack.engine import MSG_LOG_HEIGHT, SCREEN_HEIGHT
+
+    ctx = _space_pair_ctx()
+    _statuses.apply(ctx.active_statuses, "regen", source="Med Pack")
+    _statuses.apply(ctx.active_statuses, PIRATE_OPENER_ID)
+    _explore, fight = _render_space_pair(ctx)
+    assert fight[hud_core.SPACE_CORE_Y + 2].startswith("Cargo")
+    assert fight[hud_core.SPACE_CORE_Y + 3] == "REGEN 3  OPENER"
+    assert fight[SCREEN_HEIGHT - MSG_LOG_HEIGHT - 2].startswith("LV ")
+    # Prose ledger #1 completes its all-modes sweep: the fight's
+    # key-hint block carries the pause label (either pair side — the
+    # pair painter pads left keys, not right ones).
+    assert any("[ESC]" in row and "Pause" in row for row in fight)
+
+
+def test_space_exploration_status_slot_blank_when_empty():
+    """Blank-when-empty holds on the fourth panel (item 13): no ink at
+    the slot row, and the row is still consumed — the C-close divider
+    holds at the budgeted row because B kept its four rows."""
+    explore, _fight = _render_space_pair(_space_pair_ctx())
+    assert explore[hud_core.SPACE_CORE_Y + 3] == ""
+    _divider_y = hud_core.SPACE_WEAPONS_Y + hud_core.space_weapons_rows(1)
+    assert set(explore[_divider_y]) == {"-"}
 
 
 def test_exploration_status_slot_paints_segments_and_stays_fixed():

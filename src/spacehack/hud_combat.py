@@ -1,30 +1,50 @@
 """Space-combat HUD rendering (the right-panel combat screen).
 
-The combat title, PLAYER / ENEMIES / WEAPONS blocks, and ACTIONS
-legend that :func:`render_combat_hud` paints — split out of
-:mod:`spacehack.hud` (doc 52.3 ratchet) so the shared HUD module
-stays within the architecture limit. Shared bar/pair formatting
-(``_bar_str``, ``ap_pool_str``, ``volley_costs``, …) stays in
-:mod:`spacehack.hud`; ground combat renders from
-:mod:`spacehack.combat._ground_render`.
+The combat title, ENEMIES / WEAPONS blocks, and ACTIONS legend that
+:func:`render_combat_hud` paints — split out of :mod:`spacehack.hud`
+(doc 52.3 ratchet) so the shared HUD module stays within the
+architecture limit. Doc 104 Phase 3 restructured the panel into the
+reserved regions: the A band (title/mode + AP/STIM/Evade/Pow), the
+shared core via :mod:`spacehack.hud_core` (hull/shield/cargo + the
+FIXED status slot — one painter, one y with the space-exploration
+core), the C WEAPONS anchor, and the D ENEMIES/ACTIONS band, closed
+by the XP footer. Shared bar/pair formatting (``_bar_str``,
+``ap_pool_str``, ``volley_costs``, …) stays in :mod:`spacehack.hud`;
+ground combat renders from :mod:`spacehack.combat._ground_render`.
 """
 
 from __future__ import annotations
 
 from .framebuffer import FrameBuffer
 
-from .engine import HUD_WIDTH
+from .engine import HUD_WIDTH, MSG_LOG_HEIGHT
 from .hud import (
     COLOR_EVADE,
     COLOR_HP_GOOD,
     COLOR_HP_LOW,
-    COLOR_LABEL,
     HUD_TEXT_MAX,
     _bar_str,
+    _cargo_used_max,
+    _hud_xp_line,
     _render_action_pairs,
+    _render_divider,
+    _resolve_ship_catalog,
     ap_pool_str,
     range_band_color,
     volley_costs,
+)
+from .hud_core import (
+    COLOR_HULL_BAR_RED,
+    COLOR_SHIELD_BAR,
+    SPACE_BAND_Y,
+    SPACE_CORE_Y,
+    SPACE_WEAPONS_Y,
+    _hull_bar_color,
+    paint_cargo_row,
+    paint_hull_shield_rows,
+    paint_status_slot,
+    paint_xp_footer,
+    space_weapons_rows,
 )
 from .ui import COLOR_DIVIDER, COLOR_VALUE_DIM
 
@@ -33,18 +53,6 @@ from .ui import COLOR_DIVIDER, COLOR_VALUE_DIM
 
 
 COLOR_COMBAT_TITLE: tuple[int, int, int] = (255, 80, 80)           # red combat title
-
-
-COLOR_HULL_BAR_GREEN: tuple[int, int, int] = (100, 235, 115)       # bright green
-
-
-COLOR_HULL_BAR_YELLOW: tuple[int, int, int] = (255, 220, 80)       # amber
-
-
-COLOR_HULL_BAR_RED: tuple[int, int, int] = (255, 80, 80)           # red
-
-
-COLOR_SHIELD_BAR: tuple[int, int, int] = (175, 230, 255)           # bright cyan
 
 
 COLOR_AP: tuple[int, int, int] = (255, 220, 80)                    # gold
@@ -80,55 +88,18 @@ _ENEMY_NAME_MAX: int = 18
 _UNLIMITED_AMMO_LABEL: str = "INF"
 
 
-def _hull_bar_color(pct: float) -> tuple[int, int, int]:
-    if pct >= 0.5:
-        return COLOR_HULL_BAR_GREEN
-    if pct >= 0.25:
-        return COLOR_HULL_BAR_YELLOW
-    return COLOR_HULL_BAR_RED
-
-
-def _render_combat_header(console, hud_x, y, player_mode) -> int:
-    """Paint the combat title, mode indicator, and divider; return next row."""
-    console.print(x=hud_x, y=y, string="> COMBAT <", fg=COLOR_COMBAT_TITLE)
-    y += 1
-    console.print(x=hud_x, y=y, string=f"[{player_mode}]", fg=COLOR_COMBAT_MODE)
-    y += 2
-    console.print(x=hud_x, y=y, string="-" * HUD_TEXT_MAX, fg=COLOR_DIVIDER)
-    return y + 1
-
-
-def _render_hull_shield_rows(console, hud_x, y, player_state) -> int:
-    """Paint the player's hull + shield bars; return the next row."""
-    phull = player_state.get("hull", 100)
-    pmax_hull = player_state.get("max_hull", 100)
-    pshields = player_state.get("shields", 0)
-    pmax_shields = player_state.get("max_shields", 0)
-    hull_pct = phull / max(pmax_hull, 1)
-    hull_color = _hull_bar_color(hull_pct)
-    if pmax_shields > 0:
-        # Same 10-cell bar as Hull below; the regen suffix is in POINTS so
-        # "+N" can't be misread as percentage points (12/20 +4 fills the
-        # bar toward 16/20 next turn).
-        _rate = player_state.get("shield_regen_rate", 0)   # S-key setting (paid)
-        _free = player_state.get("shield_recharge_bonus", 0)  # ship base + modules
-        _total = _rate + _free
-        _bar = _bar_str(pshields, pmax_shields, width=10)
-        _shd = f"Shd  {_bar} {pshields}/{pmax_shields}"
-        if _total > 0:
-            _shd += f" +{_total}"
-        console.print(x=hud_x, y=y, string=_shd[:HUD_TEXT_MAX], fg=COLOR_SHIELD_BAR)
-        # Level indicator (white bg) tracks ONLY the S-key rate, so
-        # pressing S moves the highlight 1:1 with the setting.
-        for _i in range(min(_rate, len(_bar))):
-            console.print(x=hud_x + 5 + _i, y=y, string=_bar[_i], fg=COLOR_SHIELD_BAR, bg=(255, 255, 255))
-        y += 1
-    console.print(
-        x=hud_x, y=y,
-        string=f"Hull {_bar_str(phull, pmax_hull)} {phull}/{pmax_hull}",
-        fg=hull_color,
+def _render_combat_band(console, hud_x, player_state, player_mode, evade_bonus, ctx) -> None:
+    """Region A (doc 104 Phase 3): the title, the mode indicator, and
+    the AP/STIM/Evade/Pow rows inside the reserved band rows; the band
+    closes with the divider at the reserved row above the core. A short
+    band (no stim core worn, no evade read) leaves its reserved rows
+    blank — the band can never push the core."""
+    console.print(x=hud_x, y=0, string="> COMBAT <", fg=COLOR_COMBAT_TITLE)
+    console.print(x=hud_x, y=SPACE_BAND_Y, string=f"[{player_mode}]", fg=COLOR_COMBAT_MODE)
+    _render_ap_evade_pow_rows(
+        console, hud_x, SPACE_BAND_Y + 1, player_state, evade_bonus, ctx,
     )
-    return y + 1
+    _render_divider(console, hud_x, SPACE_CORE_Y - 1)
 
 
 def _stim_hud_row(player_state, ctx) -> tuple[str, tuple[int, int, int]] | None:
@@ -147,26 +118,15 @@ def _stim_hud_row(player_state, ctx) -> tuple[str, tuple[int, int, int]] | None:
     return stim_hud_label(0), COLOR_AP
 
 
-def _render_status_row(console, hud_x: int, y: int, ctx) -> bool:
-    """The one-row status line (doc 103 q7) — the ground panel twin:
-    terse polarity-colored labels + remaining from the player's
-    shared status container. Consumes a row only when something
-    renders (label-less rows never do); returns whether it did."""
-    from .combat._statuses import hud_segments, paint_hud_segments
-    _segments = hud_segments(getattr(ctx, "active_statuses", None) or {})
-    if not _segments:
-        return False
-    paint_hud_segments(console, hud_x, y, _segments, hud_x + HUD_TEXT_MAX)
-    return True
-
-
 def _render_ap_evade_pow_rows(
     console, hud_x, y, player_state, evade_bonus, ctx=None,
 ) -> int:
-    """Paint the player's AP / evade / power rows; return the next row.
-    The evade row carries the Bounty Hunter's +5 (doc 49 SETTLED 7) —
-    presentation-only: it shows the resolution truth, the AI reads
-    stay unmodified by design."""
+    """Paint the A band's AP / STIM / evade / power rows; return the
+    next row. The evade row carries the Bounty Hunter's +5 (doc 49
+    SETTLED 7) — presentation-only: it shows the resolution truth, the
+    AI reads stay unmodified by design. The status row left the band
+    for the core's FIXED slot (doc 104 Phase 3 — the slot never pops
+    at a mode boundary)."""
     pap = player_state.get("ap_remaining", 0)
     pap_total = player_state.get("ap_total", 3)
     pap_carry = player_state.get("ap_carry_twentieths", 0)
@@ -179,8 +139,6 @@ def _render_ap_evade_pow_rows(
     _stim = _stim_hud_row(player_state, ctx)
     if _stim is not None:
         console.print(x=hud_x, y=y, string=_stim[0], fg=_stim[1])
-        y += 1
-    if _render_status_row(console, hud_x, y, ctx):
         y += 1
     if evade_bonus is not None:
         # No colon so the row aligns with the bar-style Hull/Shd rows;
@@ -197,13 +155,42 @@ def _render_ap_evade_pow_rows(
     return y + 2
 
 
-def _render_player_block(console, hud_x, y, player_state, evade_bonus, ctx=None) -> int:
-    """Paint the PLAYER block (hull/shield/AP/evade/power); return next row."""
-    console.print(x=hud_x, y=y, string="PLAYER", fg=COLOR_LABEL)
-    y += 1
-    y = _render_hull_shield_rows(console, hud_x, y, player_state)
-    return _render_ap_evade_pow_rows(
-        console, hud_x, y, player_state, evade_bonus, ctx,
+def _render_combat_core(console, hud_x, player_state, ctx) -> int:
+    """Region B — the shared core via hud_core (doc 104 Phase 3): the
+    space meter, the cargo row (the boarding read — the carry never
+    drops the datum at the fight boundary), and the FIXED status slot.
+    One painter, one y with the space-exploration core. Returns the C
+    anchor's pinned row (the WEAPONS header row)."""
+    y = paint_hull_shield_rows(
+        console, hud_x, SPACE_CORE_Y,
+        hull=player_state.get("hull", 100),
+        max_hull=player_state.get("max_hull", 100),
+        shields=player_state.get("shields", 0),
+        max_shields=player_state.get("max_shields", 0),
+        shield_regen_rate=player_state.get("shield_regen_rate", 0),
+        shield_recharge_bonus=player_state.get("shield_recharge_bonus", 0),
+    )
+    _owned = getattr(ctx, "player_owned_ship", None) if ctx is not None else None
+    _cargo_used, _max_cargo = _cargo_used_max(
+        _owned, _resolve_ship_catalog(_owned), ctx,
+    )
+    y = paint_cargo_row(console, hud_x, y, used=_cargo_used, max_cargo=_max_cargo)
+    from .hud import _status_segments
+    paint_status_slot(console, hud_x, y, _status_segments(ctx))
+    return SPACE_WEAPONS_Y
+
+
+def _paint_xp_footer(console, hud_x, screen_height, ctx) -> None:
+    """The in-fight XP read (doc 104 Phase 3): the shared one-row
+    footer, bottom-anchored at the HUD band's last whole row — the
+    ground fight's twin. Painted only when ctx is threaded (both live
+    call sites pass it; the panel needs the XP read, not a default)."""
+    if ctx is None:
+        return
+    _line, _fg = _hud_xp_line(ctx.player_level, ctx.player_xp, ctx)
+    paint_xp_footer(
+        console, hud_x, screen_height - MSG_LOG_HEIGHT,
+        xp_line=_line, xp_fg=_fg,
     )
 
 
@@ -434,6 +421,9 @@ def _render_combat_actions(console, hud_x, y, weapon_list) -> int:
     # The status window (doc 103 Build B) works in both theaters —
     # the player's own container is inspectable in space (the loan).
     actions.append(("[v]", "Status"))
+    # [ESC] Pause (doc 104 prose ledger #1, "all modes"): the fight's
+    # key-hint block carries the pause label like every other panel.
+    actions.append(("[ESC]", "Pause"))
     return _render_action_pairs(console, hud_x, y, actions, COLOR_COMBAT_ACTION)
 
 
@@ -455,21 +445,25 @@ def render_combat_hud(
     weapon_qualities: tuple = (),        # per-slot flown tiers (doc 48.7)
     ctx=None,                            # for the BH's doubled rack display
 ) -> None:
-    """Paint the combat HUD replacing the normal space HUD.
-
-    Right panel, top to bottom: COMBAT title, PLAYER block, ENEMIES
-    block, WEAPONS list, then ACTIONS key hints.
-    """
+    """Paint the combat HUD replacing the normal space HUD (doc 104's
+    reserved regions): A = the combat band, B = the shared core via
+    hud_core (one y with the exploration core), C = the WEAPONS anchor,
+    D = ENEMIES/ACTIONS, and the XP footer."""
     hud_x = screen_width - HUD_WIDTH
-    y = _render_combat_header(console, hud_x, 0, player_mode)
-    y = _render_player_block(console, hud_x, y, player_state, evade_bonus, ctx)
-    y = _render_enemies_block(
-        console, hud_x, y, enemies, target_idx, screen_height, player_state,
-        range_weapon_id, ctx,
-    )
-    y = _render_weapons_block(
-        console, hud_x, y, weapon_list, active_weapons, player_state,
+    _render_combat_band(console, hud_x, player_state, player_mode, evade_bonus, ctx)
+    _render_combat_core(console, hud_x, player_state, ctx)
+    _render_weapons_block(
+        console, hud_x, SPACE_WEAPONS_Y, weapon_list, active_weapons, player_state,
         hit_chances, focus_active=focus_active,
         weapon_qualities=weapon_qualities, ctx=ctx,
     )
+    # Region C closes with the divider (doc 104 item 16) on the block's
+    # old trailing spacer row; D starts where the space pair reserves.
+    _d_y = SPACE_WEAPONS_Y + space_weapons_rows(len(weapon_list)) + 1
+    _render_divider(console, hud_x, _d_y - 1)
+    y = _render_enemies_block(
+        console, hud_x, _d_y, enemies, target_idx, screen_height,
+        player_state, range_weapon_id, ctx,
+    )
     _render_combat_actions(console, hud_x, y, weapon_list)
+    _paint_xp_footer(console, hud_x, screen_height, ctx)
