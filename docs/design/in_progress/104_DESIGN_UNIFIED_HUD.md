@@ -120,6 +120,7 @@ slot) → WEAPONS/holster/bandolier → terminals → help.
 | 13 | **The empty status slot renders BLANK** (refine pass, 2026-10-20): the reserved row paints nothing when no status is active — combat's shipped doc-103 shape (the closing-gap row) becomes the law on all four panels; no placeholder glyph |
 | 14 | **Cargo paints on ALL FOUR panels** (mock review, 2026-10-20): ground combat gains the row too — the frame law's reading ("same rows in every panel", the health meter the only difference) over item 3's space-only note; the walk→fight→walk carry never drops the datum |
 | 15 | **The band-order set APPROVED as mocked** (mock review, 2026-10-20): the mocks below are the layout contract. Inside it: the PLAYER label moves WITH the health meter (it names the meter block, not the band); the slim weapon rows keep combat's volley checkbox as a combat-only mark before the name — the row shape (name + magazine) is what goes identical |
+| 16 | **The boundary dividers are panel chrome, not exploration flavor** (mid-playtest ruling, 2026-10-20 — the user flagged their absence in the fight and ruled them in): every panel closes its A band and its C region with the full-width rule. In ground combat that means the reserved band blank above the PLAYER label (row 5) and the old blank spacing row below the weapons block — both zero row cost, no anchored row moves, the enemies-panel budget untouched. Amends item 15's combat mock (below, updated). The space pair inherits the law in Phase 3 |
 
 ## The approved mocks (2026-10-20, item 15 — the layout contract)
 
@@ -152,13 +153,14 @@ down into D below WEAPONS; the footer slims to the XP row alone.
 
 Ground combat, end-state (the A-band rows keep the regen suffix and
 gold AP marker until Phase 2 kills them; weapon rows stay fat until
-the Phase 2 slim):
+the Phase 2 slim; dividers per item 16):
 
 ```
 > GROUND COMBAT <               A  band
 AP: 3/4.5                       A
 EVA: 35%                        A
 STIM (a): READY                 A  (only with a core worn)
+-------------------------------
 PLAYER                          B  CORE (label moved with the meter)
 HP    ####...... 18/24          B
 Armor          3                B
@@ -169,6 +171,7 @@ WEAPONS [3] 2AP                 C  anchor
 [x] Cutter     1/1              C
 HOLSTER  Machete                C
 SL 24/40                        C
+-------------------------------
 ENEMIES                         D  band
   Bandit  ####.. 4/10           D
 ACTIONS                         D
@@ -308,6 +311,8 @@ work; no prose beyond the ruled `[ESC] Pause`.
       read. Reviewer minors: the pre-existing mangled space-mode
       docstring diagram (`hud.py`) queued into Phase 3's restructure;
       one redundant absence assert left as intent documentation.
+      MID-PLAYTEST ADDENDUM (72e053ae): item 16's dividers landed —
+      see the Frame table; the combat mock below is amended.
 
 ### Implementation brief — Phase 2 (APPROVED 2026-10-20)
 
@@ -426,7 +431,9 @@ C-screen redesign beyond the one row; no prose beyond ledger #2 and
   `_rules_space.py:708`, `_animations.py:625`) + the status row
   moving into B's fixed slot; C = WEAPONS; D = ENEMIES/ACTIONS; the
   footer wired (the in-fight XP read — new here, as ground got in
-  Phase 1).
+  Phase 1). Both panels carry the item-16 divider law: the A band
+  and region C close with the full-width rule (space exploration
+  already paints one today; space combat gains both at build).
 - No mechanics, no balance, no save/load state — presentation only
   (the shield row displays already-derived state).
 
