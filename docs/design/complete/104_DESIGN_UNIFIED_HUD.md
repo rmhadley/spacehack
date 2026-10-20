@@ -1,10 +1,11 @@
 # DESIGN: The unified HUD — one core, four panels
 
-**Status: ALL PHASES LANDED + PLAYTEST PASSED (2026-10-20 — Phase 3:
-builds 859d5def + e3ca92fd + round-1 rulings 1f2a9aa8, reviewer
-APPROVE x2; every checkbox ticked, rulings 1-18 + prose 1-4 settled).
-Next: the CLOSE — SYSTEMS.md HUD entries + the move to `complete/`,
-on the user's confirmation.**
+**Status: CLOSED 2026-10-20 — all three phases landed + playtested
+(Phase 1 skeleton, Phase 2 slim, Phase 3 the space pair incl. round-1
+rulings 17+18; reviewer APPROVE x3; rulings 1-18 + prose 1-4 settled);
+closed at the user's confirmation with the SYSTEMS.md HUD entries and
+this move to `complete/` in the close commit. On record, unruled: the
+degenerate 11-12-weapon tail (see Phase 3's bullet).**
 
 Companions: `in_progress/103_DESIGN_STATUSES.md` (the status row —
 the first surface that lives on every panel, whose fight-boundary

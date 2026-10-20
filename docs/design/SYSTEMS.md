@@ -980,10 +980,11 @@ nobody designs against a ghost.
   on load (overflow refunded as credits). Player-facing vocabulary
   is "Ammo"/"ammo storage" — never "bandolier" (52.3 playtest
   ruling). Surfaces (52.3): the combat weapons panel and the
-  dungeon HUD's weapons block each end with one
+  exploration HUD's weapons block (city + dungeon, doc 104's C
+  anchor) each end with one
   `PST/RFL/CEL/SHL/GRN/RKT cur/max` line per carried caliber
   (active+holstered union in catalog order; `bandolier.HUD_CODES`,
-  `carried_ammo_types`, `hud.bandolier_hud_lines`; the dungeon
+  `carried_ammo_types`, `hud.bandolier_hud_lines`; the exploration
   block also shows active-set name+magazine rows and the dim
   HOLSTER names); the C screen's Equipment tab is a split frame —
   left equipment management, right a read-only six-caliber aligned
@@ -1758,6 +1759,48 @@ nobody designs against a ghost.
 - **Absent:** multiple save slots; player-facing seed entry UI;
   audio settings; save-schema versioning.
 
+## The HUD (doc 104 — one core, four panels, complete)
+
+- **The unified HUD core** — every mode's right panel (ground/space
+  × explore/fight) is four RESERVED regions: `[A mode band]` /
+  `[B THE CORE, fixed rows]` / `[C theater anchor]` / `[D mode band]`
+  — bands swap freely at fight boundaries, the core never moves
+  (ground B rows 7-10 with the WEAPONS anchor at 11; space B rows
+  8-11 with the anchor at 12 and a five-row A band). B = the mode's
+  health meter (ground HP+Armor / space Hull-above-Shield, one
+  painter each), Cargo (ALL FOUR panels — the boarding read lives in
+  the space-fight core), and the FIXED status slot (blank when
+  empty, row ALWAYS consumed — never pops at a mode boundary). C =
+  WEAPONS; the space pair reserves the fight's per-loadout budget
+  (`hud_core.space_weapons_rows` = 1+3n rows) EMPTY on exploration,
+  so the C-close divider and D hold one y across the space boundary.
+  The footer = the XP row alone on every panel, bottom-anchored at
+  `hud_core.xp_footer_row` = `hud_view_height - 2` (the last row
+  that renders whole under the overlay's 4px-pad clip). One-column
+  law: every meter row is `hud_core._aligned_row` (label <8 +
+  10-cell bar <11 + values at column 19 — `Shield` spelled out, the
+  S-key white-fill indicator riding the bar at column 8). Boundary
+  dividers are panel chrome: every panel closes A and C with the
+  full-width rule (the ground exploration D band also closes its
+  terminal block, conditional on terminals painting). `[ESC] Pause`
+  reads in every mode's key-hint block. Anchors: `hud_core.py` (the
+  painters + region constants), `hud.py` / `hud_combat.py` /
+  `combat/_ground_render.py` (the per-mode band wiring);
+  `hud._render_space_hud` reads the computed shield max via
+  `combat._stats._calc_max_shields` — every fight initializes
+  shields to max, so exploration's full bar IS the fight's round-0
+  row.
+- **The C screen owns identity, credits, and skills** — the
+  exploration panel dropped species/class (C's identity block), the
+  credits row (one shared `Credits: N` row under the title on all
+  three C tabs, `character_screen_stats._credits_header_line`), and
+  the skills grid (C's Stats tab). Combat weapon rows are the
+  walking shape (name + magazine, the volley checkbox combat's only
+  extra mark; the HP regen suffix and gold temp-AP marker died — the
+  status row is the single effects surface per panel)
+  (`combat/_ground_render.py`: `_print_weapon_block`;
+  `hud.py`: `_render_city_hud`).
+
 ## Standing rulings that shape design
 
 - **No special cases — uniform mechanisms.** Data opt-ins over id
@@ -1769,3 +1812,7 @@ nobody designs against a ghost.
   popups; pure frame generators + present loops.
 - **Environment as gate** — danger self-selects for prerequisites;
   verify numbers before claiming them.
+- **If a datum matters in the moments a HUD serves, it deserves the
+  same home on every panel that serves those moments** — one core,
+  four panels; the bands swap at fight boundaries, the core never
+  moves (doc 104).
