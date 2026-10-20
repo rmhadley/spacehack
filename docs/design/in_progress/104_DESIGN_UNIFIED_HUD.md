@@ -1,10 +1,10 @@
 # DESIGN: The unified HUD — one core, four panels
 
-**Status: PHASE 3 BUILT (2026-10-20 — builds 859d5def audit + e3ca92fd,
-gate green 3995, reviewer APPROVE; its two mechanical minors applied,
-the degenerate-tail minor REPORTED for the playtest per the brief's
-surprise rule). Next: the Phase 3 playtest, then the doc's close
-(SYSTEMS.md entries + move to complete/).**
+**Status: ALL PHASES LANDED + PLAYTEST PASSED (2026-10-20 — Phase 3:
+builds 859d5def + e3ca92fd + round-1 rulings 1f2a9aa8, reviewer
+APPROVE x2; every checkbox ticked, rulings 1-18 + prose 1-4 settled).
+Next: the CLOSE — SYSTEMS.md HUD entries + the move to `complete/`,
+on the user's confirmation.**
 
 Companions: `in_progress/103_DESIGN_STATUSES.md` (the status row —
 the first surface that lives on every panel, whose fight-boundary
@@ -122,6 +122,8 @@ slot) → WEAPONS/holster/bandolier → terminals → help.
 | 14 | **Cargo paints on ALL FOUR panels** (mock review, 2026-10-20): ground combat gains the row too — the frame law's reading ("same rows in every panel", the health meter the only difference) over item 3's space-only note; the walk→fight→walk carry never drops the datum |
 | 15 | **The band-order set APPROVED as mocked** (mock review, 2026-10-20): the mocks below are the layout contract. Inside it: the PLAYER label moves WITH the health meter (it names the meter block, not the band); the slim weapon rows keep combat's volley checkbox as a combat-only mark before the name — the row shape (name + magazine) is what goes identical |
 | 16 | **The boundary dividers are panel chrome, not exploration flavor** (mid-playtest ruling, 2026-10-20 — the user flagged their absence in the fight and ruled them in): every panel closes its A band and its C region with the full-width rule. In ground combat that means the reserved band blank above the PLAYER label (row 5) and the old blank spacing row below the weapons block — both zero row cost, no anchored row moves, the enemies-panel budget untouched. Amends item 15's combat mock (below, updated). The space pair inherits the law in Phase 3 |
+| 17 | **The ground exploration D band closes its terminal block with the rule** (mid-playtest ruling, 2026-10-20, Phase 3's playtest — the user flagged the missing divider on Earth between the kiosk key and the key hints): when terminal rows paint, a full-width rule separates them from the help lines. CONDITIONAL on terminals existing — dungeon's D has none, so its help lines follow the C-close divider directly (no stacked double rule) |
+| 18 | **The space meter reads `Shield` spelled out, and the Hull/Shield/Cargo bars line up** (mid-playtest ruling, 2026-10-20, Phase 3's playtest — the user: 'in space "Shd" should be expanded to "Shield". And we need to make sure the bars for Hull, Shield, and Cargo line up.'): `paint_hull_shield_rows` adopts the core's aligned shape (label <8 + 10-cell bar <11 + cur/max — bars at column 8, values at 19, one column across the core, `Shield` fitting the 8-wide label field). OVERTURNS the Phase 3 audit clarification 2's "hud_combat's verbatim row shape" reading (Hull-above-Shield stands); the S-key white indicator moves with the bar to column 8. The ENEMY block's compact `Hul`/`Shd` 5-cell idiom is a different surface and stays |
 
 ## The approved mocks (2026-10-20, item 15 — the layout contract)
 
@@ -428,7 +430,19 @@ C-screen redesign beyond the one row; no prose beyond ledger #2 and
       first); minor 1 (degenerate 11-12-weapon loadouts strand
       ACTIONS past the footer — same class as the old order's
       off-panel tail, probed empirically) REPORTED on the playtest
-      checklist, not fixed unruled.
+      checklist, not fixed unruled. PLAYTEST ROUND 1 (2026-10-20 —
+      rulings 17 + 18 landed in 1f2a9aa8, gate green, reviewer
+      APPROVE; its minor 1 applied: the one-column law single-sourced
+      in `hud_core._aligned_row`): the ground exploration terminal
+      block closes with the rule before the help lines (item 17,
+      conditional on terminals — dungeon's D stays single-ruled);
+      `Shield` spelled out with the Hull/Shield/Cargo bars and values
+      in one column (item 18, overturning the audit's verbatim-shape
+      reading — the core's aligned shape won; the S-key indicator
+      moved with the bar to column 8). **PLAYTEST PASSED 2026-10-20**
+      (user: "alright. playtest passes" — the verdict covers the full
+      Phase 3 checklist incl. round 1's rulings; no follow-ups
+      raised; the degenerate-tail minor stands as reported, unruled).
 
 ### Implementation brief — Phase 3 (APPROVED 2026-10-20)
 
@@ -692,6 +706,9 @@ move to complete/) waits for the phase's playtest, not this build.
    {bar} {cur}/{max}` in the color trio, `Shd  {bar} {cur}/{max} +N`
    with the S-key white indicator — so exploration's old ALIGNED hull
    row dies (one shape, the fight's, per "in hud_combat's shape").
+   **OVERTURNED at playtest (item 18)**: the verbatim-format half died
+   — the core's ALIGNED shape won after all, with `Shield` spelled
+   out; Hull-above-Shield and the trio/suffix/indicator ink stand.
 3. **The meter painter always consumes both rows** — the shield row
    stays BLANK when the ship has none (`max_shields == 0`): the
    same-rows law's "one row-set" means B is 4 rows for every ship, so
@@ -769,8 +786,9 @@ move to complete/) waits for the phase's playtest, not this build.
    sits at 848 lines near the ratchet, and four panels need one
    import home).
 
-All open questions settled; every phase's brief approved. The doc
-awaits `/implement-phase 104.1`.
+All open questions settled; every phase's brief approved; all three
+phases built and playtested. The doc awaits its close (SYSTEMS.md
+entries + the move to `complete/`).
 
 ## Prose ledger
 
