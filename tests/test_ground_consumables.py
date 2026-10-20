@@ -301,3 +301,35 @@ def test_stim_at_full_hp_still_applies():
     assert use_consumable(ctx, 0, in_combat=False)
     assert ctx.active_statuses["stim"].remaining_turns == 3
     assert ctx.ground_expedition_items == []
+
+
+def test_pre_popped_stim_buffs_the_fights_first_turn():
+    """The mid-playtest ruling (user, 2026-10-20): a stim popped while
+    exploring must buff turn ONE — init's pool seed reads standing
+    sums exactly like every later reset (the walk's dropped ap event
+    is redeemed at entry)."""
+    from src.spacehack.combat import _statuses
+    from src.spacehack.combat._ground_effects import advance_exploration_statuses
+
+    ctx = _context(hp=20, items=[])
+    _statuses.apply(ctx.active_statuses, "stim", theater="ground")
+    # One exploring step: duration 3 -> 2, the +1 event dropped (no
+    # pool out of combat) — the step the fight starts on.
+    advance_exploration_statuses(ctx)
+
+    _rules_ground.init(ctx, [], ctx.game_map)
+    assert ctx.active_statuses["stim"].remaining_turns == 2
+    assert _rules_ground.player_ap(ctx) == 5  # 4 base + 1 standing
+
+
+def test_carried_staggered_dips_the_fights_first_turn():
+    """The seed is symmetric (q13: re-engaging with rounds left, it
+    applies): a carried staggered's -1 lands on turn one's pool, not
+    just the later resets."""
+    from src.spacehack.combat import _statuses
+
+    ctx = _context(hp=20, items=[])
+    _statuses.apply(ctx.active_statuses, "staggered", theater="ground")
+
+    _rules_ground.init(ctx, [], ctx.game_map)
+    assert _rules_ground.player_ap(ctx) == 3  # 4 base - 1 standing

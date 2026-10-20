@@ -137,6 +137,15 @@ def _arm_dev_batons(ctx, instances) -> None:
         ctx.log.add(_arm(instances))
 
 
+def _standing_ap_fold(ctx) -> int:
+    """The standing AP sums at fight birth (doc 103 Build C's
+    mid-playtest ruling, 2026-10-20): every AP-pool computation reads
+    them — reset_turn's gain fold, and init's seed — so a pre-popped
+    stim buffs turn ONE (the walk's dropped ap event is redeemed at
+    entry) and a carried staggered dips it, symmetric."""
+    return _player_status_effects(ctx).ap_per_round
+
+
 def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, console=None) -> None:
     """Set up combat session state for a ground combat encounter."""
     global _state
@@ -146,9 +155,12 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
     _armor_defense = _armor_defense_total(ctx)
     _weapons = player_weapons(ctx)
     _player_ap_gain = _starting_ap_gain_twentieths(ctx)
-    _player_ap_total = _player_ap_gain // 20
-
+    # Fight-start hygiene runs BEFORE the pool seed: the seed reads
+    # the POST-defuse container's standing sums.
     _defuse_stale_session(ctx)
+    _player_ap_total = max(
+        0, _player_ap_gain // 20 + _standing_ap_fold(ctx),
+    )
 
     _state = GroundCombatState(
         ctx=ctx, game_map=game_map,
