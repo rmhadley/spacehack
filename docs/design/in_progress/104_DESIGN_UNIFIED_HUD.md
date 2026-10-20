@@ -451,6 +451,62 @@ move to complete/) waits for the phase's playtest, not this build.
 5. Land/exit fights repeatedly — no row ever jumps; let any status
    expire — the slot goes blank, rows below hold.
 
+## Pre-implementation audit (2026-10-20, Phase 1)
+
+### Existing modules/helpers to extend or reuse
+
+- `combat/_statuses.paint_hud_segments` + `hud_segments`
+  (`src/spacehack/combat/_statuses.py:281-320`) — the shared status ink
+  both ground panels already paint with; hud_core's status-slot painter
+  lazy-imports `paint_hud_segments` inside the function (segments
+  arrive as a parameter; both callers already compute them).
+- `hud._bar_str` / `HUD_TEXT_MAX` / `COLOR_HP_GOOD` / `COLOR_HP_LOW`
+  (`hud.py`) — the aligned-bar primitives the core meter painter needs.
+  They MOVE to hud_core with `hud` re-exporting, because
+  `combat/_ground_render.py:24-35` and `hud_combat.py:17-28` import
+  them from `hud` today (hud_combat stays untouched until Phase 3).
+  This keeps the dependency one-way: `hud` → `hud_core`.
+- `hud._cargo_used_max` + `_resolve_ship_catalog` — the one cargo
+  capacity read (Merchant trait included); ground combat imports it
+  through the existing module-level combat→hud import (brief names
+  this pattern).
+- `hud._hud_xp_line` — the XP row computation (level, bar, +N PTS
+  gold); the combat footer reuses it as-is.
+- `hud._render_city_identity` — the Phase 1 A-band rows
+  (species/class interim + location/date), unchanged.
+- `hud._render_ground_weapons_block` — region C's anchor painter,
+  unchanged this phase; `_render_help_lines` / `_render_action_pairs`
+  — the pair painters `[ESC] Pause` joins.
+- Test scaffolding to mirror: `_ground_fixture` / `_patch_render_deps`
+  (`tests/combat/test_rules_ground.py:842-888`), `_ground_weapons_ctx`
+  (`tests/test_hud.py:162`), and the glyph-budget law
+  (`FrameBuffer(SCREEN_WIDTH + HUD_WIDTH)`). Ground HUD bottom row =
+  `SCREEN_HEIGHT - MSG_LOG_HEIGHT - 1` = 53 (MSG_LOG_HEIGHT=6).
+
+### Duplication hotspots and DRY strategy
+
+1. **The meter row strings.** Combat hand-formats its own HP row
+   (`HP  {bar} {cur}/{max}` bar width 7-8, panel-cyan) while
+   exploration's `_render_city_stat_rows` uses the aligned format
+   (`{'HP':<8}{bar:<11}{cur}/{max}`, values at column 19, green/red).
+   Copying the exploration format into combat would be exactly the
+   drift this doc kills. **Fix:** one `paint_hp_armor_rows` /
+   `paint_cargo_row` in hud_core paints both panels; the B-half of
+   `_render_city_stat_rows` and combat's hand-format both die.
+2. **The status row assembly.** Three sites assemble
+   `hud_segments` + `paint_hud_segments` today with different flow
+   semantics (exploration: conditional row; ground combat: closing-gap
+   row; space combat: bool-return). **Fix:** hud_core's
+   `paint_status_slot` — fixed slot, blank-when-empty, always consumes
+   the row — replaces the two ground sites; hud_combat's twin stays
+   as-is until Phase 3 (its brief owns it).
+3. **The footer.** `_render_hud_footer`/`_footer_rows` paint three
+   rows on the two exploration panels; the fights need the same XP
+   read — a combat-local footer copy is the obvious trap. **Fix:**
+   the pair is absorbed into hud_core as `paint_xp_footer` (ONE row,
+   bottom-anchored); all three live panels call it (space exploration
+   included — the brief's deliberate cross-pair touch).
+
 ## Acceptance criteria
 
 1. The status row occupies the same slot in all four panels and
