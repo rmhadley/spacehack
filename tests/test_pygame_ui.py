@@ -1037,9 +1037,11 @@ def test_navigation_marker_labels_fall_below_objects_at_top_edge():
 def test_footer_xp_row_anchors_to_the_panel_bottom():
     from src.spacehack import hud_core
 
-    # Doc 104 item 12: the footer is ONE row — the XP bar alone,
-    # anchored to the HUD panel's bottom row.
-    assert hud_core.xp_footer_row(54) == 53
+    # Doc 104 item 12: the footer is ONE row — the XP bar alone. It
+    # anchors at hud_view_height - 2: the overlay's text box (4px pad +
+    # 16px line font) overflows the panel clip on the band's final cell
+    # row, so that row can't render whole (playtest catch, 2026-10-20).
+    assert hud_core.xp_footer_row(54) == 52
     assert hud_core.xp_footer_row(4) == 3  # short panels clamp inside
 
 

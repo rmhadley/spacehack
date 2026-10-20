@@ -71,11 +71,12 @@ _COLOR_GROUND_TEMP_AP: tuple[int, int, int] = (100, 170, 255)
 
 # The enemies listing must leave the panel's closing spacer, the
 # ACTIONS legend (title + 5 pair rows since [ESC] Pause joined), and
-# the XP footer inside the ground HUD's rows (0..SCREEN_HEIGHT -
-# MSG_LOG_HEIGHT - 1 — the message band owns the rest); one enemy
-# block costs 2 rows plus up to 3 target-detail rows.
+# the XP footer (hud_core pins it at hud_view_height - 2 — the
+# overlay's last fully renderable row) inside the ground HUD's rows
+# (0..SCREEN_HEIGHT - MSG_LOG_HEIGHT - 1 — the message band owns the
+# rest); one enemy block costs 2 rows plus up to 3 target-detail rows.
 _ENEMY_BLOCK_ROWS = 5
-_ACTIONS_TAIL_ROWS = 8
+_ACTIONS_TAIL_ROWS = 9
 _ENEMY_LIST_BOTTOM = (
     SCREEN_HEIGHT - MSG_LOG_HEIGHT - _ACTIONS_TAIL_ROWS - _ENEMY_BLOCK_ROWS
 )

@@ -865,16 +865,19 @@ def test_enemies_panel_keeps_the_actions_legend_on_the_hud():
     hud_bottom = SCREEN_HEIGHT - MSG_LOG_HEIGHT  # rows 0..hud_bottom-1
 
     _console = _Console()
-    next_y = _ground_render._render_enemies_panel(_console, _ctx, _alive, 21)
+    # Start 22 straddles the cap boundary (a block candidate lands at
+    # exactly 41), so the exact pin discriminates the tail budget.
+    next_y = _ground_render._render_enemies_panel(_console, _ctx, _alive, 22)
     # Legend is 6 rows since [ESC] Pause joined (title + 5 pairs), and
-    # the XP footer owns the band's last row (doc 104 Phase 1).
+    # the XP footer owns hud_view_height - 2 (doc 104 Phase 1 — the
+    # overlay's last fully renderable row).
     assert next_y + 5 <= hud_bottom - 2  # legend + footer end on-panel
-    assert next_y == 43  # exact drift guard: targeted e0 + 9 more listed
+    assert next_y == 42  # exact drift guard: targeted e0 + 7 more listed
 
     # Adversarial: the boundary-listed enemy is the target — its detail
     # rows still leave the legend on-panel.
     _rules_ground._state.target_idx = 9
     _console = _Console()
-    next_y = _ground_render._render_enemies_panel(_console, _ctx, _alive, 21)
+    next_y = _ground_render._render_enemies_panel(_console, _ctx, _alive, 22)
     assert next_y + 5 <= hud_bottom - 2
     _rules_ground._state.target_idx = 0

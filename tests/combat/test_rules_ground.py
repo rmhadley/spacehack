@@ -2313,7 +2313,7 @@ def test_doc104_fight_gains_the_xp_footer_and_the_retired_strings_die(monkeypatc
 
     _hud_x = SCREEN_WIDTH - HUD_WIDTH
     _bottom = "".join(
-        _frame.cell(x, SCREEN_HEIGHT - MSG_LOG_HEIGHT - 1).char
+        _frame.cell(x, SCREEN_HEIGHT - MSG_LOG_HEIGHT - 2).char
         for x in range(_hud_x, _hud_x + HUD_WIDTH * 2)
     ).rstrip()
     assert _bottom.startswith("LV")  # the in-fight XP read, bottom-anchored

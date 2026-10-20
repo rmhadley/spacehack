@@ -102,8 +102,15 @@ def paint_status_slot(console: FrameBuffer, hud_x: int, y: int, segments) -> int
 
 
 def xp_footer_row(hud_view_height: int) -> int:
-    """The one footer row — the HUD panel's bottom row."""
-    return max(3, hud_view_height - 1)
+    """The one footer row — the panel's bottom row.
+
+    Two rows above the band's last cell, not one: the overlay paints
+    text at ``padding_y (4px) + row * 16`` with a 16px-line font and
+    clips at the panel rect, so the final cell row's glyph box
+    overflows the clip by the padding — its bottom pixels cut off.
+    ``hud_view_height - 2`` is the last row that renders whole (the
+    old footer's exit line lived there)."""
+    return max(3, hud_view_height - 2)
 
 
 def paint_xp_footer(
