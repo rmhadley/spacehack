@@ -1,9 +1,9 @@
 # DESIGN: The unified HUD — one core, four panels
 
-**Status: REFINE COMPLETE (2026-10-20 — all 15 rulings + 4 prose
-items settled through the one-per-exchange loops; Implementation
-briefs for all three phases APPROVED; nothing implemented. Build
-queue: `/implement-phase 104.1`.**
+**Status: PHASE 1 BUILT (2026-10-20 — all 15 rulings + 4 prose
+items settled; three briefs APPROVED; Phase 1 implemented, gate
+green, reviewer APPROVE — playtest pending. Next: the Phase 1
+playtest, then `/implement-phase 104.2`.**
 
 Companions: `in_progress/103_DESIGN_STATUSES.md` (the status row —
 the first surface that lives on every panel, whose fight-boundary
@@ -184,11 +184,13 @@ same B → C WEAPONS → D enemies/actions → footer (gains the XP read).
 
 ## Phases (proposed — the refine pass settles briefs)
 
-- [ ] Phase 1 — the skeleton: the shared core blocks + the neutral
+- [x] Phase 1 — the skeleton: the shared core blocks + the neutral
       module home; both ground panels painted from them; the status
       row's fixed slot everywhere; the fight boundary stops
       swapping the anchored rows. PLAYTEST: walk into a fight with
       a status active and watch nothing pop.
+      LANDED 2026-10-20 (build + gate + reviewer APPROVE; playtest
+      pending — see the checkpoint list below).
 
 ### Implementation brief — Phase 1 (APPROVED 2026-10-20)
 
@@ -295,9 +297,11 @@ work; no prose beyond the ruled `[ESC] Pause`.
   panel: `_render_city_identity` loses the species/class rows
   (location/date remain; signature and callers in `render_hud`
   slim with it); the D-band interim rows die — the Credits row out
-  of `_render_city_stat_rows`, the skills grid plus
+  of `_render_city_parked_rows`, the skills grid plus
   `_render_skill_line`/`_skill_slot` (and any callerless helpers
-  behind them — the dead-code self-audit sweep). The panel lands
+  behind them — the dead-code self-audit sweep, which the Phase 1
+  reviewer extended to `_render_mission_line`, callerless in the
+  touched hud.py). The panel lands
   the approved end-state mock.
 - `src/spacehack/character_screen.py` — the shared credits row,
   wording verbatim `Credits: {stats.credits}`, under the title on
