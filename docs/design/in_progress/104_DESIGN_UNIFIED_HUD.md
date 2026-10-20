@@ -40,16 +40,34 @@ moments.** One core, four panels (ground/space × explore/fight).
 
 - **A fixed-slot shared core painted by the same painters at the
   same rows in every panel**: the mode's health meter (HP on the
-  ground; hull/shield in space), cargo (re-added to space combat,
-  where it informs boarding), and the status row (FIXED slot
-  everywhere — never conditional, never popping).
+  ground; hull/shield in space — the core's ONLY space-vs-ground
+  difference), cargo (re-added to space combat, where it informs
+  boarding), and the status row (FIXED slot everywhere — never
+  conditional, never popping). "Fixed" means structurally pinned —
+  the DATA is live; the rows, their y, and the painter never
+  change.
+- **Reserved regions, not insertions (the load-bearing geometry,
+  clarified at doc review 2026-10-20)**: every panel is four
+  regions — `[A: mode band, reserved height]` / `[B: THE CORE,
+  fixed rows]` / `[C: theater anchor]` / `[D: mode band, reserved
+  height]`. Bands swap; anchors never move; a band growing or
+  shrinking can never push the core because the regions are
+  reserved. Inserting band rows directly above an anchor (combat's
+  AP/EVA/STIM above the status row) would reintroduce the pop —
+  reserved heights are the law.
+- **The bands are per-MODE, not combat-only** (all four modes have
+  one): ground exploration paints location/date (region A) and
+  terminals/help (D); ground combat paints header/AP/EVA/STIM (A)
+  and enemies/actions (D); the space pair paints its own reads.
+  Bands stay with their owning modules (the combat renderer keeps
+  enemies/actions; `hud.py` keeps terminals/help) — the
+  unification is the core, not a mega-refactor.
 - **Ground anchoring on top**: HP/Armor, the status row, and the
-  WEAPONS block pin across the explore↔fight boundary. A fight
-  starting or ending swaps only the MODE BANDS — exploration's
-  location/date, terminals, help vs combat's AP/EVA/STIM, enemies,
-  actions — and nothing the carry is about ever moves. The doc 103
-  promise made visible: the status row sits at the same y for the
-  whole walk → fight → walk arc.
+  WEAPONS block (region C) pin across the explore↔fight boundary.
+  A fight starting or ending swaps only the bands — and nothing
+  the carry is about ever moves. The doc 103 promise made visible:
+  the status row sits at the same y for the whole walk → fight →
+  walk arc.
 - **The space pair gets the same treatment** for its own meters
   (hull/shield/AP/pow), so the space explore↔fight transition
   stops being a panel swap too.
