@@ -1,9 +1,9 @@
 # DESIGN: The unified HUD — one core, four panels
 
-**Status: RIFFED + FULLY RULED (2026-10-20 — every keep/drop settled
-through the question loop, one item per exchange, at doc 103's
-playtest verdict). Awaiting the user's review of this doc; nothing
-implemented.**
+**Status: REFINE PASS UNDERWAY (2026-10-20 — the 12 creation rulings
+stand; this pass settled the empty slot, the band-order mock set
+with cargo on all four panels, and the ESC label; briefs drafting.
+Nothing implemented.**
 
 Companions: `in_progress/103_DESIGN_STATUSES.md` (the status row —
 the first surface that lives on every panel, whose fight-boundary
@@ -41,14 +41,16 @@ moments.** One core, four panels (ground/space × explore/fight).
 - **A fixed-slot shared core painted by the same painters at the
   same rows in every panel**: the mode's health meter (HP on the
   ground; hull/shield in space — the core's ONLY space-vs-ground
-  difference), cargo (re-added to space combat, where it informs
-  boarding), the status row (FIXED slot everywhere — never
-  conditional, never popping), and THE FOOTER (ruled 2026-10-20,
-  item 12: the XP row alone, bottom-anchored, all four panels —
-  the bar stops vanishing when a fight starts; both combat panels
-  GAIN the in-fight XP read). "Fixed" means structurally pinned —
-  the DATA is live; the rows, their y, and the painter never
-  change.
+  difference), cargo (ALL FOUR panels — re-added to space combat
+  where it informs boarding, and added to ground combat at the mock
+  review, item 14: the carry never drops a datum at the fight
+  boundary), the status row (FIXED slot everywhere — never
+  conditional, never popping, BLANK when empty — item 13), and THE
+  FOOTER (ruled 2026-10-20, item 12: the XP row alone,
+  bottom-anchored, all four panels — the bar stops vanishing when a
+  fight starts; both combat panels GAIN the in-fight XP read).
+  "Fixed" means structurally pinned — the DATA is live; the rows,
+  their y, and the painter never change.
 - **Reserved regions, not insertions (the load-bearing geometry,
   clarified at doc review 2026-10-20)**: every panel is four
   regions — `[A: mode band, reserved height]` / `[B: THE CORE,
@@ -114,7 +116,71 @@ slot) → WEAPONS/holster/bandolier → terminals → help.
 | # | Ruling |
 |---|---|
 | 11 | **FULL FRAME confirmed** — four-HUD core + ground anchoring |
-| 12 | **THE FOOTER joins the core, slimmed to one row** (user, 2026-10-20): the XP bar alone, shared and bottom-anchored across all four panels. "bump to interact" DROPS entirely (verified: only the two exploration panels paint a footer today, and neither combat panel paints any bottom rows — so unifying ADDS the XP read to both fights). "ESC to quit" RETIRES as STALE — ESC opens the pause menu, it does not quit — and ESC joins each mode's key-hint block (the help lines exploring, ACTIONS fighting) with prose-gated wording |
+| 12 | **THE FOOTER joins the core, slimmed to one row** (user, 2026-10-20): the XP bar alone, shared and bottom-anchored across all four panels. "bump to interact" DROPS entirely (verified: only the two exploration panels paint a footer today, and neither combat panel paints any bottom rows — so unifying ADDS the XP read to both fights). "ESC to quit" RETIRES as STALE — ESC opens the pause menu, it does not quit — and ESC joins each mode's key-hint block (the help lines exploring, ACTIONS fighting) as `[ESC] Pause` (prose ledger #1, shipped 2026-10-20) |
+| 13 | **The empty status slot renders BLANK** (refine pass, 2026-10-20): the reserved row paints nothing when no status is active — combat's shipped doc-103 shape (the closing-gap row) becomes the law on all four panels; no placeholder glyph |
+| 14 | **Cargo paints on ALL FOUR panels** (mock review, 2026-10-20): ground combat gains the row too — the frame law's reading ("same rows in every panel", the health meter the only difference) over item 3's space-only note; the walk→fight→walk carry never drops the datum |
+| 15 | **The band-order set APPROVED as mocked** (mock review, 2026-10-20): the mocks below are the layout contract. Inside it: the PLAYER label moves WITH the health meter (it names the meter block, not the band); the slim weapon rows keep combat's volley checkbox as a combat-only mark before the name — the row shape (name + magazine) is what goes identical |
+
+## The approved mocks (2026-10-20, item 15 — the layout contract)
+
+Ground exploration, end-state (Phase 1 keeps the doomed rows as
+interim band rows — species/class stay in A, credits/skills park at
+D's top — until Phase 2 deletes them):
+
+```
+Spacehack
+Eri City                        A  band
+2160-04-12                      A
+-------------------------------
+HP    ####...... 18/24          B  CORE (one painter, one shape)
+Armor          3                B
+Cargo ####...... 12/22          B
+                                B  status slot (blank when empty)
+WEAPONS                         C  anchor
+  M-Laser     8/12              C
+  HOLSTER  Cutter, Machete      C
+  SL 24/40                      C
+-------------------------------
+A  Armory                       D  band
+=  Trade                        D
+[C] Character  [?] Guide        D  help pairs, ESC joining here
+LV  3 [##########----]          footer, bottom-anchored, alone
+```
+
+Terminals move from today's mid-panel spot (above the status row)
+down into D below WEAPONS; the footer slims to the XP row alone.
+
+Ground combat, end-state (the A-band rows keep the regen suffix and
+gold AP marker until Phase 2 kills them; weapon rows stay fat until
+the Phase 2 slim):
+
+```
+> GROUND COMBAT <               A  band
+AP: 3/4.5                       A
+EVA: 35%                        A
+STIM (a): READY                 A  (only with a core worn)
+PLAYER                          B  CORE (label moved with the meter)
+HP    ####...... 18/24          B
+Armor          3                B
+Cargo ####...... 12/22          B
+                                B  status slot (blank when empty)
+WEAPONS [3] 2AP                 C  anchor
+[x] M-Laser    8/12             C
+[x] Cutter     1/1              C
+HOLSTER  Machete                C
+SL 24/40                        C
+ENEMIES                         D  band
+  Bandit  ####.. 4/10           D
+ACTIONS                         D
+[f] Fire   [m] Move             D
+[t] Target [a] Stim             D
+LV  3 [##########----]          footer, bottom-anchored, alone
+```
+
+Space sketches (Phase 3 pins the details at its brief): exploration
+= A ship name/location/date/Fuel/Spd → B Hull/Shield/Cargo/status →
+C reserved → D help → footer; combat = A title/AP/Evade/Pow → the
+same B → C WEAPONS → D enemies/actions → footer (gains the XP read).
 
 ## Phases (proposed — the refine pass settles briefs)
 
@@ -148,24 +214,29 @@ slot) → WEAPONS/holster/bandolier → terminals → help.
 
 ## Open questions
 
-1. **The empty status slot** — the fixed slot renders when the
-   container is empty: a blank gap row, or a faint placeholder
-   glyph? (Blank matches the panel's blank-row rhythm; a placeholder
-   advertises the surface to new players.)
-2. **The guide's stim sentence** — the "+1 indicator" clause
-   rewrites when the marker dies (prose loop at build; the sentence
-   also carries the exploration-legal teaching that stays).
-2a. **The ESC hint's new wording** — "ESC to quit" retires (stale:
-   ESC opens the pause menu); its replacement label in the help
-   lines and ACTIONS blocks settles through the prose loop at
-   build ("ESC Menu" shape). "bump to interact" needs no
-   replacement (ruled: gone).
+1. ~~The empty status slot~~ — **SETTLED 2026-10-20, item 13**: blank
+   row.
+2. **The guide's stim sentence** — the "+1 indicator" clause rewrites
+   when the marker dies (prose loop; the sentence also carries the
+   exploration-legal teaching that stays). Phase 2's prose item.
+2a. ~~The ESC hint's new wording~~ — **SETTLED 2026-10-20, prose
+   ledger #1**: `[ESC] Pause`.
 3. **The C-screen credits row's exact shape** — a header line
    (`Credits 1250`) vs a stats-column row; player-facing, settles
-   through the prose loop at build.
-4. **Band order within each mode** — the exact row order of the
-   mode bands (e.g., do terminals sit above or below WEAPONS in the
-   city band?) — a mock review at the brief, one option set.
-5. **The shared module's home** — neutral `ground_hud` sibling vs
-   data-parameterized painters inside `hud.py` (build decision; the
-   cycle law decides).
+   through the prose loop. Phase 2's prose item.
+4. ~~Band order within each mode~~ — **SETTLED 2026-10-20, item 15**:
+   the approved mocks are the layout contract.
+5. **The shared module's home** — neutral sibling vs
+   data-parameterized painters inside `hud.py`; bound in Phase 1's
+   brief from code facts (combat already imports `hud.py`
+   module-level, `hud.py` sits at 848 lines near the ratchet, and
+   four panels need one import home → the neutral `hud_core`
+   sibling).
+
+## Prose ledger
+
+1. `[ESC] Pause` — the ESC key-hint label, help lines + ACTIONS
+   pairs, all modes; replaces the retired "ESC to quit" footer line.
+   **SHIPPED verbatim 2026-10-20.** (Consistent with the guide's
+   existing "ESC: pause menu (save & exit, dump char)" line — no
+   guide edit rides the label.)
