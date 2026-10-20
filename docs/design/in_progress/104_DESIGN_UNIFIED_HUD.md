@@ -1,9 +1,9 @@
 # DESIGN: The unified HUD — one core, four panels
 
-**Status: PHASE 1 LANDED + PLAYTEST PASSED (2026-10-20 — all 15
-rulings + 4 prose items settled; three briefs APPROVED; Phase 1
-built, gate green, reviewer APPROVE, playtest passed with one fix
-folded). Next: `/implement-phase 104.2` (the slim).**
+**Status: PHASE 2 LANDED (2026-10-20 — build 8a30716b + guide
+900b05f6, gate green 3991 passed, reviewer APPROVE; playtest
+pending). Next: the Phase 2 playtest, then `/implement-phase 104.3`
+(the space pair).**
 
 Companions: `in_progress/103_DESIGN_STATUSES.md` (the status row —
 the first surface that lives on every panel, whose fight-boundary
@@ -293,10 +293,21 @@ work; no prose beyond the ruled `[ESC] Pause`.
 5. Let every status expire — the slot goes blank and the rows below
    hold.
 6. The cargo bar reads in the fight's core.
-- [ ] Phase 2 — the slim: the ruled drops land (species/class,
+- [x] Phase 2 — the slim: the ruled drops land (species/class,
       credits→C with its new C-screen home, skills grid), the
       suffix and marker die, the weapon rows slim. PLAYTEST: the
       panels read at a glance; C carries credits.
+      LANDED 2026-10-20 (build 8a30716b, guide 900b05f6, gate green,
+      reviewer APPROVE). Audit-bound additions that ride the build:
+      the skills-call sweep took `_render_ship_stat_rows`' trailing
+      call, so the SPACE exploration panel lost its interim skills
+      grid one phase early (item 5's drop completing — Phase 3
+      restructures that panel anyway); the combat weapon row's `[N]`
+      slot index died with the slim (the checkbox is the only extra
+      mark, item 15); hud_core's `regen_suffix` param died with the
+      read. Reviewer minors: the pre-existing mangled space-mode
+      docstring diagram (`hud.py`) queued into Phase 3's restructure;
+      one redundant absence assert left as intent documentation.
 
 ### Implementation brief — Phase 2 (APPROVED 2026-10-20)
 
@@ -404,7 +415,9 @@ C-screen redesign beyond the one row; no prose beyond ledger #2 and
   (fixed, blank-when-empty — the fourth panel gains doc 103's
   surface); C = an empty reserved region of fixed height (the space
   pair's shared WEAPONS budget); D = the space help lines; footer
-  unchanged from Phase 1.
+  unchanged from Phase 1. Fold in the Phase 2 reviewer minor: the
+  module docstring's space-mode diagram is mangled (pre-existing) —
+  rewrite it to the end-state regions here.
 - `src/spacehack/hud_combat.py` — `render_combat_hud`
   restructured: A = the combat header (mode indicator) + the
   AP/Evade/Pow rows out of `_render_player_block`; B = hull/shield
