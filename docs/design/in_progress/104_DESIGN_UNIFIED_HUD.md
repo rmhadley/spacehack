@@ -1,9 +1,9 @@
 # DESIGN: The unified HUD — one core, four panels
 
-**Status: REFINE PASS UNDERWAY (2026-10-20 — the 12 creation rulings
-stand; this pass settled the empty slot, the band-order mock set
-with cargo on all four panels, and the ESC label; briefs drafting.
-Nothing implemented.**
+**Status: REFINE COMPLETE (2026-10-20 — all 15 rulings + 4 prose
+items settled through the one-per-exchange loops; Implementation
+briefs for all three phases APPROVED; nothing implemented. Build
+queue: `/implement-phase 104.1`.**
 
 Companions: `in_progress/103_DESIGN_STATUSES.md` (the status row —
 the first surface that lives on every panel, whose fight-boundary
@@ -373,6 +373,83 @@ C-screen redesign beyond the one row; no prose beyond ledger #2 and
 - [ ] Phase 3 — the space pair: cargo joins space combat; the
       space explore↔fight transition anchors. PLAYTEST: the
       boarding decision reads the bay; the space boundary calms.
+
+### Implementation brief — Phase 3 (APPROVED 2026-10-20)
+
+**Scope (exact files/hook points).**
+
+- `src/spacehack/hud_core.py` — gains the space meter painter: the
+  Hull + Shield bar rows in hud_combat's shape (`Hull  ####... 9/12`
+  / `Shield ####... 4/8`), data-parameterized like the ground core.
+  The cargo and status-slot painters from Phase 1 serve as-is.
+- `src/spacehack/hud.py` — `_render_space_hud` restructured to the
+  regions: A = ship name/location/date + Fuel/Spd (band rows); B =
+  the core via hud_core — hull, shield (NEW on this panel: the
+  computed max via `_calc_max_shields(hull, flown modules)`, passed
+  in as data — a full bar out of combat, which is true: every fight
+  initializes shields to max), cargo, and the NEW status slot
+  (fixed, blank-when-empty — the fourth panel gains doc 103's
+  surface); C = an empty reserved region of fixed height (the space
+  pair's shared WEAPONS budget); D = the space help lines; footer
+  unchanged from Phase 1.
+- `src/spacehack/hud_combat.py` — `render_combat_hud`
+  restructured: A = the combat header (mode indicator) + the
+  AP/Evade/Pow rows out of `_render_player_block`; B = hull/shield
+  via hud_core + the NEW cargo row (`_cargo_used_max` — ctx is
+  already threaded at both call sites, verified:
+  `_rules_space.py:708`, `_animations.py:625`) + the status row
+  moving into B's fixed slot; C = WEAPONS; D = ENEMIES/ACTIONS; the
+  footer wired (the in-fight XP read — new here, as ground got in
+  Phase 1).
+- No mechanics, no balance, no save/load state — presentation only
+  (the shield row displays already-derived state).
+
+**Build order.** hud_core space meter → space exploration
+(`hud.py`) → space combat (`hud_combat.py`) → footer wire → tests.
+
+**Binding rulings.** Items 11-15; the approved space sketches (item
+15's set); the same-rows law within the theater pair — B's rows
+share one y and one row-set across the space explore↔fight
+boundary, which is WHY exploration gains the shield row (a hull-only
+core would shift B's rows at the boundary — the bug this doc kills,
+reintroduced); blank-when-empty; reserved heights; zero new draws.
+
+**Required tests** (`tests/test_hud.py` + the space-combat HUD
+tests):
+1. The space pin: hull/shield/cargo rows and the status slot paint
+   at the same y on both space panels (exploration render vs combat
+   render).
+2. The cargo row reads in the space-fight core (the boarding read).
+3. The shield row paints on exploration and reads full (computed
+   max).
+4. The XP footer paints at the bottom row of the space fight (new).
+5. Blank-when-empty holds on space exploration.
+6. `render_combat_hud`'s tests mirror the real callers' full kwarg
+   set — both call sites pass `ctx` today and must keep passing it
+   (the kwarg-threading law).
+
+**Guide review.** No guide edit expected: no guide sentence pins
+the space panels' row order, and "shown on the right-hand panel"
+only becomes more true with the status slot landing on the fourth
+panel. Recorded as the expected no-change; any surprise found at
+build is REPORTED at the playtest checkpoint, never edited unruled.
+
+**Stop point — do NOT start.** No ground-panel rework (Phases 1-2
+are law); no mechanic or balance change behind any new row; no
+C-screen work; no new prose; the doc's close (SYSTEMS.md entries,
+move to complete/) waits for the phase's playtest, not this build.
+
+**Playtest checkpoint.**
+1. Fly, then enter a space fight: hull/shield/cargo and the status
+   slot hold their y across the boundary — only the bands swap.
+2. The boarding decision reads from the fight's core: the cargo bar
+   is right there beside the hull.
+3. The LV/XP row paints at the panel bottom during the space fight
+   (new read).
+4. The shield bar reads full on the walk and drains in the fight —
+   same row, same y.
+5. Land/exit fights repeatedly — no row ever jumps; let any status
+   expire — the slot goes blank, rows below hold.
 
 ## Acceptance criteria
 
