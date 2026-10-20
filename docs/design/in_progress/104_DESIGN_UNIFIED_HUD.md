@@ -189,6 +189,99 @@ same B → C WEAPONS → D enemies/actions → footer (gains the XP read).
       row's fixed slot everywhere; the fight boundary stops
       swapping the anchored rows. PLAYTEST: walk into a fight with
       a status active and watch nothing pop.
+
+### Implementation brief — Phase 1 (APPROVED 2026-10-20)
+
+**Scope (exact files/hook points).**
+
+- NEW `src/spacehack/hud_core.py` (~150 lines) — the shared core's
+  neutral home (open question 5, bound from code facts: combat
+  already imports `hud.py` module-level, `hud.py` sits at 848 lines
+  near the ratchet, and four panels need one import home).
+  Data-parameterized pure painters + the region row-budget
+  constants; imports nothing from `combat` at module level (the
+  status-slot painter lazy-imports
+  `combat._statuses.paint_hud_segments` inside the function — the
+  bandolier precedent; segments arrive as a parameter). Hosts: the
+  health-meter painter (HP bar + Armor, exploration's aligned
+  format `HP    ####...... 18/24` becomes the one shape), the cargo
+  row painter, the status slot painter (fixed, blank when empty),
+  the footer painter (XP row alone, bottom-anchored; absorbs
+  `_render_hud_footer`/`_footer_rows` from `hud.py`, slimmed to one
+  row).
+- `src/spacehack/hud.py` — `_render_city_hud` restructured to the
+  four regions: A keeps species/class/location/date (interim doomed
+  rows ride the band), B = the core via hud_core (HP/Armor/Cargo +
+  the status slot stops being conditional), C = the WEAPONS block
+  unchanged, D = interim credits/skills at D-top, then terminals
+  and help (terminals move below WEAPONS per the approved mock),
+  `[ESC] Pause` joins the help pairs. Net line change: negative.
+- `src/spacehack/combat/_ground_render.py` — `_render_player_panel`
+  restructured: A = title + AP (gold marker stays until Phase 2) +
+  EVA + STIM; the PLAYER label moves onto B; B = hud_core meter
+  (regen suffix stays until Phase 2) + Armor + the NEW cargo row
+  (`_cargo_used_max` from `hud` — the existing module-level
+  combat→hud pattern) + the status slot; C/D unchanged (WEAPONS
+  stays fat; `[ESC] Pause` joins the ACTIONS pairs); the footer
+  paints (the in-fight XP read — new).
+- One deliberate cross-pair touch: the footer painter is shared, so
+  its slim necessarily lands on the space exploration panel too (it
+  already paints that footer), and `[ESC] Pause` joins
+  `_SPACE_HELP_LINES`. The space pair's core unification stays in
+  Phase 3.
+- No `data/` changes; no save/load state (presentation only).
+
+**Build order.** hud_core painters + constants → wire exploration
+(`hud.py`) → wire ground combat → ESC pairs → tests.
+
+**Binding rulings.** Items 11-15 + prose #1; the approved mocks are
+the layout contract; "fixed" = live data, fixed rows/y/painter;
+reserved region heights — a band can never push the core (B's rows
+share one y across the ground pair; the shorter A-band leaves
+reserved blanks above its divider); blank-when-empty slot; the XP
+footer alone; `[ESC] Pause` verbatim; one HP/Armor/Cargo format
+painted by one painter.
+
+**Required tests** (`tests/test_hud.py` + the ground-render HUD
+tests in `tests/test_pygame_ui.py`; FrameBuffer built at
+`SCREEN_WIDTH + HUD_WIDTH` — the glyph-budget law):
+1. The pin: status segments paint at the same y on both ground
+   panels (city render vs combat render, same active status).
+2. Blank-when-empty: no ink at the slot row; the row is still
+   consumed.
+3. The XP footer paints at the bottom row in the fight; "bump to
+   interact" and "ESC to quit" appear nowhere.
+4. `[ESC] Pause` present in the help pairs and the ACTIONS pairs.
+5. The cargo bar reads in the combat core.
+6. Existing row pins (divider span, XP span, HP bar layout,
+   weapons-header offset, `test_no_suffix_when_no_regen_at_all`)
+   keep passing — retarget only the tests that pinned the old
+   status-row/footer positions, mirroring the real callers' full
+   kwarg set (`render_hud` public entry).
+
+**Guide review.** No guide edit: the guide already teaches "ESC:
+pause menu (save & exit, dump char)" and mentions neither retiring
+footer string; `[ESC] Pause` matches it. Recorded as the deliberate
+no-change (called out on the playtest checklist per the guide
+contract).
+
+**Stop point — do NOT start.** No Phase 2 drops (species/class/
+credits/skills keep rendering; the regen suffix and gold AP marker
+live; weapon rows stay fat); no C-screen work; no space-pair core
+work; no prose beyond the ruled `[ESC] Pause`.
+
+**Playtest checkpoint.**
+1. Pop a stim or med pack on a walk, then walk into a street fight
+   — the status row holds its y across the boundary; nothing in B
+   or C moves.
+2. End the fight — the same rows hold in reverse.
+3. The LV/XP row paints at the panel bottom during the fight (new
+   read).
+4. "bump to interact" and "ESC to quit" are gone everywhere;
+   `[ESC] Pause` reads in the help lines and in ACTIONS.
+5. Let every status expire — the slot goes blank and the rows below
+   hold.
+6. The cargo bar reads in the fight's core.
 - [ ] Phase 2 — the slim: the ruled drops land (species/class,
       credits→C with its new C-screen home, skills grid), the
       suffix and marker die, the weapon rows slim. PLAYTEST: the
