@@ -520,6 +520,77 @@ move to complete/) waits for the phase's playtest, not this build.
    bottom-anchored); all three live panels call it (space exploration
    included — the brief's deliberate cross-pair touch).
 
+## Pre-implementation audit (2026-10-20, Phase 2)
+
+### Existing modules/helpers to extend or reuse
+
+- `hud_core.paint_hp_armor_rows` (`hud_core.py:54`) — the meter's
+  `regen_suffix` param exists solely for the interim read item 6 kills;
+  the param dies with the read (geometry untouched — the regions are
+  law). Exploration never passed it; combat's call slims.
+- `hud.magazine_indicator` consumer pattern — the walking row shape
+  (`_print_ground_weapon_rows` → `display_name` +
+  `ground_weapon_ammo.magazine_indicator`, the doc 52.3 one-formatter
+  law, `[n/cap]`). Combat's slimmed row joins THAT shape: checkbox +
+  the walking row. The approved mock's bare `8/12` is schematic — the
+  shipped magazine read is the bracketed helper output, and shape
+  identity (item 15) means combat adopts the walking string verbatim.
+- `character_screen_stats._stats_header_lines` — the Stats tab's
+  non-selectable header-row pattern (`SplitRow(line, …,
+  selectable=False)`); the credits row reuses the wrap, not the block
+  (prose #3: header band, not stats-only).
+- `_character_title` (`character_screen.py:43`) — the one title source
+  all three tabs share; the credits row builder sits beside it in
+  `character_screen_stats.py` (247 lines; `character_screen.py` sits at
+  987 and takes only an import + one prepend — the ratchet stays clear).
+- Guide anchors (verified in code, per the ruled-strings law): the
+  stim sentence at `data/guide/__init__.py:344-345`; the C enumeration
+  at `:493-495` — the edit inserts `credits, ` after `experience, ` and
+  leaves the pre-existing sentence otherwise byte-identical (its spaced
+  hyphens are the known unswept corpus, not this phase's business).
+
+### Brief clarifications bound from code facts
+
+1. **`_render_skill_line` has a live space caller** the brief's
+   dead-code list implies callerless: `_render_ship_stat_rows`
+   (`hud.py:404`) paints the skills grid on the SPACE exploration
+   panel. The helper cannot die while the call lives, so the sweep
+   takes the trailing call with it — the space exploration panel loses
+   its interim skills grid THIS phase (one band row; the rows below
+   shift up inside the same panel; no geometry, no new ink). This is
+   item 5's drop completing its sweep, not new space-pair design:
+   Phase 3's brief restructures `_render_space_hud` outright, and its
+   region sketch carries no skills row. Called out on the playtest
+   checklist so the change is reviewed, not silent.
+2. **hud_core's `regen_suffix` param dies** (above) — the only hud_core
+   edit this phase; constants and row budgets untouched.
+3. **`_print_weapon_name`'s `[N]` slot index dies with the slim**: item
+   15's "the volley checkbox its only extra mark" leaves no room for a
+   second mark, and the mock's row is `[x] Name`. The `[1-N]` toggle
+   stays advertised in ACTIONS.
+
+### Duplication hotspots and DRY strategy
+
+1. **The credits row three times.** The obvious trap is three
+   hand-formatted copies (one per tab) drifting on wording or color.
+   **Fix:** one `_credits_header_line(ctx)` string builder
+   (`character_screen_stats.py`, wording verbatim per prose #3); the
+   Stats and Equipment tabs wrap it in the existing non-selectable
+   `SplitRow` pattern, the Cargo tab (a text frame) uses the string
+   directly — the wrap is presentation, the string is single-sourced.
+2. **A combat-local magazine format.** Formatting `n/cap` by hand next
+   to the name would drift from the walking rows (and from the C
+   screen's member rows — `magazine_indicator`'s two documented
+   consumers). **Fix:** the slimmed combat row calls the same helper;
+   no new formatter.
+3. **Retargeted tests re-deriving old pins.** The regen/AP-marker/
+   AMMO-line tests pinned interim shapes; rewriting each as a fresh
+   bespoke assertion invites pin-by-pin drift. **Fix:** each retarget
+   keeps its fixture and rendering path, flips to the absence pin
+   (suffix/marker/reference rows appear NOWHERE on the panel), and the
+   magazine presence lands in the one weapon-slim pin
+   (`test_weapon_block_ammo_line_drops_the_reserve_suffix`'s home).
+
 ## Acceptance criteria
 
 1. The status row occupies the same slot in all four panels and
