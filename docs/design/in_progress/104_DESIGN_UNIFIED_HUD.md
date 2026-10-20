@@ -1,9 +1,9 @@
 # DESIGN: The unified HUD — one core, four panels
 
-**Status: PHASE 1 BUILT (2026-10-20 — all 15 rulings + 4 prose
-items settled; three briefs APPROVED; Phase 1 implemented, gate
-green, reviewer APPROVE — playtest pending. Next: the Phase 1
-playtest, then `/implement-phase 104.2`.**
+**Status: PHASE 1 LANDED + PLAYTEST PASSED (2026-10-20 — all 15
+rulings + 4 prose items settled; three briefs APPROVED; Phase 1
+built, gate green, reviewer APPROVE, playtest passed with one fix
+folded). Next: `/implement-phase 104.2` (the slim).**
 
 Companions: `in_progress/103_DESIGN_STATUSES.md` (the status row —
 the first surface that lives on every panel, whose fight-boundary
@@ -189,8 +189,17 @@ same B → C WEAPONS → D enemies/actions → footer (gains the XP read).
       row's fixed slot everywhere; the fight boundary stops
       swapping the anchored rows. PLAYTEST: walk into a fight with
       a status active and watch nothing pop.
-      LANDED 2026-10-20 (build + gate + reviewer APPROVE; playtest
-      pending — see the checkpoint list below).
+      LANDED + PLAYTEST PASSED 2026-10-20 (build a10a2d4e, gate
+      green, reviewer APPROVE). Mid-playtest fix (2961f6e5): the XP
+      footer's bottom pixels clipped on the HUD band's final cell
+      row — the overlay paints text at a 4px pad under a 16px line
+      font and clips at the panel rect, so that row's glyph box
+      overflows by the pad; `xp_footer_row` re-anchored to
+      `hud_view_height - 2` (the last row that renders whole) on
+      all three panels, with the ACTIONS tail bumped so the fight's
+      legend cannot collide. Guide: no edits this phase (deliberate
+      no-change, ruled in the brief — `[ESC] Pause` matches the
+      guide's existing pause-menu line).
 
 ### Implementation brief — Phase 1 (APPROVED 2026-10-20)
 
