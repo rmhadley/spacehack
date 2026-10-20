@@ -1,6 +1,10 @@
 # DESIGN: Statuses — the durable buff/debuff system
 
-**Status: BUILD C BUILT (2026-10-19 — playtest pending). Twelve
+**Status: BUILD C COMPLETE — PLAYTEST PASSED (user,
+2026-10-20). One phase remains: the Close (SYSTEMS.md inventory
+amendment + move to complete/); the ground-HUD unification riff
+raised at the verdict becomes its own doc. Prior state: BUILD C
+BUILT (2026-10-19 — playtest pending). Twelve
 commits since the brief approval: the prose-gate pair, seven code
 commits each through the reviewer (every round APPROVE, all minors
 folded), the C3 doc fold, the guide data commit, and the final
@@ -579,7 +583,7 @@ B's playtest checklist.
       two-sided stagger, the refresh, the survivors-only guard,
       the seam's full-ego/deep-burn spread, and the `v` window
       with Tab cycling; no mid-playtest rulings, no fixes.
-- [ ] Build C: the durable boundaries — ALL RULED 2026-10-19 (the
+- [x] Build C: the durable boundaries — ALL RULED 2026-10-19 (the
       Build C rulings SETTLED section + the Implementation brief
       below, APPROVED 2026-10-19): the
       fight-end defuse flips to field-keyed carry-over (leftover
@@ -649,6 +653,15 @@ B's playtest checklist.
       carried staggered dips turn one; the defuse reordered ahead
       of the seed so an abnormal-end space loan can never bleed
       through the theater-blind sum). Suite green at 3985.
+      PLAYTEST PASSED (user, 2026-10-20: "the playtest as
+      presented is passing") — the checkpoint items read clean as
+      presented, the mid-playtest seed fix folded same-day, and
+      watch row 8 (the frozen ground row rendering on the space
+      panel) is accepted as presented. At the verdict the user
+      raised the GROUND HUD UNIFICATION riff (the exploration and
+      combat panels diverged historically; the shared status row
+      now exposes the seam — the row pops between layouts at every
+      fight boundary) → its own design doc, not this one's scope.
 - [ ] Close (SYSTEMS.md inventory amended same-commit; move to
       complete/)
 
